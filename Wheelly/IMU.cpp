@@ -16,7 +16,8 @@ void IMU::begin() {
 
   int rc;
   if (!(rc = _mpu.testConnection())) {
-    Serial.println(F("!! Connection IMU failed."));
+    Serial.print(F("!! Connection IMU failed rc="));
+    Serial.println(rc);
     return;
   }
   _devStatus = _mpu.dmpInitialize();

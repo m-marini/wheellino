@@ -201,21 +201,19 @@ void setup() {
   digitalWrite(RIGHT_BACK_PIN, LOW);
 
   /*
-    Init led
+    Init controller
   */
-  writeLedColor(BLACK);
-  for (int i = 1; i < 3; i++) {
-    delay(100);
-    writeLedColor(RED);
-    delay(50);
-    writeLedColor(BLACK);
-  }
+  writeLedColor(RED);
+  delay(100);
   Serial.println();
 
 #ifdef WITH_IMU
   /*
      Init IMU
   */
+  writeLedColor(BLACK);
+  delay(100);
+  writeLedColor(RED);
   imuFailure = true;
   imu.begin();
   imu.onData(handleImuData);
@@ -225,7 +223,6 @@ void setup() {
   imu.reset();
 #endif
 
-
   ledTimer.onNext(handleLedTimer);
   ledTimer.interval(LED_INTERVAL);
   ledTimer.continuous(true);
@@ -234,6 +231,10 @@ void setup() {
   /*
     Init servo and scanner
   */
+  writeLedColor(BLACK);
+  delay(100);
+  writeLedColor(YELLOW);
+  delay(100);
   sr04.begin();
   //  sr04.noSamples(NO_SAMPLES);
   sr04.onSample(&handleSample);
@@ -263,15 +264,20 @@ void setup() {
 
   // Final setup
 #ifdef WITH_IMU
+  writeLedColor(BLACK);
+  delay(100);
+  writeLedColor(YELLOW);
+  sr04.begin();
   imu.reset();
+  delay(100);
 #endif
 
-  for (int i = 1; i < 3; i++) {
-    delay(100);
-    writeLedColor(YELLOW);
-    delay(50);
-    writeLedColor(BLACK);
-  }
+  writeLedColor(BLACK);
+  delay(100);
+  writeLedColor(GREEN);
+  delay(100);
+  writeLedColor(BLACK);
+  delay(100);
 
   Serial.println(F("ha"));
   serialFlush();
@@ -321,12 +327,13 @@ int decodeContactSignals(int value) {
   int contactSignals = 0;
   while (contactSignals < NO_LEVELS) {
     int threshold = pgm_read_word_near(&contactLevels[contactSignals]);
+#if 0
     DEBUG_PRINT(F("// threshold: "));
     DEBUG_PRINT(threshold);
     DEBUG_PRINT(F(", value: "));
     DEBUG_PRINT(value);
     DEBUG_PRINTLN();
-    DEBUG_PRINT(threshold);
+#endif
     if (value <= threshold) {
       break;
     }

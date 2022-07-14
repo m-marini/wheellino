@@ -316,11 +316,11 @@ wl_status_t connectWiFi() {
   if (status == WL_CONNECTED) {
     DEBUG_PRINT(F("// Connected to "));
     DEBUG_PRINTLN(wifiData.ssid);
-    DEBUG_PRINT(F("// IP address "));
-    DEBUG_PRINTLN(WiFi.localIP());
+    Serial.print(F("// IP address "));
+    Serial.println(WiFi.localIP());
   } else {
-    DEBUG_PRINT(F("!! Failed with status: "));
-    DEBUG_PRINTLN(status);
+    Serial.print(F("!! Failed with status: "));
+    Serial.println(status);
   }
   return status;
 }
@@ -335,10 +335,10 @@ wl_status_t createAccessPoint() {
 
   WiFi.softAP(defSSID, "");
 
-  DEBUG_PRINT(F("// Access point "));
-  DEBUG_PRINTLN(defSSID);
-  DEBUG_PRINT(F("// IP address "));
-  DEBUG_PRINTLN(WiFi.softAPIP());
+  Serial.print(F("// Access point "));
+  Serial.println(defSSID);
+  Serial.print(F("// IP address "));
+  Serial.println(WiFi.softAPIP());
 
   return WiFi.status();
 }
