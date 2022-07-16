@@ -82,8 +82,8 @@ void MotionSensor::update(unsigned long clockTime) {
   float sa = sinf(_angle);
   float ca = cosf(_angle);
   float ds = ((float)(_dl + _dr)) / 2;
-  _xPulses += ca * ds;
-  _yPulses += sa * ds;
+  _xPulses += sa * ds;
+  _yPulses += ca * ds;
 
   DEBUG_PRINT(F("// x,y "));
   DEBUG_PRINT(_xPulses);
