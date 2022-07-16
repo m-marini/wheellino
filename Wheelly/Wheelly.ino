@@ -356,6 +356,10 @@ bool isRearContact() {
 
 */
 void handleImuData(void*) {
+  if (imuFailure) {
+    Serial.print(F("!! IMU restored status="));
+    Serial.println(imu.status());
+  }
   imuFailure = false;
   float yaw = imu.ypr()[0];
   DEBUG_PRINT(F("// handleImuData: yaw="));
@@ -372,9 +376,11 @@ void writeLedColor(byte color) {
 
 */
 void handleWatchDog(void*) {
+  if (!imuFailure) {
+    Serial.print(F("!! IMU Watch dog status="));
+    Serial.println(imu.status());
+  }
   imuFailure = true;
-  DEBUG_PRINT(F("!! Watch dog status: "));
-  DEBUG_PRINTLN(imu.status());
   imu.reset();
   imu.kickAt(micros() + 1000000ul);
 }
