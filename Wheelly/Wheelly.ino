@@ -6,12 +6,11 @@
 #include "Timer.h"
 #include "SR04.h"
 #include "AsyncServo.h"
-#include "I2Cdev.h"
 
 #define WITH_IMU
 
 #ifdef WITH_IMU
-#include "IMU.h"
+#include "mpu6050mm.h"
 #endif
 
 #include "MotionCtrl.h"
@@ -154,8 +153,6 @@ unsigned long tps;
 */
 #ifdef WITH_IMU
 MPU6050 mpu;
-IMU imu(mpu);
-bool imuFailure;
 #endif
 
 /*
@@ -214,13 +211,9 @@ void setup() {
   writeLedColor(BLACK);
   delay(100);
   writeLedColor(RED);
-  imuFailure = true;
-  imu.begin();
-  imu.onData(handleImuData);
-  imu.onWatchDog(handleWatchDog);
-  imu.calibrate();
-  imu.enableDMP();
-  imu.reset();
+  mpu.begin();
+  mpu.onData(handleImuData);
+  mpu.calibrate();
 #endif
 
   ledTimer.onNext(handleLedTimer);
@@ -268,7 +261,6 @@ void setup() {
   delay(100);
   writeLedColor(YELLOW);
   sr04.begin();
-  imu.reset();
   delay(100);
 #endif
 
@@ -293,7 +285,7 @@ void loop() {
 
   motionController.polling(now);
 #ifdef WITH_IMU
-  imu.polling(now);
+  mpu.polling(now);
 #endif
   pollContactSensors();
   servo.polling(now);
@@ -350,18 +342,11 @@ bool isRearContact() {
   return (contactSignals & REAR_SIGNAL_MASK) != 0;
 }
 
-#ifdef WITH_IMU
-
 /*
 
 */
 void handleImuData(void*) {
-  if (imuFailure) {
-    Serial.print(F("!! IMU restored status="));
-    Serial.println(imu.status());
-  }
-  imuFailure = false;
-  float yaw = imu.ypr()[0];
+  float yaw = mpu.yaw();
   DEBUG_PRINT(F("// handleImuData: yaw="));
   DEBUG_PRINTLN(yaw);
   motionController.angle(yaw);
@@ -372,19 +357,6 @@ void writeLedColor(byte color) {
   digitalWrite(GREEN_LED_PIN, color & 2 ? HIGH : LOW);
   digitalWrite(BLUE_LED_PIN, color & 4 ? HIGH : LOW);
 }
-/*
-
-*/
-void handleWatchDog(void*) {
-  if (!imuFailure) {
-    Serial.print(F("!! IMU Watch dog status="));
-    Serial.println(imu.status());
-  }
-  imuFailure = true;
-  imu.reset();
-  imu.kickAt(micros() + 1000000ul);
-}
-#endif
 
 /*
   Handles timeout event from statistics timer
@@ -425,10 +397,10 @@ byte decodeColor() {
 }
 
 bool decodeFlashing(unsigned long n) {
-  boolean alert = !canMoveForward() || !canMoveBackward() || imuFailure;
+  boolean alert = !canMoveForward() || !canMoveBackward() || mpu.rc() != 0;
   unsigned long divider = alert ? FAST_LED_PULSE_DIVIDER : LED_PULSE_DIVIDER;
   unsigned long frame = n % divider;
-  return frame == 0 || (imuFailure && frame == 3);
+  return frame == 0 || (mpu.rc() != 0 && frame == 3);
 }
 
 /*
@@ -560,7 +532,7 @@ void sendStatus(int distance) {
   Serial.print(F(" "));
   Serial.print(canMoveBackward());
   Serial.print(F(" "));
-  Serial.print(imuFailure);
+  Serial.print(mpu.rc() != 0);
   Serial.print(F(" "));
   Serial.print(motionController.isHalt());
   Serial.print(F(" "));
