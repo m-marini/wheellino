@@ -16,3 +16,11 @@ The robot is consits of
 - Arduino UNO main controller board
 
 The Ardunio controller is driving all the units to allow the robot to collect the sensor data, compute the position relative the initial state, drive the proxcimity sensor direction, drive the robot for a specific direction and speed by feeding back from gyroscpe and speed sensors and comunicate with remote server via wifi sending status and receiving commands.
+
+The wifi module led flashes depending on the comunication state:
+
+- Slow flashing with double blink when acting as access point to "Wheelly" network SSID (no password)
+- Slow flashing when acting as network point to configured network SSID
+- Medium flashing when client connected and no activity in place
+- Fast flashing when client connected and activity in place
+
