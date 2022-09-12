@@ -27,6 +27,9 @@
 #define NUM_PULSES          40ul
 #define FAST_NUM_PULSES     10ul
 #define ACTIVITY_NUM_PULSES 2ul
+#define AC_DOUBLE_PULSES    1ul
+#define AC_WAVE_PULSES      36ul
+#define AC_PULSES           (AC_WAVE_PULSES + AC_DOUBLE_PULSES * 4)
 
 struct WifiData {
   int version;
@@ -48,6 +51,7 @@ bool hasClient;
 WiFiClient client;
 bool activity;
 unsigned long clearActivityTime;
+bool accessPointActive;
 
 /*
 
@@ -153,18 +157,65 @@ void handleClient() {
   }
 }
 
+const int rampUp(const long interval, const long t) {
+  if (t < 0 || t >= interval) {
+    return 0;
+  }
+  if (interval <= 1){
+    return MAX_ANALOG_VALUE;
+  }
+  return map(t, 0, interval - 1, 0, MAX_ANALOG_VALUE);
+}
+
+const int rampDown(const long interval, const long t) {
+  if (t < 0 || t >= interval) {
+    return 0;
+  }
+  return MAX_ANALOG_VALUE - rampUp(interval, t);
+}
+
+const int wave(const long interval, const long t) {
+  return rampUp(interval / 2 , t) + rampDown(interval / 2, t - interval / 2);
+}
+
+const int pulse(const long duration, const long t) {
+  return (t < 0 || t >= duration) ? 0 : MAX_ANALOG_VALUE;
+}
+
+const int activityLedProfile(const long t) {
+  return wave(ACTIVITY_NUM_PULSES, t % ACTIVITY_NUM_PULSES);
+}
+
+const int accessPointLedProfile(const long t) {
+  const long t1 = t % AC_PULSES;
+  return wave(AC_WAVE_PULSES, t1) +
+         pulse(AC_DOUBLE_PULSES, t1 - AC_WAVE_PULSES) +
+         pulse(AC_DOUBLE_PULSES, t1 - AC_WAVE_PULSES - AC_DOUBLE_PULSES * 2);
+}
+
+const int networkLedProfile(const long t) {
+  return wave(NUM_PULSES, t % NUM_PULSES);
+}
+
+const int clientLedProfile(const long t) {
+  return wave(FAST_NUM_PULSES, t % FAST_NUM_PULSES);
+}
+
 /**
 
 */
 void handleLed(void *, unsigned long i) {
-  unsigned long numPulses = activity ? ACTIVITY_NUM_PULSES
-                            : hasClient ? FAST_NUM_PULSES
-                            : NUM_PULSES;
-  int n = abs(((long) (i % numPulses)) - (long)(numPulses / 2));
-
-  int value = map((int)n, 0, numPulses / 2, MAX_ANALOG_VALUE, 0);
-  //int value = abs((int) (2 * (n * MAX_ANALOG_VALUE / (numPulses - 1)) - MAX_ANALOG_VALUE));
-  analogWrite(LED, value);
+  int value = 0;
+    if (activity) {
+    value = activityLedProfile((long)i);
+    } else if (hasClient) {
+    value = clientLedProfile((long)i);
+    } else if (accessPointActive) {
+    value = accessPointLedProfile((long)i);
+    } else {
+    value = networkLedProfile((long)i);
+    }
+  analogWrite(LED, MAX_ANALOG_VALUE - value);
 }
 
 /*
@@ -339,7 +390,7 @@ wl_status_t createAccessPoint() {
   Serial.println(defSSID);
   Serial.print(F("// IP address "));
   Serial.println(WiFi.softAPIP());
-
+  accessPointActive = true;
   return WiFi.status();
 }
 
