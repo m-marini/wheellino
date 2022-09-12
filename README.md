@@ -24,3 +24,16 @@ The wifi module led flashes depending on the comunication state:
 - Medium flashing when client connected and no activity in place
 - Fast flashing when client connected and activity in place
 
+
+Wheelly status led:
+
+- Fixed red during MPU initialization
+- Fixed yellow during servo and scanner initialization
+- Single green blink when initialization completed
+
+- Blinking blue when active with no obstacle
+- Fast blinking green when there is a blocking obstacle in the back
+- Fast blinking yellow when there is a blocking obstacle in the front side
+- Fast blinking red when there are a full blocking obstacles
+- Blinking cyan when there is a non-blocking obstacle near front
+- Blinking magenta when there is a non-blocking obstacle in the very near front

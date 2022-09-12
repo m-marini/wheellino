@@ -161,7 +161,7 @@ const int rampUp(const long interval, const long t) {
   if (t < 0 || t >= interval) {
     return 0;
   }
-  if (interval <= 1){
+  if (interval <= 1) {
     return MAX_ANALOG_VALUE;
   }
   return map(t, 0, interval - 1, 0, MAX_ANALOG_VALUE);
@@ -206,15 +206,15 @@ const int clientLedProfile(const long t) {
 */
 void handleLed(void *, unsigned long i) {
   int value = 0;
-    if (activity) {
+  if (activity) {
     value = activityLedProfile((long)i);
-    } else if (hasClient) {
+  } else if (hasClient) {
     value = clientLedProfile((long)i);
-    } else if (accessPointActive) {
+  } else if (accessPointActive) {
     value = accessPointLedProfile((long)i);
-    } else {
+  } else {
     value = networkLedProfile((long)i);
-    }
+  }
   analogWrite(LED, MAX_ANALOG_VALUE - value);
 }
 
@@ -248,35 +248,46 @@ void handleNetworkList() {
    Handles the network post to configure and store the network connection
 */
 void handleNetworkConnection() {
-  if (webServer.method() != HTTP_POST) {
+  if (webServer.method() == HTTP_GET) {
+    jsonDoc.clear();
+    jsonDoc[F("version")] = CURRENT_VERSION;
+    jsonDoc[F("active")] = wifiData.active;
+    jsonDoc[F("ssid")] = wifiData.ssid;
+    jsonDoc[F("password")] = wifiData.password;
+    String body;
+    serializeJson(jsonDoc, body);
+    webServer.send(200, F("application/json"), body);
+    setActivity();
+  } else if (webServer.method() == HTTP_POST) {
+    String reqBody = webServer.arg(F("plain"));
+    DeserializationError err = deserializeJson(jsonDoc, reqBody);
+    if (err) {
+      sendInvalidContent(err.c_str());
+      return;
+    }
+    if (!jsonDoc.containsKey(F("active"))
+        || !jsonDoc.containsKey(F("ssid"))
+        || !jsonDoc.containsKey(F("password"))) {
+      sendInvalidContent("Missing parameters");
+      return;
+    }
+    wifiData.version = CURRENT_VERSION;
+    wifiData.active = jsonDoc[F("active")].as<bool>();
+    strncpy(wifiData.ssid, jsonDoc[F("ssid")].as<const char*>(), sizeof(wifiData.ssid) - 1);
+    strncpy(wifiData.password, jsonDoc[F("password")].as<const char*>(), sizeof(wifiData.password) - 1);
+
+    saveConfig();
+    loadConfig();
+
+    String body;
+    serializeJson(jsonDoc, body);
+
+    webServer.send(200, F("application/json"), body);
+    setActivity();
+  } else {
     sendInvalidMethod();
     return;
   }
-  String reqBody = webServer.arg(F("plain"));
-  DeserializationError err = deserializeJson(jsonDoc, reqBody);
-  if (err) {
-    sendInvalidContent(err.c_str());
-    return;
-  }
-  if (!jsonDoc.containsKey(F("active"))
-      || !jsonDoc.containsKey(F("ssid"))
-      || !jsonDoc.containsKey(F("password"))) {
-    sendInvalidContent("Missing parameters");
-    return;
-  }
-  wifiData.version = CURRENT_VERSION;
-  wifiData.active = jsonDoc[F("active")].as<bool>();
-  strncpy(wifiData.ssid, jsonDoc[F("ssid")].as<const char*>(), sizeof(wifiData.ssid) - 1);
-  strncpy(wifiData.password, jsonDoc[F("password")].as<const char*>(), sizeof(wifiData.password) - 1);
-
-  saveConfig();
-  loadConfig();
-
-  String body;
-  serializeJson(jsonDoc, body);
-
-  webServer.send(200, F("application/json"), body);
-  setActivity();
 }
 
 /*
