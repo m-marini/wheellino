@@ -1,9 +1,9 @@
-A wheels robot (Wheelly)
+Wheelly is a wheels robot.
 
-The robot is consits of
+The robot consits of
 
-- Chassis with two lateral wheels driven by two DC motors and a free wheel.
-- 2 IR speed sensors for the wheels
+- Chassis with two lateral wheels driven by 2 x DC motors and a free wheel.
+- 2 x IR speed sensors for the wheels
 - Motor controller board
 - 12V DC rechargable Li battery
 - Step down DC-DC 12V-5V converter
@@ -12,7 +12,7 @@ The robot is consits of
 - ESP8266 Wifi module
 - SG90 Microservo
 - SR04 Ultrasonic proximity sensor
-- 8 contact microswith contact sensors
+- 8 x microswitch contact sensors
 - Arduino UNO main controller board
 
 The Ardunio controller is driving all the units to allow the robot to collect the sensor data, compute the position relative the initial state, drive the proxcimity sensor direction, drive the robot for a specific direction and speed by feeding back from gyroscpe and speed sensors and comunicate with remote server via wifi sending status and receiving commands.
@@ -37,3 +37,21 @@ Wheelly status led:
 - Fast blinking red when there are a full blocking obstacles
 - Blinking cyan when there is a non-blocking obstacle near front
 - Blinking magenta when there is a non-blocking obstacle in the very near front
+
+## Datasheet
+
+### Geometry 
+- Track (distance between wheels): 136 mm
+- Wheel diameter: 67 mm
+- Wheel sensor pulses per root: 40
+- Distance per pulse: 5.3 mm
+- Direction rotation per pulse: 2.2 DEG
+
+### Dinamics
+
+- Wheel idle speed (pulses per second): 60 pps
+- Wheel speed at full load (pulses per second): 20 pps
+- Linear idle speed: 0.318 m/s
+- Linear speed at full load: 0.106 m/s
+- Max direction angular idle speed: 264 DEG/s
+- Max direction angular speed at full load: 88 DEG/s
