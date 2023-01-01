@@ -1,7 +1,5 @@
 #ifndef mpu6050mm_h
 #define mpu6050mm_h
-#include <Arduino.h>
-#include <Wire.h>
 #include "num.h"
 
 typedef enum {
@@ -109,6 +107,10 @@ typedef enum {
   DATA_RDY_INT = (0x01)
 } mpu_int_status_t;
 
+typedef enum {
+  DEVICE_RESET = (0x80)
+} mpu_pwmgt_t;
+
 class MPU6050 {
   public:
     MPU6050(mpu_address_t address = MPU_ADDRESS);
@@ -136,6 +138,9 @@ class MPU6050 {
     }
     const Vector3& gyroOffset() const {
       return _gyroOffset;
+    }
+    const uint8_t intStatus() const {
+      return _intStatus;
     }
     const bool fifoOverflow() const {
       return (_intStatus & FIFO_OFLOW_INT) != 0;
@@ -167,7 +172,13 @@ class MPU6050 {
     const Vector3& gravity() const {
       return _gravity;
     }
+    const boolean isDeviceResetting() const {
+      return (_pwr_mgmt_1 & DEVICE_RESET) != 0;
+    }
     const mpu_errors_t readAcc(Vector3& acc);
+    const mpu_errors_t readIntStatus();
+    const mpu_errors_t readPowerManagement();
+    const mpu_errors_t reset();
 
   private:
     const mpu_address_t _address;
@@ -182,6 +193,7 @@ class MPU6050 {
     Quaternion _quat;
     mpu_errors_t _rc;
     uint8_t _intStatus;
+    uint8_t _pwr_mgmt_1;
     unsigned int _normalizationCountdown;
     void *_context;
     void (*_onData)(void*);
@@ -190,7 +202,6 @@ class MPU6050 {
     const mpu_errors_t mpuRegWrite(uint8_t *data, size_t len);
     const mpu_errors_t mpuRegRead(mpu_reg_t reg, uint8_t *bfr, uint8_t len);
 
-    const mpu_errors_t readIntStatus();
     const mpu_errors_t readFifo(uint8_t *bfr, uint16_t len);
     const mpu_errors_t readFifoBlock(Vector3& gyro);
     const uint16_t readFifoCount();
