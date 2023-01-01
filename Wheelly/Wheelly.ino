@@ -168,6 +168,8 @@ byte contactSignals;
 const int contactLevels[] PROGMEM = {170, 424, 560};
 #define NO_LEVELS (sizeof(contactLevels) / sizeof(contactLevels[0]))
 
+int error;
+
 /*
    Set up
 */
@@ -212,7 +214,6 @@ void setup() {
   delay(100);
   writeLedColor(RED);
   mpu.begin();
-  mpu.onData(handleImuData);
   mpu.calibrate();
 #endif
 
@@ -222,7 +223,7 @@ void setup() {
   ledTimer.start();
 
   /*
-    Init servo and scanner
+    Init scanner and servo
   */
   writeLedColor(BLACK);
   delay(100);
@@ -231,14 +232,11 @@ void setup() {
   sr04.begin();
   //  sr04.noSamples(NO_SAMPLES);
   sr04.onSample(&handleSample);
+
   servo.attach(SERVO_PIN);
   servo.offset(SERVO_OFFSET);
   servo.onReached([](void *, byte angle) {
     // Handles position reached event from scan servo
-    /*
-      DEBUG_PRINT(F("// handleReached: dir="));
-      DEBUG_PRINTLN(angle);
-    */
     sr04.start();
   });
   servo.angle(FRONT_DIRECTION);
@@ -248,7 +246,7 @@ void setup() {
   */
   motionController.begin();
 
-  // Init staqstistics time
+  // Init statistics time
   started = millis();
   statsTimer.onNext(handleStatsTimer);
   statsTimer.interval(STATS_INTERVAL);
@@ -256,14 +254,10 @@ void setup() {
   statsTimer.start();
 
   // Final setup
-#ifdef WITH_IMU
   writeLedColor(BLACK);
   delay(100);
   writeLedColor(YELLOW);
-  sr04.begin();
   delay(100);
-#endif
-
   writeLedColor(BLACK);
   delay(100);
   writeLedColor(GREEN);
@@ -283,11 +277,25 @@ void loop() {
 
   counter++;
 
-  motionController.polling(now);
 #ifdef WITH_IMU
   mpu.polling(now);
+  if (error == 0) {
+    error = mpu.rc();
+    if (error) {
+      if (mpu.readIntStatus() == 0) {
+        Serial.print(F("// mpu status: "));
+        Serial.print(mpu.intStatus(), HEX);
+        Serial.println();
+      }
+    }
+  }
+  float yaw = mpu.yaw();
+  DEBUG_PRINT(F("// polling: yaw="));
+  DEBUG_PRINTLN(yaw);
+  motionController.angle(yaw);
 #endif
   pollContactSensors();
+  motionController.polling(now);
   servo.polling(now);
   sr04.polling(now);
 
@@ -342,16 +350,6 @@ bool isRearContact() {
   return (contactSignals & REAR_SIGNAL_MASK) != 0;
 }
 
-/*
-
-*/
-void handleImuData(void*) {
-  float yaw = mpu.yaw();
-  DEBUG_PRINT(F("// handleImuData: yaw="));
-  DEBUG_PRINTLN(yaw);
-  motionController.angle(yaw);
-}
-
 void writeLedColor(byte color) {
   digitalWrite(RED_LED_PIN, color & 1 ? HIGH : LOW);
   digitalWrite(GREEN_LED_PIN, color & 2 ? HIGH : LOW);
@@ -379,6 +377,9 @@ void handleLedTimer(void *, unsigned long n) {
 }
 
 byte decodeColor() {
+  if (error) {
+    return RED;
+  }
   boolean forward = canMoveForward();
   boolean backward = canMoveBackward();
   if (!forward && !backward)
@@ -397,10 +398,10 @@ byte decodeColor() {
 }
 
 bool decodeFlashing(unsigned long n) {
-  boolean alert = !canMoveForward() || !canMoveBackward() || mpu.rc() != 0;
+  boolean alert = !canMoveForward() || !canMoveBackward() || error;
   unsigned long divider = alert ? FAST_LED_PULSE_DIVIDER : LED_PULSE_DIVIDER;
   unsigned long frame = n % divider;
-  return frame == 0 || (mpu.rc() != 0 && frame == 3);
+  return frame == 0 || (error && frame == 3);
 }
 
 /*
@@ -492,6 +493,19 @@ void processCommand(unsigned long time) {
 void resetWhelly() {
   motionController.halt();
   motionController.reset();
+  error = 0;
+  /*
+  Serial.println(F("// Resetting"));
+  mpu.reset();
+  while (mpu.readPowerManagement() == 0 && mpu.isDeviceResetting()) {
+    delay(100);
+  }
+  Serial.println(F("// MPU ready"));
+  mpu.begin();
+  Serial.println(F("// Calibrating"));
+  mpu.calibrate();
+  Serial.println(F("// Resetted"));
+*/
 }
 
 void sendCps() {
@@ -513,7 +527,7 @@ void sendStatus(int distance) {
   Serial.print(F(" "));
   Serial.print(motionController.y(), 3);
   Serial.print(F(" "));
-  Serial.print(motionController.angle() * 180 / PI, 0);
+  Serial.print(mpu.yaw() * 180 / PI, 0);
   Serial.print(F(" "));
   Serial.print(90 - servo.angle());
   Serial.print(F(" "));
@@ -532,7 +546,7 @@ void sendStatus(int distance) {
   Serial.print(F(" "));
   Serial.print(canMoveBackward());
   Serial.print(F(" "));
-  Serial.print(mpu.rc() != 0);
+  Serial.print(error);
   Serial.print(F(" "));
   Serial.print(motionController.isHalt());
   Serial.print(F(" "));

@@ -1,3 +1,5 @@
+#include <Arduino.h>
+#include <Wire.h>
 #include "mpu6050mm.h"
 
 //#define DEBUG
@@ -130,12 +132,12 @@ const mpu_errors_t MPU6050::calibrate(unsigned int minNoSamples, unsigned long w
   _gyroOffset = Vector3();
   unsigned long timeout = millis() + warmup;
   _rc = 0;
-  DEBUG_PRINTLN(F("Warming up ..."));
+  DEBUG_PRINTLN(F("// Warming up ..."));
   while (_rc == 0 && millis() <= timeout) {
     polling();
   }
 
-  DEBUG_PRINTLN(F("Calibrating ..."));
+  DEBUG_PRINTLN(F("// Calibrating ..."));
   _numSamples = 0;
   _calibrating = true;
   int numAccSamples = 0;
@@ -162,11 +164,11 @@ const mpu_errors_t MPU6050::calibrate(unsigned int minNoSamples, unsigned long w
     _gravity = acc;
 
 #ifdef DEBUG
-    DEBUG_PRINT(F("Calibrated gyro offset: "));
+    DEBUG_PRINT(F("// Calibrated gyro offset: "));
     _gyroOffset.print();
     DEBUG_PRINTLN();
 
-    DEBUG_PRINT(F("gravity: "));
+    DEBUG_PRINT(F("// gravity: "));
     _gravity.print();
     DEBUG_PRINTLN();
 #endif
@@ -180,19 +182,24 @@ void MPU6050::polling(unsigned long clockTime) {
 
 #ifdef DEBUG
   if (readIntStatus() == 0 && fifoOverflow()) {
-    DEBUG_PRINTLN(F("Fifo Overflow"));
+    DEBUG_PRINTLN(F("!! Fifo Overflow"));
   }
 #endif
 
   Vector3 gyro;
   uint16_t len = readFifoCount();
   if (len >= FIFO_BLOCK_SIZE) {
+    boolean dataReady = false;
     while (len >= FIFO_BLOCK_SIZE) {
       if (readFifoBlock(gyro) != 0) {
         return;
       }
       applyData(gyro);
+      dataReady = true;
       len -= FIFO_BLOCK_SIZE;
+    }
+    if (dataReady && _onData != NULL) {
+      _onData(_context);
     }
   }
 }
@@ -212,16 +219,24 @@ void MPU6050::applyData(Vector3& gyro) {
     _normalizationCountdown--;
     Vector3 angle = (gyro - _gyroOffset) / sampleRate() * (PI / 180);
     _quat *= Quaternion::rot(angle);
-    if (_onData) {
-      _onData(_context);
-    }
   }
   if (_calibrating) {
     _gyroOffset += gyro;
   }
 }
 
+const mpu_errors_t MPU6050::reset() {
+  _rc = 0;
+  return mpuRegWrite(PWR_MGMT_1_REG, DEVICE_RESET);
+}
+
+const mpu_errors_t MPU6050::readPowerManagement() {
+  _rc = 0;
+  return mpuRegRead(PWR_MGMT_1_REG, &_pwr_mgmt_1, 1);
+}
+
 const mpu_errors_t MPU6050::readIntStatus() {
+  _rc = 0;
   return mpuRegRead(INT_STATUS_REG, &_intStatus, 1);
 }
 
@@ -249,18 +264,18 @@ const mpu_errors_t MPU6050::mpuRegWrite(mpu_reg_t reg, uint8_t value) {
   Wire.write(value);
   _rc = Wire.endTransmission();
   if (_rc != 0) {
-    DEBUG_PRINT(F("Error writing register 0x0"));
-    DEBUG_PRINTF(reg, HEX);
-    DEBUG_PRINT(F(" @0x0"));
-    DEBUG_PRINTF(_address, HEX);
-    DEBUG_PRINT(F(": rc="));
-    DEBUG_PRINT(_rc);
-    DEBUG_PRINTLN();
+    Serial.print(F("!! Error writing register 0x0"));
+    Serial.print(reg, HEX);
+    Serial.print(F(" @0x0"));
+    Serial.print(_address, HEX);
+    Serial.print(F(": rc="));
+    Serial.print(_rc);
+    Serial.println();
     return _rc;
   }
 
 #ifdef DEBUG_MPU_WRITE
-  DEBUG_PRINT(F("Write 0x0"));
+  DEBUG_PRINT(F("// Write 0x0"));
   DEBUG_PRINTF(reg, HEX);
   DEBUG_PRINT(F(" @0x0"));
   DEBUG_PRINTF(_address, HEX);
@@ -278,22 +293,22 @@ const mpu_errors_t MPU6050::mpuRegRead(const mpu_reg_t reg, uint8_t *bfr, const 
   Wire.write(reg);
   _rc = Wire.endTransmission(false);
   if (_rc != 0) {
-    DEBUG_PRINT(F("Error writing read registry 0x0"));
-    DEBUG_PRINTF(reg, HEX);
-    DEBUG_PRINT(F(" @0x0"));
-    DEBUG_PRINTF(_address, HEX);
-    DEBUG_PRINT(F(": rc="));
-    DEBUG_PRINT(_rc);
-    DEBUG_PRINTLN();
+    Serial.print(F("!! Error writing read registry 0x0"));
+    Serial.print(reg, HEX);
+    Serial.print(F(" @0x0"));
+    Serial.print(_address, HEX);
+    Serial.print(F(": rc="));
+    Serial.print(_rc);
+    Serial.println();
     return _rc;
   }
   uint8_t n = Wire.requestFrom(_address, len);
   if (n != len) {
-    DEBUG_PRINT(F("Error reading: len="));
-    DEBUG_PRINT(n);
-    DEBUG_PRINT(F(", required="));
-    DEBUG_PRINT(len);
-    DEBUG_PRINTLN();
+    Serial.print(F("!! Error reading: len="));
+    Serial.print(n);
+    Serial.print(F(", required="));
+    Serial.print(len);
+    Serial.println();
     _rc = READ_LEN_ERROR;
     return _rc;
   }
@@ -322,7 +337,7 @@ const mpu_errors_t MPU6050::readFifoBlock(Vector3& gyro) {
     gyro = fromBytes(block, _gyroScale);
 
 #ifdef DUMP_FIFO
-    DEBUG_PRINTLN(F("FIFO"));
+    DEBUG_PRINTLN(F("// FIFO"));
     dumpData(block, sizeof(block));
 #endif
 
