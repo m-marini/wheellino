@@ -4,10 +4,10 @@ The robot consits of
 
 - Chassis with two lateral wheels driven by 2 x DC motors and a free wheel.
 - 2 x IR speed sensors for the wheels
-- Motor controller board
+- Motor controller board L298N
 - 12V DC rechargable Li battery
 - Step down DC-DC 12V-5V converter
-- Power supply module 5/3.6 V
+- Power supply module 3.3V
 - MPU6050 gyroscope module
 - ESP8266 Wifi module
 - SG90 Microservo
@@ -41,6 +41,7 @@ Wheelly status led:
 ## Datasheet
 
 ### Geometry 
+
 - Track (distance between wheels): 136 mm
 - Wheel diameter: 67 mm
 - Wheel sensor pulses per root: 40

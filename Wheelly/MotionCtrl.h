@@ -13,14 +13,15 @@ class MotorCtrl {
   public:
     MotorCtrl(byte forwPin, byte backPin);
     void begin();
-    void speed(float value);
-    void setCorrection(float *x, float *y);
+    void speed(int value);
+    void setCorrection_P(int *p);
+    void setCorrection(int *p);
 
   private:
     byte _forwPin;
     byte _backPin;
-    float *_x, *_y;
-    float func(float x);
+    int _x[NO_POINTS], _y[NO_POINTS];
+    int func(int x);
 };
 
 /*
@@ -33,14 +34,14 @@ class MotionCtrl {
     void polling(unsigned long clockTime = millis());
     void reset();
     void handleMotion(unsigned long clockTime);
-    void move(float direction, float speed);
+    void move(float direction, int speed);
+    void setCorrection(int *p);
     void halt();
-
-    const float x() const {
-      return _sensors.x();
+    const float xPulses() const {
+      return _sensors.xPulses();
     }
-    const float y() const {
-      return _sensors.y();
+    const float yPulses() const {
+      return _sensors.yPulses();
     }
     const float angle() const {
       return _sensors.angle();
@@ -51,11 +52,11 @@ class MotionCtrl {
     const float right() const {
       return _right;
     }
-    const float leftSpeed() const {
-      return _sensors.leftSpeed();
+    const float leftPps() const {
+      return _sensors.leftPps();
     }
-    const float rightSpeed() const {
-      return _sensors.rightSpeed();
+    const float rightPps() const {
+      return _sensors.rightPps();
     }
     const boolean isForward() const;
     const boolean isBackward() const;
@@ -67,7 +68,7 @@ class MotionCtrl {
     void angle(float angle) {
       _sensors.angle(angle);
     }
-    const float speed() const {
+    const int speed() const {
       return _speed;
     }
     const float direction() const {
@@ -82,14 +83,14 @@ class MotionCtrl {
     Timer _checkTimer;
 
     float _direction;
-    float _speed;
+    int _speed;
     boolean _halt;
 
-    float _left;
-    float _right;
+    int _left;
+    int _right;
     unsigned long _prevTime;
 
-    void power(float left, float right);
+    void power(int left, int right);
 };
 
 #endif

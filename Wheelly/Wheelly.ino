@@ -44,9 +44,9 @@
 /*
    Distances
 */
-#define STOP_DISTANCE 20
-#define WARN_DISTANCE 60
-#define MAX_DISTANCE  400
+#define STOP_DISTANCE_TIME (20ul * 5887 / 100)
+#define WARN_DISTANCE_TIME (60ul * 5887 / 100)
+#define MAX_DISTANCE_TIME  (400ul * 5887 / 100)
 
 
 /*
@@ -66,6 +66,7 @@
    Command parser definitions
 */
 #define LINE_SIZE 100
+#define MAX_POWER_VALUE 255
 
 /*
    Intervals
@@ -86,14 +87,7 @@
 /*
    Voltage scale
 */
-#define VOLTAGE_SCALE 15.22e-3
-
-/*
-   Voltage scale
-*/
-#define MAX_CONTACT_LEVEL 511
-#define FRONT_SIGNAL_MASK 0xc
-#define REAR_SIGNAL_MASK 0x3
+#define CONTACT_THRESHOLD 163
 
 /*
    LED colors
@@ -131,7 +125,7 @@ AsyncServo servo;
 */
 SR04 sr04(TRIGGER_PIN, ECHO_PIN);
 byte nextScan;
-int distance;
+unsigned long distanceTime;
 unsigned long resetTime;
 
 /*
@@ -164,10 +158,6 @@ MPU6050 mpu;
 */
 int frontSignals;
 int rearSignals;
-byte contactSignals;
-const int contactLevels[] PROGMEM = {170, 424, 560};
-#define NO_LEVELS (sizeof(contactLevels) / sizeof(contactLevels[0]))
-
 int error;
 
 /*
@@ -319,35 +309,14 @@ void pollSerialPort() {
 void pollContactSensors() {
   frontSignals = analogRead(FRONT_CONTACTS_PIN);
   rearSignals = analogRead(REAR_CONTACTS_PIN);
-  contactSignals = decodeContactSignals(frontSignals) * 4
-                   + decodeContactSignals(rearSignals);
-}
-
-int decodeContactSignals(int value) {
-  int contactSignals = 0;
-  while (contactSignals < NO_LEVELS) {
-    int threshold = pgm_read_word_near(&contactLevels[contactSignals]);
-#if 0
-    DEBUG_PRINT(F("// threshold: "));
-    DEBUG_PRINT(threshold);
-    DEBUG_PRINT(F(", value: "));
-    DEBUG_PRINT(value);
-    DEBUG_PRINTLN();
-#endif
-    if (value <= threshold) {
-      break;
-    }
-    contactSignals++;
-  }
-  return contactSignals;
 }
 
 bool isFrontContact() {
-  return (contactSignals & FRONT_SIGNAL_MASK) != 0;
+  return frontSignals >= CONTACT_THRESHOLD;
 }
 
 bool isRearContact() {
-  return (contactSignals & REAR_SIGNAL_MASK) != 0;
+  return rearSignals >= CONTACT_THRESHOLD;
 }
 
 void writeLedColor(byte color) {
@@ -388,10 +357,10 @@ byte decodeColor() {
     return GREEN;
   if (!forward && backward)
     return YELLOW;
-  if (distance > 0 && distance <= ((WARN_DISTANCE + STOP_DISTANCE) / 2)) {
+  if (distanceTime > 0 && distanceTime <= ((WARN_DISTANCE_TIME + STOP_DISTANCE_TIME) / 2)) {
     return MAGENTA;
   }
-  if (distance > 0 && distance <= WARN_DISTANCE) {
+  if (distanceTime > 0 && distanceTime <= WARN_DISTANCE_TIME) {
     return CYAN;
   }
   return motionController.isHalt() ? BLUE : WHITE;
@@ -405,7 +374,30 @@ bool decodeFlashing(unsigned long n) {
 }
 
 /*
-    Handles mv command
+    Handles cm command
+*/
+void handleCmCommand(const char* parms) {
+  String args = parms;
+  int p[8];
+  int s0 = 0;
+  int s1 = 0;
+  for (int i = 0; i < 7; i++) {
+    s1 = args.indexOf(' ', s0);
+    if (s1 <= 0) {
+      Serial.print(F("!! Wrong arg["));
+      Serial.print(i + 1);
+      Serial.println(F("]"));
+      return;
+    }
+    p[i] = min(max(args.substring(s0 , s1).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
+    s0 = s1 + 1;
+  }
+  p[7] = min(max(args.substring(s0).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
+  motionController.setCorrection(p);
+}
+
+/*
+  Handles mv command
 */
 void handleMvCommand(const char* parms) {
   String args = parms;
@@ -415,7 +407,7 @@ void handleMvCommand(const char* parms) {
     return;
   }
   float direction = normalRad(args.substring(0 , s1).toInt() * PI / 180);
-  float speed = min(max(args.substring(s1 + 1).toFloat(), -1.0), 1.0);
+  int speed = min(max(args.substring(s1 + 1).toInt(), -4), 4);
   motionController.move(direction, speed);
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
@@ -424,7 +416,7 @@ void handleMvCommand(const char* parms) {
 }
 
 /*
-    Handles sc command
+  Handles sc command
 */
 void handleScCommand(const char* parms) {
   String args = parms;
@@ -439,17 +431,17 @@ void handleScCommand(const char* parms) {
 /*
    Handles sample event from distance sensor
 */
-void handleSample(void *, int dist) {
+void handleSample(void *, unsigned long time) {
   DEBUG_PRINT(F("// handleSample: dir="));
   DEBUG_PRINT(servo.angle());
-  DEBUG_PRINT(F(", distance="));
-  DEBUG_PRINTLN(dist);
-  distance = dist;
+  DEBUG_PRINT(F(", time="));
+  DEBUG_PRINTLN(timest);
+  distanceTime = time;
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
     motionController.halt();
   }
-  sendStatus(dist);
+  sendStatus(distanceTime);
 
   unsigned long now = millis();
   if (now >= resetTime) {
@@ -476,7 +468,9 @@ void processCommand(unsigned long time) {
     handleScCommand(line + 3);
   } else if (strncmp(line, "mv ", 3) == 0) {
     handleMvCommand(line + 3);
-  } else if (strcmp(line, "al") == 0) {
+  } else if (strncmp(line, "cm ", 3) == 0) {
+    handleCmCommand(line + 3);
+  } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
              || strncmp(line, "!!", 2) == 0
@@ -495,17 +489,17 @@ void resetWhelly() {
   motionController.reset();
   error = 0;
   /*
-  Serial.println(F("// Resetting"));
-  mpu.reset();
-  while (mpu.readPowerManagement() == 0 && mpu.isDeviceResetting()) {
+    Serial.println(F("// Resetting"));
+    mpu.reset();
+    while (mpu.readPowerManagement() == 0 && mpu.isDeviceResetting()) {
     delay(100);
-  }
-  Serial.println(F("// MPU ready"));
-  mpu.begin();
-  Serial.println(F("// Calibrating"));
-  mpu.calibrate();
-  Serial.println(F("// Resetted"));
-*/
+    }
+    Serial.println(F("// MPU ready"));
+    mpu.begin();
+    Serial.println(F("// Calibrating"));
+    mpu.calibrate();
+    Serial.println(F("// Resetted"));
+  */
 }
 
 void sendCps() {
@@ -519,28 +513,30 @@ void sendCps() {
 /*
 
 */
-void sendStatus(int distance) {
+void sendStatus(unsigned long distanceTime) {
   Serial.print(F("st "));
   Serial.print(millis());
   Serial.print(F(" "));
-  Serial.print(motionController.x(), 3);
+  Serial.print(motionController.xPulses(), 1);
   Serial.print(F(" "));
-  Serial.print(motionController.y(), 3);
+  Serial.print(motionController.yPulses(), 1);
   Serial.print(F(" "));
   Serial.print(mpu.yaw() * 180 / PI, 0);
   Serial.print(F(" "));
   Serial.print(90 - servo.angle());
   Serial.print(F(" "));
-  Serial.print(distance * 0.01, 2);
+  Serial.print(distanceTime);
   Serial.print(F(" "));
-  Serial.print(motionController.leftSpeed(), 3);
+  Serial.print(motionController.leftPps(), 1);
   Serial.print(F(" "));
-  Serial.print(motionController.rightSpeed(), 3);
+  Serial.print(motionController.rightPps(), 1);
   Serial.print(F(" "));
-  Serial.print(contactSignals);
+  Serial.print(frontSignals);
+  Serial.print(F(" "));
+  Serial.print(rearSignals);
   Serial.print(F(" "));
   int voltageValue = analogRead(VOLTAGE_PIN);
-  Serial.print(VOLTAGE_SCALE * voltageValue);
+  Serial.print(voltageValue);
   Serial.print(F(" "));
   Serial.print(canMoveForward());
   Serial.print(F(" "));
@@ -552,7 +548,7 @@ void sendStatus(int distance) {
   Serial.print(F(" "));
   Serial.print(motionController.direction() * 180 / PI, 0);
   Serial.print(F(" "));
-  Serial.print(motionController.speed(), 2);
+  Serial.print(motionController.speed());
   Serial.print(F(" "));
   Serial.print(90 - nextScan);
   Serial.println();
@@ -601,15 +597,15 @@ bool isForward(float left, float right) {
    Returns true if can move forward
 */
 bool canMoveForward() {
-  return forwardBlockDistance() > STOP_DISTANCE && !isFrontContact();
+  return forwardBlockDistanceTime() > STOP_DISTANCE_TIME && !isFrontContact();
 }
 
 bool canMoveBackward() {
   return !isRearContact();
 }
 
-int forwardBlockDistance() {
-  return (distance > 0 && distance <= MAX_DISTANCE) ? distance : MAX_DISTANCE;
+int forwardBlockDistanceTime() {
+  return (distanceTime > 0 && distanceTime <= MAX_DISTANCE_TIME) ? distanceTime : MAX_DISTANCE_TIME;
 }
 
 /*

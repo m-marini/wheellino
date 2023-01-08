@@ -6,6 +6,8 @@
 
 #include "Utils.h"
 
+#define TRACK               0.136f
+
 #define ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK)
 #define FILTER_DECAY  (1.0 / 300.0)
 
@@ -154,7 +156,7 @@ void MotorSensor::reset() {
 /*
 
 */
-void MotorSensor::setDirection(float speed) {
+void MotorSensor::setDirection(int speed) {
   DEBUG_PRINT(F("// MotorSensor::setDirection "));
   DEBUG_PRINT(speed);
   DEBUG_PRINTLN();
