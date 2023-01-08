@@ -21,7 +21,7 @@ class SR04 {
     void stop();
 
     // Sets the callback
-    void onSample(void (*callback)(void* context, int distance), void* context = NULL);
+    void onSample(void (*callback)(void* context, unsigned long time), void* context = NULL);
 
     // Polls the timer
     void polling(unsigned long clockTime = millis());
@@ -29,7 +29,7 @@ class SR04 {
   private:
     byte _triggerPin;
     byte _echoPin;
-    void (*_onSample)(void*, int);
+    void (*_onSample)(void*, unsigned long);
 
     byte _noMeasures;
     byte _noValidSamples;

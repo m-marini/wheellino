@@ -3,8 +3,6 @@
 
 #include "Arduino.h"
 
-#define TRACK               0.136f
-
 #define PULSES_PER_ROOT     40
 #define WHEEL_DIAMETER      0.067f
 
@@ -50,7 +48,7 @@ class MotorSensor {
     MotorSensor(byte sensorPin);
     void begin();
     void polling(unsigned long clockTime);
-    void setDirection(float speed);
+    void setDirection(int speed);
     void reset();
     // Sets the callback
     void onSample(void (*callback)(void* context, int dPulse, unsigned long clockTime, MotorSensor& sensor), void* context = NULL) {
@@ -62,16 +60,8 @@ class MotorSensor {
       return _pulses;
     }
 
-    const float distance() const {
-      return _pulses * DISTANCE_PER_PULSE;
-    }
-
     const float pps() const {
       return _filter.value();
-    }
-
-    const float speed() const {
-      return _filter.value() * DISTANCE_PER_PULSE;
     }
 
   private:
@@ -131,24 +121,11 @@ class MotionSensor {
       return _leftSensor.pulses();
     }
 
-    const float x() const {
-      return _xPulses * DISTANCE_PER_PULSE;
-    }
-    const float y() const {
-      return _yPulses * DISTANCE_PER_PULSE;
-    }
     const float leftPps() const {
       return _leftSensor.pps();
     }
     const float rightPps() const {
       return _rightSensor.pps();
-    }
-
-    const float leftSpeed() const {
-      return _leftSensor.speed();
-    }
-    const float rightSpeed() const {
-      return _rightSensor.speed();
     }
 
   private:
