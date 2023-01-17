@@ -1,5 +1,13 @@
+/*
+   Measure the motor speed.
 
+   Sending command 'start' the robot will move randomly 
+   and after the test interval (1s) will print the selected motor powers
+   and the motor speed measured (pps).
+*/
 #include <Wire.h>
+
+#define SPEED_STEP_NUMBER 8
 
 //#define DEBUG
 #include "debug.h"
@@ -105,10 +113,12 @@ float left;
 float right;
 bool running;
 
-const float leftXCorrection[] = { -1,  -0.06055, 0, 0.02311, 1};
-const float leftYCorrection[] = { -1, -0.30432, 0, 0.12577, 1};
-const float rightXCorrection[] = { -1, -0.03759, 0, 0.02041, 1};
-const float rightYCorrection[] = { -1, -0.2667, 0, 0.12648, 1};
+/*
+  const float leftXCorrection[] = { -1,  -0.06055, 0, 0.02311, 1};
+  const float leftYCorrection[] = { -1, -0.30432, 0, 0.12577, 1};
+  const float rightXCorrection[] = { -1, -0.03759, 0, 0.02041, 1};
+  const float rightYCorrection[] = { -1, -0.2667, 0, 0.12648, 1};
+*/
 
 /*
 
@@ -167,8 +177,8 @@ void setup() {
 
   sensors.begin();
 
-  leftMotor.begin().setCorrection(leftXCorrection, leftYCorrection);
-  rightMotor.begin().setCorrection(rightXCorrection, rightYCorrection);
+  //leftMotor.begin().setCorrection(leftXCorrection, leftYCorrection);
+  //rightMotor.begin().setCorrection(rightXCorrection, rightYCorrection);
 
   // Final setup
   Serial.println(F("ha"));
@@ -201,8 +211,12 @@ void pollSerialPort() {
 
 void handleWaitTimer(void *, unsigned long) {
   do {
-    left = float(random(511) - 255) / 255;
-    right = float(random(511) - 255) / 255;
+    /*
+      left = float(random(511) - 255) / 255;
+      right = float(random(511) - 255) / 255;
+    */
+    left = float(random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) / SPEED_STEP_NUMBER;
+    right = float(random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) / SPEED_STEP_NUMBER;
   } while (left == 0 && right == 0);
   sensors.reset();
   leftMotor.speed(left);
@@ -217,9 +231,9 @@ void handleMeasureTimer(void *, unsigned long) {
   long leftPulses = sensors.leftPulses();
   long rightPulses = sensors.rightPulses();
   Serial.print(F("sa "));
-  Serial.print(left);
+  Serial.print(left, 3);
   Serial.print(F(" "));
-  Serial.print(right);
+  Serial.print(right, 3);
   Serial.print(F(" "));
   Serial.print(leftPulses);
   Serial.print(F(" "));
