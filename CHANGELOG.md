@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Issue #22: Change WheellyMeasures
+
 ## [0.3.0] 2023-01-08
 
 ### Changed
