@@ -67,6 +67,7 @@
 */
 #define LINE_SIZE 100
 #define MAX_POWER_VALUE 255
+#define MAX_SPEED 100
 
 /*
    Intervals
@@ -282,7 +283,7 @@ void loop() {
   float yaw = mpu.yaw();
   DEBUG_PRINT(F("// polling: yaw="));
   DEBUG_PRINTLN(yaw);
-  motionController.angle(yaw);
+  motionController.angle(roundf(yaw * 180 / PI));
 #endif
   pollContactSensors();
   motionController.polling(now);
@@ -397,6 +398,59 @@ void handleCmCommand(const char* parms) {
 }
 
 /*
+    Handles cs command
+*/
+void handleCsCommand(const char* parms) {
+  String args = parms;
+  float p[2];
+  int s0 = 0;
+  int s1 = 0;
+  s1 = args.indexOf(' ', s0);
+  if (s1 <= 0) {
+    Serial.print(F("!! Wrong arg[1]"));
+    return;
+  }
+  p[0] = args.substring(s0 , s1).toFloat();
+  s0 = s1 + 1;
+  p[1] = args.substring(s0).toFloat();
+  //  motionSensor.setCorrection(p);
+}
+
+/*
+    Handles cm command
+*/
+void handleCcCommand(const char* parms) {
+  String args = parms;
+  int p[6];
+  int s0 = 0;
+  int s1 = 0;
+  for (int i = 0; i < 3; i++) {
+    s1 = args.indexOf(' ', s0);
+    if (s1 <= 0) {
+      Serial.print(F("!! Wrong arg["));
+      Serial.print(i + 1);
+      Serial.println(F("]"));
+      return;
+    }
+    p[i] = min(max(args.substring(s0 , s1).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
+    s0 = s1 + 1;
+  }
+  for (int i = 3; i < 5; i++) {
+    s1 = args.indexOf(' ', s0);
+    if (s1 <= 0) {
+      Serial.print(F("!! Wrong arg["));
+      Serial.print(i + 1);
+      Serial.println(F("]"));
+      return;
+    }
+    p[i] = normalDeg(args.substring(s0 , s1).toInt());
+    s0 = s1 + 1;
+  }
+  p[5] = normalDeg(args.substring(s0 , s1).toInt());
+  motionController.setControllerConfig(p);
+}
+
+/*
   Handles mv command
 */
 void handleMvCommand(const char* parms) {
@@ -406,8 +460,8 @@ void handleMvCommand(const char* parms) {
     Serial.println(F("!! Wrong arg[1]"));
     return;
   }
-  float direction = normalRad(args.substring(0 , s1).toInt() * PI / 180);
-  int speed = min(max(args.substring(s1 + 1).toInt(), -4), 4);
+  int direction = normalDeg(args.substring(0 , s1).toInt());
+  int speed = min(max(args.substring(s1 + 1).toInt(), -MAX_SPEED), MAX_SPEED);
   motionController.move(direction, speed);
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
@@ -470,6 +524,10 @@ void processCommand(unsigned long time) {
     handleMvCommand(line + 3);
   } else if (strncmp(line, "cm ", 3) == 0) {
     handleCmCommand(line + 3);
+  } else if (strncmp(line, "cc ", 3) == 0) {
+    handleCcCommand(line + 3);
+  } else if (strncmp(line, "cs ", 3) == 0) {
+    handleCsCommand(line + 3);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
@@ -521,7 +579,7 @@ void sendStatus(unsigned long distanceTime) {
   Serial.print(F(" "));
   Serial.print(motionController.yPulses(), 1);
   Serial.print(F(" "));
-  Serial.print(mpu.yaw() * 180 / PI, 0);
+  Serial.print(roundf(mpu.yaw() * 180 / PI));
   Serial.print(F(" "));
   Serial.print(90 - servo.angle());
   Serial.print(F(" "));
@@ -546,7 +604,7 @@ void sendStatus(unsigned long distanceTime) {
   Serial.print(F(" "));
   Serial.print(motionController.isHalt());
   Serial.print(F(" "));
-  Serial.print(motionController.direction() * 180 / PI, 0);
+  Serial.print(motionController.direction());
   Serial.print(F(" "));
   Serial.print(motionController.speed());
   Serial.print(F(" "));

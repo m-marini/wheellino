@@ -8,7 +8,8 @@
 
 #define TRACK               0.136f
 
-#define ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK)
+#define DEG_ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK * 180 / PI)
+// 1 / ms
 #define FILTER_DECAY  (1.0 / 300.0)
 
 /*
@@ -35,7 +36,8 @@ void handleRightSensor(void* context, int dPulse, unsigned long, MotorSensor&) {
 
 */
 MotionSensor::MotionSensor(byte leftPin, byte rightPin) :
-  _leftSensor(leftPin), _rightSensor(rightPin) {
+  _leftSensor(leftPin), _rightSensor(rightPin),
+  _updateAngle(false) {
   _leftSensor.onSample(handleLeftSensor, this);
   _rightSensor.onSample(handleRightSensor, this);
 }
@@ -53,7 +55,12 @@ void MotionSensor::reset() {
   _angle = 0;
 }
 
-void MotionSensor::setDirection(float left, float right) {
+void MotionSensor::setDecays(float* p) {
+  _leftSensor.decay(p[0]);
+  _rightSensor.decay(p[1]);
+}
+
+void MotionSensor::setDirection(int left, int right) {
   DEBUG_PRINT(F("// MotionSensor::setDirection "));
   DEBUG_PRINT(left);
   DEBUG_PRINT(F(" "));
@@ -81,8 +88,9 @@ void MotionSensor::update(unsigned long clockTime) {
   DEBUG_PRINTLN();
 
   // Updates location
-  float sa = sinf(_angle);
-  float ca = cosf(_angle);
+  float angle = _angle * PI / 180;
+  float sa = sinf(angle);
+  float ca = cosf(angle);
   float ds = ((float)(_dl + _dr)) / 2;
   _xPulses += sa * ds;
   _yPulses += ca * ds;
@@ -94,17 +102,13 @@ void MotionSensor::update(unsigned long clockTime) {
   DEBUG_PRINTLN();
 
   // Updates angle
-  _angle = normalRad(_angle + (_dl - _dr) * ANGLE_PER_PULSE);
+  if (_updateAngle) {
+    _angle = normalDeg(_angle + roundf((_dl - _dr) * DEG_ANGLE_PER_PULSE));
 
-  DEBUG_PRINT(F("// angle "));
-  DEBUG_PRINT(_angle * 180 / PI);
-  DEBUG_PRINTLN();
-
-  DEBUG_PRINT(F("// location "));
-  DEBUG_PRINT(x());
-  DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(y());
-  DEBUG_PRINTLN();
+    DEBUG_PRINT(F("//     angle "));
+    DEBUG_PRINT(_angle);
+    DEBUG_PRINTLN();
+  }
 
   DEBUG_PRINT(F("// pps "));
   DEBUG_PRINT(leftPps());
@@ -254,10 +258,11 @@ void Speedometer::reset() {
 /*
    Low pass filter section
 */
+LowPassFilter::LowPassFilter() : _decay(FILTER_DECAY) {}
 
 void LowPassFilter::value(float value, unsigned long clockTime) {
-  float alpha = min((clockTime - _prevTime) * FILTER_DECAY, 1);
-  _value = _value *(1-alpha) + value * alpha;
+  float alpha = min((clockTime - _prevTime) * _decay, 1);
+  _value = _value * (1 - alpha) + value * alpha;
   _value += (-_value + value) * alpha;
   _prevTime = clockTime;
 }

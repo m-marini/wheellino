@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Issue #22: Change WheellyMeasures
+- Issue #24: Change motor power supply and add controller configurations
 
 ## [0.3.0] 2023-01-08
 
