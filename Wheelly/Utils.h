@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 
-float normalRad(float deg);
+float normalRad(float rad);
+int normalDeg(int deg);
 
 #endif

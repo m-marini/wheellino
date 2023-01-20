@@ -1,13 +1,15 @@
 /*
    Measure the motor speed.
 
-   Sending command 'start' the robot will move randomly 
+   Sending command 'start' the robot will move randomly
    and after the test interval (1s) will print the selected motor powers
    and the motor speed measured (pps).
 */
 #include <Wire.h>
 
-#define SPEED_STEP_NUMBER 8
+#define SPEED_STEP_NUMBER 15
+
+#define MAX_POWER 255
 
 //#define DEBUG
 #include "debug.h"
@@ -109,19 +111,11 @@ MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN);
 MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN);
 
 int counter;
-float left;
-float right;
+int left;
+int right;
 bool running;
 
 /*
-  const float leftXCorrection[] = { -1,  -0.06055, 0, 0.02311, 1};
-  const float leftYCorrection[] = { -1, -0.30432, 0, 0.12577, 1};
-  const float rightXCorrection[] = { -1, -0.03759, 0, 0.02041, 1};
-  const float rightYCorrection[] = { -1, -0.2667, 0, 0.12648, 1};
-*/
-
-/*
-
 */
 void serialFlush() {
   while (Serial.available() > 0) {
@@ -211,12 +205,8 @@ void pollSerialPort() {
 
 void handleWaitTimer(void *, unsigned long) {
   do {
-    /*
-      left = float(random(511) - 255) / 255;
-      right = float(random(511) - 255) / 255;
-    */
-    left = float(random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) / SPEED_STEP_NUMBER;
-    right = float(random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) / SPEED_STEP_NUMBER;
+    left = (random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) * MAX_POWER / SPEED_STEP_NUMBER;
+    right = (random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) * MAX_POWER / SPEED_STEP_NUMBER;
   } while (left == 0 && right == 0);
   sensors.reset();
   leftMotor.speed(left);
@@ -231,9 +221,9 @@ void handleMeasureTimer(void *, unsigned long) {
   long leftPulses = sensors.leftPulses();
   long rightPulses = sensors.rightPulses();
   Serial.print(F("sa "));
-  Serial.print(left, 3);
+  Serial.print(left);
   Serial.print(F(" "));
-  Serial.print(right, 3);
+  Serial.print(right);
   Serial.print(F(" "));
   Serial.print(leftPulses);
   Serial.print(F(" "));

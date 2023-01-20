@@ -9,6 +9,7 @@
 #define TRACK               0.136f
 
 #define ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK)
+// 1 / ms
 #define FILTER_DECAY  (1.0 / 300.0)
 
 /*

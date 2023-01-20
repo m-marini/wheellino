@@ -52,7 +52,24 @@ Wheelly status led:
 
 - Wheel idle speed (pulses per second): 60 pps
 - Wheel speed at full load (pulses per second): 20 pps
+- Max wheel speed at full load at 12V power supply (pulses per second): 20 pps
 - Linear idle speed: 0.318 m/s
 - Linear speed at full load: 0.106 m/s
 - Max direction angular idle speed: 264 DEG/s
 - Max direction angular speed at full load: 88 DEG/s
+
+## Motor controller
+
+The motor controller provides power supply to the motor to keep the speed at desired value.
+
+Assuming $ P(t) $ the power provided (-255, ..., 255) at instant t,
+$ x(t) $ the desired speed value (pps),
+$ \omega(t) $ the measured speed value (pps)
+
+The supplyer power at next instant P(t+1) is
+$ P(t+1) = P(t) + \alpha [x(t)- \omega(t)] $
+
+$ \alpha $ is the feedbeck factor and should be the ratio between max power and max speed:
+$ \alpha  \approx \frac{P_{max}}{\omega_{max}}  $.
+
+

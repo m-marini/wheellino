@@ -6,17 +6,17 @@
 #include "Fuzzy.h"
 
 #define MAX_VALUE 255
-
-#define MAX_SPEED_VALUE 4
+#define MAX_SPEED_VALUE 20
 
 #define MOTOR_SAFE_INTERVAL 1000ul
 #define MOTOR_CHECK_INTERVAL 300ul
 
-#define MIN_SPEED_DIRECTION_RAD  (3 * PI / 180)
-#define MAX_SPEED_DIRECTION_RAD  (10 * PI / 180)
-#define LINEAR_DIRECTION_RAD  (30 * PI / 180)
+#define MOVE_ROT_THRESHOLD 30
+#define MIN_ROT_RANGE 3
+#define MAX_ROT_RANGE 30
 
-#define FEEDBACK_GAIN (2 * MAX_VALUE)
+#define FEEDBACK_GAIN ((long) MAX_VALUE * 150 / 140)
+#define DECAY ((long) MAX_VALUE * 9 / 10)
 
 /*
   Creates the motion controller
@@ -24,7 +24,13 @@
 MotionCtrl::MotionCtrl(byte leftForwPin, byte leftBackPin, byte rightForwPin, byte rightBackPin, byte leftSensorPin, byte rightSensorPin)
   : _leftMotor(leftForwPin, leftBackPin),
     _rightMotor(rightForwPin, rightBackPin),
-    _sensors(leftSensorPin, rightSensorPin) {
+    _sensors(leftSensorPin, rightSensorPin),
+    _powerK(DECAY),
+    _signalK(FEEDBACK_GAIN),
+    _ppsK(-FEEDBACK_GAIN),
+    _moveRotThreshold(MOVE_ROT_THRESHOLD),
+    _minRotRange(MIN_ROT_RANGE),
+    _maxRotRange(MAX_ROT_RANGE) {
 
   _sensors.setOnChange([](void*context, unsigned long clockTime, MotionSensor&) {
     DEBUG_PRINTLN(F("// Motor sensors triggered"));
@@ -83,15 +89,27 @@ void MotionCtrl::halt() {
 */
 void MotionCtrl::setCorrection(int *p) {
   _leftMotor.setCorrection(p);
-  _rightMotor.setCorrection(p+4);
+  _rightMotor.setCorrection(p + 4);
 }
 
 /*
 
 */
-void MotionCtrl::move(float direction, int speed) {
+void MotionCtrl::setControllerConfig(int* p) {
+  _powerK = p[0];
+  _signalK = p[1];
+  _ppsK = p[2];
+  _moveRotThreshold = p[0];
+  _minRotRange = p[1];
+  _maxRotRange = p[2];
+}
+
+/*
+
+*/
+void MotionCtrl::move(int direction, int speed) {
   DEBUG_PRINT(F("// MotionCtrl::move "));
-  DEBUG_PRINTF(direction * 180 / PI, 0);
+  DEBUG_PRINT(direction);
   DEBUG_PRINT(F(" "));
   DEBUG_PRINT(speed);
   DEBUG_PRINTLN();
@@ -145,23 +163,23 @@ void MotionCtrl::handleMotion(unsigned long clockTime) {
   DEBUG_PRINTLN();
   if (!_halt && dt > 0) {
     // Compute motor power
-    float dir = angle();
-    float toDir = _direction;
-    float turn = normalRad(toDir - dir);
+    int dir1 = round(angle() * 180 / PI);
+    int toDir1 = _direction;
+    int turn1 = normalDeg(toDir1 - dir1);
 
     DEBUG_PRINT(F("//   dir: "));
-    DEBUG_PRINTF(dir * 180 / 2, 0);
+    DEBUG_PRINT(dir1);
     DEBUG_PRINT(F(", to: "));
-    DEBUG_PRINTF(toDir * 180 / 2, 0);
+    DEBUG_PRINT(toDir1);
     DEBUG_PRINT(F(", turn: "));
-    DEBUG_PRINTF(turn * 180 / 2, 0);
+    DEBUG_PRINT(turn1);
     DEBUG_PRINTLN();
 
-    float isCw = fuzzyPositive(turn - MIN_SPEED_DIRECTION_RAD,
-                               MAX_SPEED_DIRECTION_RAD - MIN_SPEED_DIRECTION_RAD);
-    float isCcw = fuzzyPositive(-turn - MIN_SPEED_DIRECTION_RAD,
-                                MAX_SPEED_DIRECTION_RAD - MIN_SPEED_DIRECTION_RAD);
-    float isLin = 1 - fuzzyPositive(abs(turn), LINEAR_DIRECTION_RAD);
+    int rotRange = _maxRotRange - _minRotRange;
+    
+    float isCw = fuzzyPositive(turn1 - _minRotRange, rotRange);
+    float isCcw = fuzzyPositive(-turn1 - _minRotRange, rotRange);
+    float isLin = 1 - fuzzyPositive(abs(turn1), _moveRotThreshold);
     Fuzzy fuzzy;
 
     fuzzy.add(1, isCw);
@@ -199,7 +217,7 @@ void MotionCtrl::handleMotion(unsigned long clockTime) {
     DEBUG_PRINT(F(", "));
     DEBUG_PRINT(right);
     DEBUG_PRINTLN();
-    power(round(left * MAX_VALUE), round(right * MAX_VALUE));
+    power(round(left * MAX_SPEED_VALUE), round(right * MAX_SPEED_VALUE));
   }
 }
 
@@ -211,44 +229,54 @@ void MotionCtrl::power(int left, int right) {
   DEBUG_PRINT(left);
   DEBUG_PRINT(F(", "));
   DEBUG_PRINTLN(right);
-
   _left = left;
   _right = right;
-
-  long leftPwr = 0;
   if (_left != 0) {
-    long leftPps = (long)_sensors.leftPps() * MAX_VALUE / MAX_PPS;
-    long dLeftPps = left - leftPps;
-    DEBUG_PRINT(F("// MotionCtrl::power leftPps="));
+    long leftPps = (long)_sensors.leftPps();
+    DEBUG_PRINT(F("  leftPps="));
     DEBUG_PRINT(leftPps);
-    DEBUG_PRINT(F(" dLeftPps="));
-    DEBUG_PRINT(dLeftPps);
+    DEBUG_PRINT(F(", _leftPower="));
+    DEBUG_PRINT(_leftPower);
+
+    _leftPower = ((long)_leftPower * _powerK + _signalK * _left + _ppsK * leftPps) / MAX_VALUE;
+    DEBUG_PRINT(F(", _leftPower'="));
+    DEBUG_PRINT(_leftPower);
+
+    _leftPower = min(max(_leftPower, -MAX_VALUE), MAX_VALUE);
+    DEBUG_PRINT(F(", clipped _leftPower ="));
+    DEBUG_PRINT(_leftPower);
     DEBUG_PRINTLN();
-    leftPwr = min(max(left + dLeftPps * FEEDBACK_GAIN / MAX_VALUE,
-                      -MAX_VALUE), MAX_VALUE);
+  } else {
+    _leftPower = 0;
   }
 
-  long rightPwr = 0;
   if (_right != 0) {
-    long rightPps = (long)_sensors.rightPps() * MAX_VALUE / MAX_PPS;
-    long dRightPps = right - rightPps;
-    DEBUG_PRINT(F("// MotionCtrl::power rightPps="));
+    long rightPps = (long)_sensors.rightPps();
+    DEBUG_PRINT(F("  rightPps="));
     DEBUG_PRINT(rightPps);
-    DEBUG_PRINT(F(" dRightPps="));
-    DEBUG_PRINT(dRightPps);
+    DEBUG_PRINT(F(", _rightPower="));
+    DEBUG_PRINT(_rightPower);
+
+    _rightPower = ((long)_rightPower * _powerK + _signalK * _right + _ppsK * rightPps) / MAX_VALUE;
+    DEBUG_PRINT(F(", _rightPower'="));
+    DEBUG_PRINT(_rightPower);
+
+    _rightPower = min(max(_rightPower, -MAX_VALUE), MAX_VALUE);
+    DEBUG_PRINT(F(", clipped _rightPower ="));
+    DEBUG_PRINT(_rightPower);
     DEBUG_PRINTLN();
-    rightPwr = min(max(right + dRightPps * FEEDBACK_GAIN / MAX_VALUE,
-                       -MAX_VALUE), MAX_VALUE);
+  } else {
+    _rightPower = 0;
   }
 
   DEBUG_PRINT(F("// MotionCtrl::power effective "));
-  DEBUG_PRINT(leftPwr);
+  DEBUG_PRINT(_leftPower);
   DEBUG_PRINT(F(", "));
-  DEBUG_PRINTLN(rightPwr);
+  DEBUG_PRINTLN(_rightPower);
 
-  _leftMotor.speed(leftPwr);
-  _rightMotor.speed(rightPwr);
-  _sensors.setDirection(leftPwr, rightPwr);
+  _leftMotor.speed(_leftPower);
+  _rightMotor.speed(_rightPower);
+  _sensors.setDirection(_leftPower, _rightPower);
 }
 
 /*
@@ -271,9 +299,9 @@ void MotorCtrl::begin() {
 
 void MotorCtrl::setCorrection_P(int *p) {
   _x[1] = pgm_read_word(p);
-  _y[1] = pgm_read_word(p+1);
-  _x[3] = pgm_read_word(p+2);
-  _y[3] = pgm_read_word(p+3);
+  _y[1] = pgm_read_word(p + 1);
+  _x[3] = pgm_read_word(p + 2);
+  _y[3] = pgm_read_word(p + 3);
 }
 
 void MotorCtrl::setCorrection(int *p) {

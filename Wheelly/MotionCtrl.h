@@ -34,8 +34,9 @@ class MotionCtrl {
     void polling(unsigned long clockTime = millis());
     void reset();
     void handleMotion(unsigned long clockTime);
-    void move(float direction, int speed);
+    void move(int direction, int speed);
     void setCorrection(int *p);
+    void setControllerConfig(int *p);
     void halt();
     const float xPulses() const {
       return _sensors.xPulses();
@@ -45,12 +46,6 @@ class MotionCtrl {
     }
     const float angle() const {
       return _sensors.angle();
-    }
-    const float left() const {
-      return _left;
-    }
-    const float right() const {
-      return _right;
     }
     const float leftPps() const {
       return _sensors.leftPps();
@@ -71,7 +66,7 @@ class MotionCtrl {
     const int speed() const {
       return _speed;
     }
-    const float direction() const {
+    const int direction() const {
       return _direction;
     }
 
@@ -81,13 +76,21 @@ class MotionCtrl {
     MotionSensor _sensors;
     Timer _stopTimer;
     Timer _checkTimer;
+    int _powerK;
+    int _signalK;
+    int _ppsK;
+    int _moveRotThreshold;
+    int _minRotRange;
+    int _maxRotRange;
 
-    float _direction;
+    int _direction;
     int _speed;
     boolean _halt;
 
     int _left;
     int _right;
+    int _leftPower;
+    int _rightPower;
     unsigned long _prevTime;
 
     void power(int left, int right);

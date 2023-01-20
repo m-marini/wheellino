@@ -12,14 +12,11 @@ class MotorCtrl {
   public:
     MotorCtrl(byte forwPin, byte backPin);
     MotorCtrl& begin();
-    MotorCtrl& speed(float value);
-    MotorCtrl& setCorrection(float *x, float *y);
+    MotorCtrl& speed(int value);
     
   private:
     byte _forwPin;
     byte _backPin;
-    float _x[NO_POINTS],_y[NO_POINTS];
-    float func(float x);
 };
 
 #endif
