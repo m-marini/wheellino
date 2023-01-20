@@ -12,13 +12,18 @@
 
 class LowPassFilter {
   public:
+    LowPassFilter();
     void value(float value, unsigned long clockTime);
     void reset(unsigned long clockTime);
     const float value() const {
       return _value;
     }
+    void decay(float decay) {
+      _decay = decay;
+    }
   private:
     float _value;
+    float _decay;
     unsigned long _prevTime;
 };
 
@@ -64,6 +69,10 @@ class MotorSensor {
       return _filter.value();
     }
 
+    void decay(float decay) {
+      _filter.decay(decay);
+    }
+
   private:
     byte _sensorPin;
     byte _pulse;
@@ -85,10 +94,10 @@ class MotionSensor {
     MotionSensor(byte leftPin, byte rightPin);
     void begin();
     void polling(unsigned long clockTime);
-    void setDirection(float leftForward, float rightForward);
+    void setDirection(int leftForward, int rightForward);
     void setOnChange(void (*callback)(void* context, unsigned long clockTime, MotionSensor& sensor), void* context = NULL);
-
-    void angle(float angle) {
+    void setDecays(float* p);
+    void angle(int angle) {
       _angle = angle;
     }
 
@@ -101,7 +110,7 @@ class MotionSensor {
       _dr = dPulse;
     }
 
-    const float angle() const {
+    const int angle() const {
       return _angle;
     }
 
@@ -127,11 +136,15 @@ class MotionSensor {
     const float rightPps() const {
       return _rightSensor.pps();
     }
+    void updateAngle(boolean updateAngle) {
+      _updateAngle = updateAngle;
+    }
 
   private:
     MotorSensor _leftSensor;
     MotorSensor _rightSensor;
-    float _angle;
+    boolean _updateAngle;
+    int _angle;
     float _xPulses;
     float _yPulses;
     int _dl;

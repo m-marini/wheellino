@@ -283,7 +283,7 @@ void loop() {
   float yaw = mpu.yaw();
   DEBUG_PRINT(F("// polling: yaw="));
   DEBUG_PRINTLN(yaw);
-  motionController.angle(yaw);
+  motionController.angle(roundf(yaw * 180 / PI));
 #endif
   pollContactSensors();
   motionController.polling(now);
@@ -398,6 +398,25 @@ void handleCmCommand(const char* parms) {
 }
 
 /*
+    Handles cs command
+*/
+void handleCsCommand(const char* parms) {
+  String args = parms;
+  float p[2];
+  int s0 = 0;
+  int s1 = 0;
+  s1 = args.indexOf(' ', s0);
+  if (s1 <= 0) {
+    Serial.print(F("!! Wrong arg[1]"));
+    return;
+  }
+  p[0] = args.substring(s0 , s1).toFloat();
+  s0 = s1 + 1;
+  p[1] = args.substring(s0).toFloat();
+  //  motionSensor.setCorrection(p);
+}
+
+/*
     Handles cm command
 */
 void handleCcCommand(const char* parms) {
@@ -507,6 +526,8 @@ void processCommand(unsigned long time) {
     handleCmCommand(line + 3);
   } else if (strncmp(line, "cc ", 3) == 0) {
     handleCcCommand(line + 3);
+  } else if (strncmp(line, "cs ", 3) == 0) {
+    handleCsCommand(line + 3);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
@@ -558,7 +579,7 @@ void sendStatus(unsigned long distanceTime) {
   Serial.print(F(" "));
   Serial.print(motionController.yPulses(), 1);
   Serial.print(F(" "));
-  Serial.print(mpu.yaw() * 180 / PI, 0);
+  Serial.print(roundf(mpu.yaw() * 180 / PI));
   Serial.print(F(" "));
   Serial.print(90 - servo.angle());
   Serial.print(F(" "));

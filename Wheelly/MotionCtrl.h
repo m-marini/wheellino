@@ -44,7 +44,7 @@ class MotionCtrl {
     const float yPulses() const {
       return _sensors.yPulses();
     }
-    const float angle() const {
+    const int angle() const {
       return _sensors.angle();
     }
     const float leftPps() const {
@@ -60,7 +60,7 @@ class MotionCtrl {
       return _halt;
     }
 
-    void angle(float angle) {
+    void angle(int angle) {
       _sensors.angle(angle);
     }
     const int speed() const {
