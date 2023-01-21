@@ -87,7 +87,7 @@ void MotionCtrl::halt() {
 /*
 
 */
-void MotionCtrl::setCorrection(int *p) {
+void MotionCtrl::correction(int *p) {
   _leftMotor.setCorrection(p);
   _rightMotor.setCorrection(p + 4);
 }
@@ -95,13 +95,27 @@ void MotionCtrl::setCorrection(int *p) {
 /*
 
 */
-void MotionCtrl::setControllerConfig(int* p) {
+void MotionCtrl::controllerConfig(int* p) {
   _powerK = p[0];
   _signalK = p[1];
   _ppsK = p[2];
-  _moveRotThreshold = p[0];
-  _minRotRange = p[1];
-  _maxRotRange = p[2];
+  _moveRotThreshold = p[3];
+  _minRotRange = p[4];
+  _maxRotRange = p[5];
+  DEBUG_PRINTLN(F("// MotionCtrl::setControllerConfig"));
+  DEBUG_PRINT(F("//     _powerK: "));
+  DEBUG_PRINT(_powerK);
+  DEBUG_PRINT(F(", _signalK: "));
+  DEBUG_PRINT(_signalK);
+  DEBUG_PRINT(F(", _ppsK: "));
+  DEBUG_PRINT(_ppsK);
+  DEBUG_PRINT(F(", _moveRotThreshold: "));
+  DEBUG_PRINT(_moveRotThreshold);
+  DEBUG_PRINT(F(", _minRotRange: "));
+  DEBUG_PRINT(_minRotRange);
+  DEBUG_PRINT(F(", _maxRotRange "));
+  DEBUG_PRINT(_maxRotRange);
+  DEBUG_PRINTLN();
 }
 
 /*
@@ -280,7 +294,7 @@ void MotionCtrl::power(int left, int right) {
 
   _leftMotor.speed(_leftPower);
   _rightMotor.speed(_rightPower);
-  _sensors.setDirection(_leftPower, _rightPower);
+  _sensors.direction(_leftPower, _rightPower);
 }
 
 /*

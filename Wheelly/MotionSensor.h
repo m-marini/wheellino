@@ -53,8 +53,11 @@ class MotorSensor {
     MotorSensor(byte sensorPin);
     void begin();
     void polling(unsigned long clockTime);
-    void setDirection(int speed);
+    void direction(int speed);
     void reset();
+    void decay(float decay) {
+      _filter.decay(decay);
+    }
     // Sets the callback
     void onSample(void (*callback)(void* context, int dPulse, unsigned long clockTime, MotorSensor& sensor), void* context = NULL) {
       _onSample = callback;
@@ -67,10 +70,6 @@ class MotorSensor {
 
     const float pps() const {
       return _filter.value();
-    }
-
-    void decay(float decay) {
-      _filter.decay(decay);
     }
 
   private:
@@ -94,9 +93,9 @@ class MotionSensor {
     MotionSensor(byte leftPin, byte rightPin);
     void begin();
     void polling(unsigned long clockTime);
-    void setDirection(int leftForward, int rightForward);
+    void direction(int leftForward, int rightForward);
     void setOnChange(void (*callback)(void* context, unsigned long clockTime, MotionSensor& sensor), void* context = NULL);
-    void setDecays(float* p);
+    void decay(float p);
     void angle(int angle) {
       _angle = angle;
     }

@@ -35,8 +35,12 @@ class MotionCtrl {
     void reset();
     void handleMotion(unsigned long clockTime);
     void move(int direction, int speed);
-    void setCorrection(int *p);
-    void setControllerConfig(int *p);
+    void correction(int *p);
+    void controllerConfig(int *p);
+    void decay(float p) {
+      _sensors.decay(p);
+    }
+
     void halt();
     const float xPulses() const {
       return _sensors.xPulses();

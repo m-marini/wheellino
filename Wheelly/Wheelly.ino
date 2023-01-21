@@ -374,90 +374,92 @@ bool decodeFlashing(unsigned long n) {
   return frame == 0 || (error && frame == 3);
 }
 
+void sendMissingArgument(int i, const char *cmd) {
+  Serial.print(F("!! Missing arg["));
+  Serial.print(i + 1);
+  Serial.print(F("]: "));
+  Serial.print(cmd);
+  Serial.println();
+}
+
+void sendEchoCommand(const char *cmd) {
+  Serial.print(F("// "));
+  Serial.print(cmd);
+  Serial.println();
+}
+
 /*
     Handles cm command
 */
-void handleCmCommand(const char* parms) {
-  String args = parms;
+void handleCmCommand(const char* cmd) {
+  String args = cmd + 3;
   int p[8];
   int s0 = 0;
   int s1 = 0;
   for (int i = 0; i < 7; i++) {
     s1 = args.indexOf(' ', s0);
     if (s1 <= 0) {
-      Serial.print(F("!! Wrong arg["));
-      Serial.print(i + 1);
-      Serial.println(F("]"));
+      sendMissingArgument(i, cmd);
       return;
     }
     p[i] = min(max(args.substring(s0 , s1).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
     s0 = s1 + 1;
   }
   p[7] = min(max(args.substring(s0).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
-  motionController.setCorrection(p);
+  motionController.correction(p);
+  sendEchoCommand(cmd);
 }
 
 /*
     Handles cs command
 */
-void handleCsCommand(const char* parms) {
-  String args = parms;
-  float p[2];
-  int s0 = 0;
-  int s1 = 0;
-  s1 = args.indexOf(' ', s0);
-  if (s1 <= 0) {
-    Serial.print(F("!! Wrong arg[1]"));
-    return;
-  }
-  p[0] = args.substring(s0 , s1).toFloat();
-  s0 = s1 + 1;
-  p[1] = args.substring(s0).toFloat();
-  //  motionSensor.setCorrection(p);
+void handleCsCommand(const char* cmd) {
+  String args = cmd + 3;
+  int decayTime = min(max(args.toInt(), 1), 10000);
+  float decay = (float)1 / decayTime;
+  motionController.decay(decay);
+  sendEchoCommand(cmd);
 }
 
 /*
     Handles cm command
 */
-void handleCcCommand(const char* parms) {
-  String args = parms;
+void handleCcCommand(const char* cmd) {
+  String args = cmd + 3;
   int p[6];
   int s0 = 0;
   int s1 = 0;
   for (int i = 0; i < 3; i++) {
     s1 = args.indexOf(' ', s0);
     if (s1 <= 0) {
-      Serial.print(F("!! Wrong arg["));
-      Serial.print(i + 1);
-      Serial.println(F("]"));
+      sendMissingArgument(i, cmd);
       return;
     }
-    p[i] = min(max(args.substring(s0 , s1).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
+    p[i] = args.substring(s0 , s1).toInt();
     s0 = s1 + 1;
   }
   for (int i = 3; i < 5; i++) {
     s1 = args.indexOf(' ', s0);
     if (s1 <= 0) {
-      Serial.print(F("!! Wrong arg["));
-      Serial.print(i + 1);
-      Serial.println(F("]"));
+      sendMissingArgument(i, cmd);
       return;
     }
-    p[i] = normalDeg(args.substring(s0 , s1).toInt());
+    p[i] = min(max(args.substring(s0 , s1).toInt(), 0), 180);
     s0 = s1 + 1;
   }
-  p[5] = normalDeg(args.substring(s0 , s1).toInt());
-  motionController.setControllerConfig(p);
+  p[5] = min(max(args.substring(s0).toInt(), 0), 180);
+  motionController.controllerConfig(p);
+  sendEchoCommand(cmd);
 }
 
 /*
   Handles mv command
 */
-void handleMvCommand(const char* parms) {
-  String args = parms;
+void handleMvCommand(const char* cmd) {
+  String args = cmd + 3;
   int s1 = args.indexOf(' ');
   if (s1 <= 0) {
-    Serial.println(F("!! Wrong arg[1]"));
+    sendMissingArgument(0, cmd);
     return;
   }
   int direction = normalDeg(args.substring(0 , s1).toInt());
@@ -472,8 +474,8 @@ void handleMvCommand(const char* parms) {
 /*
   Handles sc command
 */
-void handleScCommand(const char* parms) {
-  String args = parms;
+void handleScCommand(const char* cmd) {
+  String args = cmd + 3;
   int angle = min(max(args.toInt(), -90), 90);
 
   nextScan = 90 - angle;
@@ -519,15 +521,15 @@ void processCommand(unsigned long time) {
   } else if (strcmp(line, "rs") == 0) {
     resetWhelly();
   } else if (strncmp(line, "sc ", 3) == 0) {
-    handleScCommand(line + 3);
+    handleScCommand(line);
   } else if (strncmp(line, "mv ", 3) == 0) {
-    handleMvCommand(line + 3);
+    handleMvCommand(line);
   } else if (strncmp(line, "cm ", 3) == 0) {
-    handleCmCommand(line + 3);
+    handleCmCommand(line);
   } else if (strncmp(line, "cc ", 3) == 0) {
-    handleCcCommand(line + 3);
+    handleCcCommand(line);
   } else if (strncmp(line, "cs ", 3) == 0) {
-    handleCsCommand(line + 3);
+    handleCsCommand(line);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
@@ -535,7 +537,9 @@ void processCommand(unsigned long time) {
              || strlen(line) == 0) {
     // Ignore comments, errors, empty line
   } else {
-    Serial.println(F("!! Wrong command"));
+    Serial.print(F("!! Wrong command: "));
+    Serial.print(line);
+    Serial.println();
   }
 }
 
