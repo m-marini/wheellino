@@ -2,6 +2,7 @@
 
 
 //#define DEBUG
+//#define DEBUG_POLLING
 #include "debug.h"
 
 #include "Utils.h"
@@ -55,20 +56,24 @@ void MotionSensor::reset() {
   _angle = 0;
 }
 
-void MotionSensor::setDecays(float* p) {
-  _leftSensor.decay(p[0]);
-  _rightSensor.decay(p[1]);
+void MotionSensor::decay(float decay) {
+  _leftSensor.decay(decay);
+  _rightSensor.decay(decay);
+
+  DEBUG_PRINT(F("// MotionCtrl::setDecay "));
+  DEBUG_PRINTF(decay, 6);
+  DEBUG_PRINTLN();
 }
 
-void MotionSensor::setDirection(int left, int right) {
+void MotionSensor::direction(int left, int right) {
   DEBUG_PRINT(F("// MotionSensor::setDirection "));
   DEBUG_PRINT(left);
   DEBUG_PRINT(F(" "));
   DEBUG_PRINT(right);
   DEBUG_PRINTLN();
 
-  _leftSensor.setDirection(left);
-  _rightSensor.setDirection(right);
+  _leftSensor.direction(left);
+  _rightSensor.direction(right);
 }
 
 void MotionSensor::polling(unsigned long clockTime) {
@@ -160,7 +165,7 @@ void MotorSensor::reset() {
 /*
 
 */
-void MotorSensor::setDirection(int speed) {
+void MotorSensor::direction(int speed) {
   DEBUG_PRINT(F("// MotorSensor::setDirection "));
   DEBUG_PRINT(speed);
   DEBUG_PRINTLN();
@@ -187,9 +192,12 @@ void MotorSensor::polling(unsigned long clockTime) {
     update(dPulse, clockTime);
   }
   _filter.value(_speedometer.pps(clockTime), clockTime);
+
+#ifdef DEBUG_POLLING
   DEBUG_PRINT(F("// MotorSensor::polling "));
   DEBUG_PRINT(_filter.value());
   DEBUG_PRINTLN();
+#endif
 }
 
 /*
