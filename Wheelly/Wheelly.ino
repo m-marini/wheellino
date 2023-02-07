@@ -1,3 +1,34 @@
+/*
+ * Copyright (c) 2022 Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
+/*
+ * Version 0.4.0
+ */
 
 #include <Wire.h>
 
@@ -88,7 +119,7 @@
 /*
    Voltage scale
 */
-#define CONTACT_THRESHOLD 163
+#define CONTACT_THRESHOLD 160
 
 /*
    LED colors
@@ -159,6 +190,8 @@ MPU6050 mpu;
 */
 int frontSignals;
 int rearSignals;
+int frontContactThreshold = CONTACT_THRESHOLD;
+int rearContactThreshold = CONTACT_THRESHOLD;
 int error;
 
 /*
@@ -313,11 +346,11 @@ void pollContactSensors() {
 }
 
 bool isFrontContact() {
-  return frontSignals >= CONTACT_THRESHOLD;
+  return frontSignals >= frontContactThreshold;
 }
 
 bool isRearContact() {
-  return rearSignals >= CONTACT_THRESHOLD;
+  return rearSignals >= rearContactThreshold;
 }
 
 void writeLedColor(byte color) {
@@ -386,6 +419,21 @@ void sendEchoCommand(const char *cmd) {
   Serial.print(F("// "));
   Serial.print(cmd);
   Serial.println();
+}
+
+/*
+    Handles ct command
+*/
+void handleCtCommand(const char* cmd) {
+  String args = cmd + 3;
+  int s1 = args.indexOf(' ');
+  if (s1 <= 0) {
+    sendMissingArgument(0, cmd);
+    return;
+  }
+  frontContactThreshold = min(max(args.substring(0, s1).toInt(), 0), 1023);
+  rearContactThreshold = min(max(args.substring(s1).toInt(), 0), 1023);
+  sendEchoCommand(cmd);
 }
 
 /*
@@ -530,6 +578,8 @@ void processCommand(unsigned long time) {
     handleCcCommand(line);
   } else if (strncmp(line, "cs ", 3) == 0) {
     handleCsCommand(line);
+  } else if (strncmp(line, "ct ", 3) == 0) {
+    handleCtCommand(line);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
