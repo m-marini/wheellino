@@ -422,6 +422,16 @@ void sendEchoCommand(const char *cmd) {
 }
 
 /*
+    Handles cr command
+*/
+void handleCrCommand(const char* cmd) {
+  String args = cmd + 3;
+  motionController.maxRotPps(min(max(args.toInt(), 0), 20));
+  sendEchoCommand(cmd);
+}
+
+
+/*
     Handles ct command
 */
 void handleCtCommand(const char* cmd) {
@@ -580,6 +590,8 @@ void processCommand(unsigned long time) {
     handleCsCommand(line);
   } else if (strncmp(line, "ct ", 3) == 0) {
     handleCtCommand(line);
+  } else if (strncmp(line, "cr ", 3) == 0) {
+    handleCrCommand(line);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0

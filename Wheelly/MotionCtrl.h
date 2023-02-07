@@ -37,6 +37,7 @@ class MotionCtrl {
     void move(int direction, int speed);
     void correction(int *p);
     void controllerConfig(int *p);
+    void maxRotPps(int maxRotPps);
     void decay(float p) {
       _sensors.decay(p);
     }
@@ -86,6 +87,7 @@ class MotionCtrl {
     int _moveRotThreshold;
     int _minRotRange;
     int _maxRotRange;
+    int _maxRotPps;
 
     int _direction;
     int _speed;

@@ -6,7 +6,7 @@
 #include "Fuzzy.h"
 
 #define MAX_VALUE 255
-#define MAX_SPEED_VALUE 20
+#define MAX_ANGULAR_VALUE 10
 
 #define MOTOR_SAFE_INTERVAL 1000ul
 #define MOTOR_CHECK_INTERVAL 100ul
@@ -31,7 +31,8 @@ MotionCtrl::MotionCtrl(byte leftForwPin, byte leftBackPin, byte rightForwPin, by
     _ppsK(PPS_K),
     _moveRotThreshold(MOVE_ROT_THRESHOLD),
     _minRotRange(MIN_ROT_RANGE),
-    _maxRotRange(MAX_ROT_RANGE) {
+    _maxRotRange(MAX_ROT_RANGE),
+    _maxRotPps(MAX_ANGULAR_VALUE) {
 
   _sensors.setOnChange([](void*context, unsigned long clockTime, MotionSensor&) {
     DEBUG_PRINTLN(F("// Motor sensors triggered"));
@@ -90,6 +91,13 @@ void MotionCtrl::halt() {
 void MotionCtrl::correction(int *p) {
   _leftMotor.setCorrection(p);
   _rightMotor.setCorrection(p + 4);
+}
+
+/*
+
+*/
+void MotionCtrl::maxRotPps(int value) {
+  _maxRotPps = value;
 }
 
 /*
@@ -198,8 +206,8 @@ void MotionCtrl::handleMotion(unsigned long clockTime) {
     float isLin = 1 - fuzzyPositive(abs(turn1), _moveRotThreshold);
     Fuzzy fuzzy;
 
-    fuzzy.add(MAX_SPEED_VALUE, isCw);
-    fuzzy.add(-MAX_SPEED_VALUE, isCcw);
+    fuzzy.add(_maxRotPps, isCw);
+    fuzzy.add(-_maxRotPps, isCcw);
     fuzzy.add(0, 1 - max(isCw, isCcw));
     int cwSpeed = round(fuzzy.defuzzy());
 
