@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.4.1] 2023-02-09
+
 ### Added
 
 - Issue #32: Limit robot angular speed
+
+### Changed
+
+- Issue #34: Change WheellyMeasures to run ramp power measures
 
 ## [0.4.0] 2023-02-07
 
