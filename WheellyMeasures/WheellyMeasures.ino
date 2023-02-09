@@ -7,9 +7,10 @@
 */
 #include <Wire.h>
 
-#define SPEED_STEP_NUMBER 15
-
-#define MAX_POWER 255
+#define HALT_INTERVAL     500ul
+#define DEFAULT_MEASURE_INTERVAL 200ul
+#define DEFAULT_NUM_STEPS 20
+#define DEFAULT_MAX_POWER 127
 
 //#define DEBUG
 #include "debug.h"
@@ -39,34 +40,6 @@
 #define SERIAL_BPS  115200
 
 /*
-   Multiplexer outputs
-*/
-
-/*
-   Distances
-*/
-#define STOP_DISTANCE 20
-#define WARN_DISTANCE 60
-#define MAX_DISTANCE  400
-
-
-/*
-    Obsatcle pulses
-*/
-#define MIN_OBSTACLE_PULSES 3
-#define MAX_OBSTACLE_PULSES 12
-
-/*
-   Scanner constants
-*/
-#define NO_SAMPLES          5
-#define FRONT_SCAN_INDEX    (NO_SCAN_DIRECTIONS / 2)
-#define NO_SCAN_DIRECTIONS  (sizeof(scanDirections) / sizeof(scanDirections[0]))
-#define CAN_MOVE_MIN_DIR    (FRONT_SCAN_INDEX - 1)
-#define CAN_MOVE_MAX_DIR    (FRONT_SCAN_INDEX + 1)
-#define SERVO_OFFSET        4
-
-/*
    Command parser definitions
 */
 #define LINE_SIZE 100
@@ -75,8 +48,6 @@
    Intervals
 */
 #define LED_INTERVAL      50ul
-#define MEASURE_INTERVAL  1000ul
-#define WAIT_INTERVAL     100ul
 
 /*
    Dividers
@@ -86,14 +57,20 @@
 #define BLOCK_PULSE_DIVIDER  11
 
 /*
-   Voltage scale
-*/
-#define VOLTAGE_SCALE (5.0 * 3 / 1023)
-
-/*
    Command parser
 */
 char line[LINE_SIZE];
+
+/*
+   Variables
+*/
+int counter;
+int numSteps = DEFAULT_NUM_STEPS;
+int maxPower = DEFAULT_MAX_POWER;
+unsigned long measureInterval = 300;
+int left;
+int right;
+bool running;
 
 /*
    Timers
@@ -109,11 +86,6 @@ Timer waitTimer;
 MotionSensor sensors(LEFT_PIN, RIGHT_PIN);
 MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN);
 MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN);
-
-int counter;
-int left;
-int right;
-bool running;
 
 /*
 */
@@ -164,10 +136,10 @@ void setup() {
   .start();
 
   measureTimer.onNext(handleMeasureTimer)
-  .interval(MEASURE_INTERVAL);
+  .interval(DEFAULT_MEASURE_INTERVAL);
 
   waitTimer.onNext(handleWaitTimer)
-  .interval(WAIT_INTERVAL);
+  .interval(HALT_INTERVAL);
 
   sensors.begin();
 
@@ -204,32 +176,77 @@ void pollSerialPort() {
 }
 
 void handleWaitTimer(void *, unsigned long) {
-  do {
-    left = (random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) * MAX_POWER / SPEED_STEP_NUMBER;
-    right = (random(SPEED_STEP_NUMBER * 2 + 1) - SPEED_STEP_NUMBER) * MAX_POWER / SPEED_STEP_NUMBER;
-  } while (left == 0 && right == 0);
   sensors.reset();
-  leftMotor.speed(left);
-  rightMotor.speed(right);
-  sensors.setDirection(left, right);
   measureTimer.start();
 }
 
 void handleMeasureTimer(void *, unsigned long) {
-  leftMotor.speed(0);
-  rightMotor.speed(0);
   long leftPulses = sensors.leftPulses();
   long rightPulses = sensors.rightPulses();
+  long leftSpeed = leftPulses * 1000 / (long)measureInterval;
+  long rightSpeed = rightPulses * 1000 / (long)measureInterval;
   Serial.print(F("sa "));
   Serial.print(left);
   Serial.print(F(" "));
   Serial.print(right);
   Serial.print(F(" "));
-  Serial.print(leftPulses);
+  Serial.print(leftSpeed);
   Serial.print(F(" "));
-  Serial.print(rightPulses);
+  Serial.print(rightSpeed);
   Serial.println();
-  waitTimer.start();
+  counter++;
+  int phase = counter / numSteps;
+  int step = counter % numSteps;
+  switch (phase) {
+    case 0:
+      // Positive ramp up
+      left = right = map(step, 0, numSteps - 1, 0, maxPower);
+      break;
+    case 1:
+      // Positive ramp down
+      left = right = map(step, 0, numSteps - 1, maxPower, 0);
+      break;
+    case 2:
+      // Negative ramp down
+      left = right = map(step, 0, numSteps - 1, 0, -maxPower);
+      break;
+    case 3:
+      // Negative ramp up
+      left = right = map(step, 0, numSteps - 1, -maxPower, 0);
+      break;
+    case 4:
+      // CW ramp up
+      left = map(step, 0, numSteps - 1, 0, maxPower);
+      right = -left;
+      break;
+    case 5:
+      // CW ramp down
+      left = map(step, 0, numSteps - 1, maxPower, 0);
+      right = -left;
+      break;
+    case 6:
+      // CCW ramp up
+      left = map(step, 0, numSteps - 1, 0, -maxPower);
+      right = -left;
+      break;
+    case 7:
+      // CCW ramp down
+      left = map(step, 0, numSteps - 1, -maxPower, 0);
+      right = -left;
+      break;
+    default:
+      stop();
+      return;
+  }
+  leftMotor.speed(left);
+  rightMotor.speed(right);
+  sensors.reset();
+  sensors.setDirection(left, right);
+  if (left == 0 && right == 0) {
+    waitTimer.start();
+  } else {
+    measureTimer.start();
+  }
 }
 
 /*
@@ -249,6 +266,8 @@ void processCommand(unsigned long time) {
   strtrim(line, line);
   if (strcmp(line, "start") == 0) {
     start();
+  } else if (strncmp(line, "setup ", 6) == 0) {
+    setup(line);
   } else if (strcmp(line, "stop") == 0) {
     stop();
   } else if (strncmp(line, "//", 2) == 0
@@ -260,11 +279,75 @@ void processCommand(unsigned long time) {
   }
 }
 
+void setup(char *cmd) {
+  String args = cmd + 6;
+  int s0 = 0;
+  int s1 = args.indexOf(' ', s0);
+  if (s1 <= 0) {
+    sendMissingArgument(0, cmd);
+    return;
+  }
+  int noSteps = args.substring(s0, s1).toInt();
+
+  s0 = s1 + 1;
+  s1 = args.indexOf(' ', s0);
+  if (s1 <= 0) {
+    sendMissingArgument(1, cmd);
+    return;
+  }
+  int maxPow = args.substring(s0, s1).toInt();
+
+  s0 = s1 + 1;
+  int interval = args.substring(s0).toInt();
+
+  // Validates arguments
+  if (!(noSteps > 0 && noSteps <= 100)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
+  if (!(maxPow > 0 && maxPow <= 255)) {
+    sendWrongArgument(1, cmd);
+    return;
+  }
+  if (!(interval > 0 && interval <= 10000)) {
+    sendWrongArgument(2, cmd);
+    return;
+  }
+
+  maxPower = maxPow;
+  numSteps = noSteps;
+  measureTimer.interval(interval);
+  sendCommandAck(cmd);
+}
+
 void start() {
   if (!running) {
     running = true;
+    counter = 0;
     waitTimer.start();
   }
+}
+
+void sendCommandAck(char * cmd) {
+  Serial.print(F("// "));
+  Serial.print(cmd);
+  Serial.println();
+}
+
+void sendMissingArgument(int i, char *cmd) {
+  Serial.print(F("!! Missing argument "));
+  Serial.print(i);
+  Serial.print(F(": "));
+  Serial.print(cmd);
+  Serial.println();
+}
+
+void sendWrongArgument(int i, char *cmd) {
+  Serial.print(F("!! Wrong argument "));
+  Serial.print(i);
+  Serial.print(F(": "));
+  Serial.print(cmd);
+  Serial.println();
 }
 
 void stop() {
@@ -294,44 +377,4 @@ char *strtrim(char *out, const char *from) {
   }
   *s = '\0';
   return out;
-}
-
-/*
-
-*/
-void sendAsset() {
-  Serial.print(F("as 0 0 0 0 0 0 "));
-  Serial.println();
-}
-
-/*
-
-*/
-void printVect(float * vect) {
-  Serial.print(*vect++);
-  Serial.print(F(" "));
-  Serial.print(*vect++);
-  Serial.print(F(" "));
-  Serial.print(*vect++);
-}
-
-/*
-
-*/
-void sendClock(const char *cmd, unsigned long timing) {
-  Serial.print(cmd);
-  Serial.print(F(" "));
-  Serial.print(timing);
-  Serial.print(F(" "));
-  unsigned long ms = millis();
-  Serial.print(ms);
-  Serial.println();
-}
-
-/*
-
-*/
-void sendStatus() {
-  Serial.print(F("st "));
-  Serial.println();
 }
