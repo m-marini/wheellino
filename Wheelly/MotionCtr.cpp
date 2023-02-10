@@ -5,7 +5,8 @@
 #include "Utils.h"
 #include "Fuzzy.h"
 
-#define MAX_VALUE 255
+#define SCALE 256
+//#define MAX_VALUE 255
 #define MAX_ANGULAR_VALUE 10
 
 #define MOTOR_SAFE_INTERVAL 1000ul
@@ -15,20 +16,19 @@
 #define MIN_ROT_RANGE 3
 #define MAX_ROT_RANGE 30
 
-#define SIGNAL_K  464
-#define PPS_K (-464)
-#define POWER_K (230)
+#define DEFAULT_P0 6
+#define DEFAULT_P1 40
+#define DEFAULT_NU SCALE
+#define DEFAULT_MU ((127 - DEFAULT_P0) * SCALE / 40)
+#define DEFAULT_H DEFAULT_MU
 
 /*
   Creates the motion controller
 */
 MotionCtrl::MotionCtrl(byte leftForwPin, byte leftBackPin, byte rightForwPin, byte rightBackPin, byte leftSensorPin, byte rightSensorPin)
-  : _leftMotor(leftForwPin, leftBackPin),
-    _rightMotor(rightForwPin, rightBackPin),
-    _sensors(leftSensorPin, rightSensorPin),
-    _powerK(POWER_K),
-    _signalK(SIGNAL_K),
-    _ppsK(PPS_K),
+  : _sensors(leftSensorPin, rightSensorPin),
+    _leftMotor(leftForwPin, leftBackPin, _sensors.leftSensor()),
+    _rightMotor(rightForwPin, rightBackPin, _sensors.rightSensor()),
     _moveRotThreshold(MOVE_ROT_THRESHOLD),
     _minRotRange(MIN_ROT_RANGE),
     _maxRotRange(MAX_ROT_RANGE),
@@ -88,35 +88,12 @@ void MotionCtrl::halt() {
 /*
 
 */
-void MotionCtrl::correction(int *p) {
-  _leftMotor.setCorrection(p);
-  _rightMotor.setCorrection(p + 4);
-}
-
-/*
-
-*/
-void MotionCtrl::maxRotPps(int value) {
-  _maxRotPps = value;
-}
-
-/*
-
-*/
 void MotionCtrl::controllerConfig(int* p) {
-  _powerK = p[0];
-  _signalK = p[1];
-  _ppsK = p[2];
-  _moveRotThreshold = p[3];
-  _minRotRange = p[4];
-  _maxRotRange = p[5];
+  _moveRotThreshold = p[0];
+  _minRotRange = p[1];
+  _maxRotRange = p[2];
+  _maxRotPps = p[3];
   DEBUG_PRINTLN(F("// MotionCtrl::setControllerConfig"));
-  DEBUG_PRINT(F("//     _powerK: "));
-  DEBUG_PRINT(_powerK);
-  DEBUG_PRINT(F(", _signalK: "));
-  DEBUG_PRINT(_signalK);
-  DEBUG_PRINT(F(", _ppsK: "));
-  DEBUG_PRINT(_ppsK);
   DEBUG_PRINT(F(", _moveRotThreshold: "));
   DEBUG_PRINT(_moveRotThreshold);
   DEBUG_PRINT(F(", _minRotRange: "));
@@ -160,14 +137,14 @@ void MotionCtrl::polling(unsigned long clockTime) {
 
 */
 const boolean MotionCtrl::isForward() const {
-  return _speed > 0 || _left > 0 || _right > 0;
+  return _leftMotor.speed() > 0 || _rightMotor.speed() > 0;
 }
 
 /*
 
 */
 const boolean MotionCtrl::isBackward() const {
-  return _speed < 0 || _left < 0 || _right < 0;
+  return _leftMotor.speed() < 0 || _rightMotor.speed() < 0;
 }
 
 /*
@@ -178,12 +155,6 @@ void MotionCtrl::handleMotion(unsigned long clockTime) {
   _prevTime = clockTime;
   DEBUG_PRINT(F("// MotionCtrl::handleMotion "));
   DEBUG_PRINT(clockTime);
-  DEBUG_PRINT(F(", dt: "));
-  DEBUG_PRINT(dt);
-  DEBUG_PRINT(F(", left: "));
-  DEBUG_PRINT(_left);
-  DEBUG_PRINT(F(", right: "));
-  DEBUG_PRINT(_right);
   DEBUG_PRINTLN();
   if (!_halt && dt > 0) {
     // Compute motor power
@@ -251,71 +222,34 @@ void MotionCtrl::handleMotion(unsigned long clockTime) {
 
 */
 void MotionCtrl::power(int left, int right) {
+
   DEBUG_PRINT(F("// MotionCtrl::power "));
   DEBUG_PRINT(left);
   DEBUG_PRINT(F(", "));
-  DEBUG_PRINTLN(right);
-  _left = left;
-  _right = right;
-  if (_left != 0) {
-    long leftPps = (long)_sensors.leftPps();
-    DEBUG_PRINT(F("//     leftPps="));
-    DEBUG_PRINT(leftPps);
-    DEBUG_PRINT(F(", _leftPower="));
-    DEBUG_PRINT(_leftPower);
+  DEBUG_PRINT(right);
+  DEBUG_PRINTLN();
 
-    _leftPower = ((long)_leftPower * _powerK + _signalK * _left + _ppsK * leftPps) / MAX_VALUE;
-    DEBUG_PRINT(F(", _leftPower'="));
-    DEBUG_PRINT(_leftPower);
-
-    _leftPower = min(max(_leftPower, -MAX_VALUE), MAX_VALUE);
-    DEBUG_PRINT(F(", clipped _leftPower ="));
-    DEBUG_PRINT(_leftPower);
-    DEBUG_PRINTLN();
-  } else {
-    _leftPower = 0;
-  }
-
-  if (_right != 0) {
-    long rightPps = (long)_sensors.rightPps();
-    DEBUG_PRINT(F("//     rightPps="));
-    DEBUG_PRINT(rightPps);
-    DEBUG_PRINT(F(", _rightPower="));
-    DEBUG_PRINT(_rightPower);
-
-    _rightPower = ((long)_rightPower * _powerK + _signalK * _right + _ppsK * rightPps) / MAX_VALUE;
-    DEBUG_PRINT(F(", _rightPower'="));
-    DEBUG_PRINT(_rightPower);
-
-    _rightPower = min(max(_rightPower, -MAX_VALUE), MAX_VALUE);
-    DEBUG_PRINT(F(", clipped _rightPower ="));
-    DEBUG_PRINT(_rightPower);
-    DEBUG_PRINTLN();
-  } else {
-    _rightPower = 0;
-  }
-
-  DEBUG_PRINT(F("// MotionCtrl::power effective "));
-  DEBUG_PRINT(_leftPower);
-  DEBUG_PRINT(F(", "));
-  DEBUG_PRINTLN(_rightPower);
-
-  _leftMotor.speed(_leftPower);
-  _rightMotor.speed(_rightPower);
-  _sensors.direction(_leftPower, _rightPower);
+  _leftMotor.speed(left);
+  _rightMotor.speed(right);
 }
 
 /*
    Motor controller section
 */
 
-const int defaultCorrection[] PROGMEM = { -MAX_VALUE,  -MAX_VALUE / 2, 0, MAX_VALUE / 2, MAX_VALUE};
-
-MotorCtrl::MotorCtrl(byte forwPin, byte backPin) {
-  _forwPin = forwPin;
-  _backPin = backPin;
-  memcpy_P(_x, defaultCorrection, sizeof(int[NO_POINTS]));
-  memcpy_P(_y, defaultCorrection, sizeof(int[NO_POINTS]));
+MotorCtrl::MotorCtrl(byte forwPin, byte backPin, MotorSensor& sensor) :
+  _forwPin(forwPin),
+  _backPin(backPin),
+  _sensor(sensor),
+  _nu(DEFAULT_NU),
+  _p0Forw(DEFAULT_P0),
+  _p1Forw(DEFAULT_P1),
+  _muForw(DEFAULT_MU),
+  _hForw(DEFAULT_H),
+  _p0Back(-DEFAULT_P0),
+  _p1Back(-DEFAULT_P1),
+  _muBack(DEFAULT_MU),
+  _hBack(DEFAULT_H) {
 }
 
 void MotorCtrl::begin() {
@@ -323,65 +257,90 @@ void MotorCtrl::begin() {
   pinMode(_backPin, OUTPUT);
 }
 
-void MotorCtrl::setCorrection_P(int *p) {
-  _x[1] = pgm_read_word(p);
-  _y[1] = pgm_read_word(p + 1);
-  _x[3] = pgm_read_word(p + 2);
-  _y[3] = pgm_read_word(p + 3);
-}
-
-void MotorCtrl::setCorrection(int *p) {
-  _x[1] = p[0];
-  _y[1] = p[1];
-  _x[3] = p[2];
-  _y[3] = p[3];
+/*
+   Sets the configuration parameters
+   [
+     nu,
+     p0Forw, p1Forw, muForw, hForw,
+     p0Back, p1Back, muBack, hBack
+   ]
+*/
+void MotorCtrl::config(int* parms) {
+  _nu = parms[0];
+  _p0Forw = parms[1];
+  _p1Forw = parms[2];
+  _muForw = parms[3];
+  _hForw = parms[4];
+  _p0Back = parms[5];
+  _p1Back = parms[6];
+  _muBack = parms[7];
+  _hBack = parms[8];
 }
 
 /*
    Set speed
 */
 void MotorCtrl::speed(int value) {
-  int pwd = func((int)(value));
+
+  DEBUG_PRINT(F("// MotorCtrl::speed "));
+  DEBUG_PRINT(value);
+  DEBUG_PRINTLN();
+
+  _speed = value;
+  // Computes the power
+  int realSpeed = round(_sensor.pps());
+
+  DEBUG_PRINT(F("//   realSpeed: "));
+  DEBUG_PRINT(realSpeed);
+  DEBUG_PRINTLN();
+
   if (value == 0) {
+    // Halt the motor
+    _power = 0;
+  } else if (value > 0) {
+    // Move forward
+    int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
+
+    long requiredPwr = ((long)_nu * (_power - pth) + SCALE * pth + _muForw * value - _hForw * realSpeed) / SCALE;
+
+    DEBUG_PRINT(F("//   _power: "));
+    DEBUG_PRINT(_power);
+    DEBUG_PRINT(F(", pth: "));
+    DEBUG_PRINT(pth);
+    DEBUG_PRINT(F(", _nu: "));
+    DEBUG_PRINT(_nu);
+    DEBUG_PRINT(F(", _mu: "));
+    DEBUG_PRINT(_muForw);
+    DEBUG_PRINT(F(", _h: "));
+    DEBUG_PRINT(_hForw);
+    DEBUG_PRINT(F(", req: "));
+    DEBUG_PRINT(requiredPwr);
+    DEBUG_PRINTLN();
+
+    _power = max(requiredPwr, pth);
+
+  } else  {
+    // Move backward
+    int pth = realSpeed == 0 ? _p1Back : _p0Back;
+    _power = min(
+               (int)(((long)_nu * (_power - pth) + SCALE * pth + _muBack * value - _hBack * realSpeed) / SCALE),
+               pth);
+  }
+
+  DEBUG_PRINT(F("//   _power: "));
+  DEBUG_PRINT(_power);
+  DEBUG_PRINTLN();
+
+  // Applies the power
+  if (_power == 0) {
     analogWrite(_forwPin, 0);
     analogWrite(_backPin, 0);
-  } else if (value > 0) {
-    analogWrite(_forwPin, pwd);
+  } else if (_power > 0) {
+    analogWrite(_forwPin, _power);
     analogWrite(_backPin, 0);
   } else {
     analogWrite(_forwPin, 0);
-    analogWrite(_backPin, -pwd);
+    analogWrite(_backPin, -_power);
   }
-}
-
-int MotorCtrl::func(int x) {
-  DEBUG_PRINT(F("// MotorCtrl::func "));
-  DEBUG_PRINT(x);
-  DEBUG_PRINTLN();
-
-  int i = NO_POINTS - 2;
-  for (int j = 1; j <= NO_POINTS - 2; j++) {
-    if (x < _x[j]) {
-      i = j - 1;
-      break;
-    }
-  }
-  int result = (int)((long)(x - _x[i]) * (_y[i + 1] - _y[i]) / (_x[i + 1] - _x[i]) + _y[i]);
-
-  DEBUG_PRINT(F("//     i: "));
-  DEBUG_PRINT(i);
-  DEBUG_PRINT(F(", x0: "));
-  DEBUG_PRINT(_x[i]);
-  DEBUG_PRINT(F(", x1: "));
-  DEBUG_PRINT(_x[i + 1]);
-  DEBUG_PRINT(F(", y0: "));
-  DEBUG_PRINT(_y[i]);
-  DEBUG_PRINT(F(", y1: "));
-  DEBUG_PRINT(_y[i + 1]);
-  DEBUG_PRINTLN();
-  DEBUG_PRINT(F("//     f(x): "));
-  DEBUG_PRINT(result);
-  DEBUG_PRINTLN();
-
-  return min(max(-MAX_VALUE, result), MAX_VALUE);
+  _sensor.direction(_power);
 }

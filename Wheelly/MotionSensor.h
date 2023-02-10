@@ -138,6 +138,12 @@ class MotionSensor {
     void updateAngle(boolean updateAngle) {
       _updateAngle = updateAngle;
     }
+    MotorSensor& leftSensor() {
+      return _leftSensor;
+    }
+    MotorSensor& rightSensor() {
+      return _rightSensor;
+    }
 
   private:
     MotorSensor _leftSensor;

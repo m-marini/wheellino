@@ -4,24 +4,40 @@
 #include "MotionSensor.h"
 #include "Timer.h"
 
-#define NO_POINTS 5
-
 /*
    Motor ontroller
 */
 class MotorCtrl {
   public:
-    MotorCtrl(byte forwPin, byte backPin);
+    MotorCtrl(byte forwPin, byte backPin, MotorSensor& sensor);
     void begin();
     void speed(int value);
-    void setCorrection_P(int *p);
-    void setCorrection(int *p);
+    /*
+     * Sets the configuration parameters
+     * [ 
+     *   nu, 
+     *   p0Forw, p1Forw, muForw, hForw,
+     *   p0Back, p1Back, muBack, hBack
+     * ]
+     */
+    void config(int* parms);
+    const int speed() const {return _speed;}
 
   private:
     byte _forwPin;
     byte _backPin;
-    int _x[NO_POINTS], _y[NO_POINTS];
-    int func(int x);
+    MotorSensor& _sensor;
+    int _speed;
+    int _power;
+    int _nu;
+    int _p0Forw;
+    int _p1Forw;
+    int _muForw;
+    int _hForw;
+    int _p0Back;
+    int _p1Back;
+    int _muBack;
+    int _hBack;
 };
 
 /*
@@ -35,9 +51,11 @@ class MotionCtrl {
     void reset();
     void handleMotion(unsigned long clockTime);
     void move(int direction, int speed);
-    void correction(int *p);
+    /*
+     * Sets the configuration parameters
+     * [moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
+     */
     void controllerConfig(int *p);
-    void maxRotPps(int maxRotPps);
     void decay(float p) {
       _sensors.decay(p);
     }
@@ -74,6 +92,12 @@ class MotionCtrl {
     const int direction() const {
       return _direction;
     }
+    MotorCtrl leftMotor() const {
+      return _leftMotor;
+    }
+    MotorCtrl rightMotor() const {
+      return _rightMotor;
+    }
 
   private:
     MotorCtrl _leftMotor;
@@ -81,9 +105,6 @@ class MotionCtrl {
     MotionSensor _sensors;
     Timer _stopTimer;
     Timer _checkTimer;
-    int _powerK;
-    int _signalK;
-    int _ppsK;
     int _moveRotThreshold;
     int _minRotRange;
     int _maxRotRange;
@@ -93,10 +114,6 @@ class MotionCtrl {
     int _speed;
     boolean _halt;
 
-    int _left;
-    int _right;
-    int _leftPower;
-    int _rightPower;
     unsigned long _prevTime;
 
     void power(int left, int right);

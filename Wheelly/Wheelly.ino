@@ -1,34 +1,34 @@
 /*
- * Copyright (c) 2022 Marco Marini, marco.marini@mmarini.org
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- *    END OF TERMS AND CONDITIONS
- *
- */
+   Copyright (c) 2022 Marco Marini, marco.marini@mmarini.org
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+      END OF TERMS AND CONDITIONS
+
+*/
 
 /*
- * Version 0.4.0
- */
+   Version 0.4.0
+*/
 
 #include <Wire.h>
 
@@ -39,6 +39,8 @@
 #include "AsyncServo.h"
 
 #define WITH_IMU
+
+#define inrange(value, min, max) (value >= min && value <= max)
 
 #ifdef WITH_IMU
 #include "mpu6050mm.h"
@@ -98,7 +100,7 @@
 */
 #define LINE_SIZE 100
 #define MAX_POWER_VALUE 255
-#define MAX_SPEED 100
+#define MAX_SPEED 40
 
 /*
    Intervals
@@ -415,6 +417,14 @@ void sendMissingArgument(int i, const char *cmd) {
   Serial.println();
 }
 
+void sendWrongArgument(int i, const char *cmd) {
+  Serial.print(F("!! Wrong arg["));
+  Serial.print(i + 1);
+  Serial.print(F("]: "));
+  Serial.print(cmd);
+  Serial.println();
+}
+
 void sendEchoCommand(const char *cmd) {
   Serial.print(F("// "));
   Serial.print(cmd);
@@ -422,17 +432,7 @@ void sendEchoCommand(const char *cmd) {
 }
 
 /*
-    Handles cr command
-*/
-void handleCrCommand(const char* cmd) {
-  String args = cmd + 3;
-  motionController.maxRotPps(min(max(args.toInt(), 0), 20));
-  sendEchoCommand(cmd);
-}
-
-
-/*
-    Handles ct command
+    Handles ct command (configure contact thresholds)
 */
 void handleCtCommand(const char* cmd) {
   String args = cmd + 3;
@@ -441,46 +441,41 @@ void handleCtCommand(const char* cmd) {
     sendMissingArgument(0, cmd);
     return;
   }
-  frontContactThreshold = min(max(args.substring(0, s1).toInt(), 0), 1023);
-  rearContactThreshold = min(max(args.substring(s1).toInt(), 0), 1023);
-  sendEchoCommand(cmd);
-}
-
-/*
-    Handles cm command
-*/
-void handleCmCommand(const char* cmd) {
-  String args = cmd + 3;
-  int p[8];
-  int s0 = 0;
-  int s1 = 0;
-  for (int i = 0; i < 7; i++) {
-    s1 = args.indexOf(' ', s0);
-    if (s1 <= 0) {
-      sendMissingArgument(i, cmd);
-      return;
-    }
-    p[i] = min(max(args.substring(s0 , s1).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
-    s0 = s1 + 1;
+  int p1 = args.substring(0, s1).toInt();
+  int p2 = args.substring(s1).toInt();
+  // Validate
+  if (!inrange(p1, 0, 1023)) {
+    sendWrongArgument(0, cmd);
+    return;
   }
-  p[7] = min(max(args.substring(s0).toInt(), -MAX_POWER_VALUE), MAX_POWER_VALUE);
-  motionController.correction(p);
+  if (!inrange(p2, 0, 1023)) {
+    sendWrongArgument(1, cmd);
+    return;
+  }
+
+  frontContactThreshold = p1;
+  rearContactThreshold = p2;
   sendEchoCommand(cmd);
 }
 
 /*
-    Handles cs command
+    Handles cs command (configure decay time of motion controller)
 */
 void handleCsCommand(const char* cmd) {
   String args = cmd + 3;
-  int decayTime = min(max(args.toInt(), 1), 10000);
+  int decayTime = args.toInt();
+  if (!inrange(decayTime, 1, 10000)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
   float decay = (float)1 / decayTime;
   motionController.decay(decay);
   sendEchoCommand(cmd);
 }
 
 /*
-    Handles cm command
+   Handles cc command (configure controller)
+   [ moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
 */
 void handleCcCommand(const char* cmd) {
   String args = cmd + 3;
@@ -493,20 +488,83 @@ void handleCcCommand(const char* cmd) {
       sendMissingArgument(i, cmd);
       return;
     }
-    p[i] = args.substring(s0 , s1).toInt();
+    p[i] = min(max(args.substring(s0 , s1).toInt(), 0), 180);
     s0 = s1 + 1;
   }
-  for (int i = 3; i < 5; i++) {
+  p[4] = min(max(args.substring(s0).toInt(), 0), 20);
+  // Validate
+  for (int i = 0; i < 3; i++) {
+    if (!inrange(p[i], 0, 180)) {
+      sendWrongArgument(i, cmd);
+      return;
+    }
+  }
+  if (!inrange(p[3], 0, 20)) {
+    sendWrongArgument(3, cmd);
+    return;
+  }
+
+  motionController.controllerConfig(p);
+  sendEchoCommand(cmd);
+}
+
+/*
+   Handles clr command (configure motor controllers)
+       [
+         nu,
+         p0Forw, p1Forw, muForw, hForw,
+         p0Back, p1Back, muBack, hBack
+       ]
+*/
+void handleClrCommand(const char* cmd, bool left) {
+  String args = cmd + 3;
+  int p[9];
+  int s0 = 0;
+  int s1 = 0;
+  for (int i = 0; i < 8; i++) {
     s1 = args.indexOf(' ', s0);
     if (s1 <= 0) {
       sendMissingArgument(i, cmd);
       return;
     }
-    p[i] = min(max(args.substring(s0 , s1).toInt(), 0), 180);
-    s0 = s1 + 1;
+    p[i] = args.substring(s0 , s1).toInt();
   }
-  p[5] = min(max(args.substring(s0).toInt(), 0), 180);
-  motionController.controllerConfig(p);
+  p[8] = args.substring(s0).toInt();
+
+  // Validates
+  if (!inrange(p[0], 0, 256)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
+  for (int i = 1; i < 3; i++) {
+    if (!inrange(p[i], 0, 255)) {
+      sendWrongArgument(i, cmd);
+      return;
+    }
+  }
+  for (int i = 3; i < 5; i++) {
+    if (!inrange(p[i], 0, 16383)) {
+      sendWrongArgument(i, cmd);
+      return;
+    }
+  }
+  for (int i = 5; i < 7; i++) {
+    if (!inrange(p[i], 0, 255)) {
+      sendWrongArgument(i, cmd);
+      return;
+    }
+  }
+  for (int i = 7; i < 9; i++) {
+    if (!inrange(p[i], 0, 16383)) {
+      sendWrongArgument(i, cmd);
+      return;
+    }
+  }
+  if (left) {
+    motionController.leftMotor().config(p);
+  } else {
+    motionController.rightMotor().config(p);
+  }
   sendEchoCommand(cmd);
 }
 
@@ -520,8 +578,17 @@ void handleMvCommand(const char* cmd) {
     sendMissingArgument(0, cmd);
     return;
   }
-  int direction = normalDeg(args.substring(0 , s1).toInt());
-  int speed = min(max(args.substring(s1 + 1).toInt(), -MAX_SPEED), MAX_SPEED);
+  int direction = args.substring(0 , s1).toInt();
+  int speed = args.substring(s1 + 1).toInt();
+  // Validate
+  if (!inrange(direction, -180, 179)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
+  if (!inrange(speed, -MAX_SPEED, MAX_SPEED)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
   motionController.move(direction, speed);
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
@@ -534,7 +601,11 @@ void handleMvCommand(const char* cmd) {
 */
 void handleScCommand(const char* cmd) {
   String args = cmd + 3;
-  int angle = min(max(args.toInt(), -90), 90);
+  int angle = args.toInt();
+  if (!inrange(angle, -90, 90)) {
+    sendWrongArgument(0, cmd);
+    return;
+  }
 
   nextScan = 90 - angle;
   resetTime = millis() + SCANNER_RESET_INTERVAL;
@@ -582,16 +653,16 @@ void processCommand(unsigned long time) {
     handleScCommand(line);
   } else if (strncmp(line, "mv ", 3) == 0) {
     handleMvCommand(line);
-  } else if (strncmp(line, "cm ", 3) == 0) {
-    handleCmCommand(line);
   } else if (strncmp(line, "cc ", 3) == 0) {
     handleCcCommand(line);
   } else if (strncmp(line, "cs ", 3) == 0) {
     handleCsCommand(line);
   } else if (strncmp(line, "ct ", 3) == 0) {
     handleCtCommand(line);
+  } else if (strncmp(line, "cl ", 3) == 0) {
+    handleClrCommand(line, true);
   } else if (strncmp(line, "cr ", 3) == 0) {
-    handleCrCommand(line);
+    handleClrCommand(line, false);
   } else if (strcmp(line, "ha") == 0) {
     motionController.halt();
   } else if (strncmp(line, "//", 2) == 0
