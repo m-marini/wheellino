@@ -6,8 +6,8 @@
 #include "Fuzzy.h"
 
 #define SCALE 256
-//#define MAX_VALUE 255
 #define MAX_ANGULAR_VALUE 10
+#define SPEED_THRESHOLD   0.5f
 
 #define MOTOR_SAFE_INTERVAL 1000ul
 #define MOTOR_CHECK_INTERVAL 100ul
@@ -137,14 +137,16 @@ void MotionCtrl::polling(unsigned long clockTime) {
 
 */
 const boolean MotionCtrl::isForward() const {
-  return _leftMotor.speed() > 0 || _rightMotor.speed() > 0;
+  return _leftMotor.speed() > 0 || _rightMotor.speed() > 0
+         || _sensors.leftPps() > SPEED_THRESHOLD || _sensors.rightPps() > SPEED_THRESHOLD ;
 }
 
 /*
 
 */
 const boolean MotionCtrl::isBackward() const {
-  return _leftMotor.speed() < 0 || _rightMotor.speed() < 0;
+  return _leftMotor.speed() < 0 || _rightMotor.speed() < 0
+         || _sensors.leftPps() < -SPEED_THRESHOLD || _sensors.rightPps() < -SPEED_THRESHOLD;
 }
 
 /*
