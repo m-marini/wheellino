@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Issue #38: Error at cl command
+- Issue #40: Error parsing cm command
 
 ## [0.4.1] 2023-02-09
 

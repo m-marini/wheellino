@@ -316,8 +316,8 @@ void loop() {
     }
   }
   float yaw = mpu.yaw();
-  DEBUG_PRINT(F("// polling: yaw="));
-  DEBUG_PRINTLN(yaw);
+//  DEBUG_PRINT(F("// polling: yaw="));
+//  DEBUG_PRINTLN(yaw);
   motionController.angle(roundf(yaw * 180 / PI));
 #endif
   pollContactSensors();
@@ -409,27 +409,6 @@ bool decodeFlashing(unsigned long n) {
   return frame == 0 || (error && frame == 3);
 }
 
-/**
-   Returns true if value is invalid
-*/
-bool validateIntArg(int value, int minValue, int maxValue, const char *cmd, int arg) {
-  if (!inrange(value, minValue, maxValue)) {
-    Serial.print(F("!! Wrong arg["));
-    Serial.print(arg + 1);
-    Serial.print(F("]: value "));
-    Serial.print(value);
-    Serial.print(F(" must be in "));
-    Serial.print(minValue);
-    Serial.print(F(", "));
-    Serial.print(maxValue);
-    Serial.print(F(" range: "));
-    Serial.print(cmd);
-    Serial.println();
-    return true;
-  }
-  return false;
-}
-
 void sendEchoCommand(const char *cmd) {
   Serial.print(F("// "));
   Serial.print(cmd);
@@ -441,12 +420,12 @@ void sendEchoCommand(const char *cmd) {
 */
 void handleCtCommand(const char* cmd) {
   int p[2];
-  if (parseCmdArgs(cmd, 3, 2, p)) {
+  if (!parseCmdArgs(cmd, 3, 2, p)) {
     return;
   }
   // Validate
   for (int i = 0; i < 2; i++) {
-    if (validateIntArg(p[i], 0, 1023, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 1023, cmd, i)) {
       return;
     }
   }
@@ -460,10 +439,10 @@ void handleCtCommand(const char* cmd) {
 */
 void handleCsCommand(const char* cmd) {
   int decayTime;
-  if (parseCmdArgs(cmd, 3, 1, &decayTime)) {
+  if (!parseCmdArgs(cmd, 3, 1, &decayTime)) {
     return;
   }
-  if (validateIntArg(decayTime, 1, 10000, cmd, 0)) {
+  if (!validateIntArg(decayTime, 1, 10000, cmd, 0)) {
     return;
   }
   float decay = (float)1 / decayTime;
@@ -476,50 +455,23 @@ void handleCsCommand(const char* cmd) {
    [ moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
 */
 void handleCcCommand(const char* cmd) {
-  int p[6];
-  if (parseCmdArgs(cmd, 3, 6, p)) {
+  int p[4];
+  if (!parseCmdArgs(cmd, 3, 4, p)) {
     return;
   }
   // Validate
   for (int i = 0; i < 3; i++) {
-    if (validateIntArg(p[i], 0, 180, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 180, cmd, i)) {
       return;
     }
   }
-  if (validateIntArg(p[3], 0, 20, cmd, 3)) {
+  if (!validateIntArg(p[3], 0, 20, cmd, 3)) {
     return;
   }
 
   motionController.controllerConfig(p);
   sendEchoCommand(cmd);
 }
-
-/*
-   Returns true if wrong number of arguments
-*/
-bool parseCmdArgs(char *cmd, int from, int argc, int *argv) {
-  String args(cmd + from);
-  int s0 = 0;
-  int s1 = 0;
-  for (int i = 0; i < argc - 1; i++) {
-    s1 = args.indexOf(' ', s0);
-    if (s1 <= 0) {
-      Serial.print(F("!! Found "));
-      Serial.print(i + 1);
-      Serial.print(F(" arguments, expected "));
-      Serial.print(argc);
-      Serial.print(F(": "));      
-      Serial.print(cmd);
-      Serial.println();
-      return true;
-    }
-    *argv++ = args.substring(s0 , s1).toInt();
-    s0 = s1 + 1;
-  }
-  *argv = args.substring(s1).toInt();
-  return false;
-}
-
 /*
    Handles clr command (configure motor controllers)
        [
@@ -530,30 +482,30 @@ bool parseCmdArgs(char *cmd, int from, int argc, int *argv) {
 */
 void handleClrCommand(const char* cmd, bool left) {
   int p[9];
-  if (parseCmdArgs(cmd, 3, 9, p)) {
+  if (!parseCmdArgs(cmd, 3, 9, p)) {
     return;
   }
   // Validates
-  if (validateIntArg(p[0], 0, 256, cmd, 0)) {
+  if (!validateIntArg(p[0], 0, 256, cmd, 0)) {
     return;
   }
   for (int i = 1; i < 3; i++) {
-    if (validateIntArg(p[i], 0, 255, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 255, cmd, i)) {
       return;
     }
   }
   for (int i = 3; i < 5; i++) {
-    if (validateIntArg(p[i], 0, 16383, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 16383, cmd, i)) {
       return;
     }
   }
   for (int i = 5; i < 7; i++) {
-    if (validateIntArg(p[i], -255, 0, cmd, i)) {
+    if (!validateIntArg(p[i], -255, 0, cmd, i)) {
       return;
     }
   }
   for (int i = 7; i < 9; i++) {
-    if (validateIntArg(p[i], 0, 16383, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 16383, cmd, i)) {
       return;
     }
   }
@@ -569,17 +521,28 @@ void handleClrCommand(const char* cmd, bool left) {
   Handles mv command
 */
 void handleMvCommand(const char* cmd) {
+  DEBUG_PRINT(F("// handleMvCommand: "));
+  DEBUG_PRINT(cmd);
+  DEBUG_PRINTLN();
+
   int p[2];
-  if (parseCmdArgs(cmd, 3, 2, p)) {
+  if (!parseCmdArgs(cmd, 3, 2, p)) {
     return;
   }
   // Validate
   if (!validateIntArg(p[0], -180, 179, cmd, 0)) {
     return;
   }
-  if (validateIntArg(p[1], -MAX_SPEED, MAX_SPEED, cmd, 1)) {
+  if (!validateIntArg(p[1], -MAX_SPEED, MAX_SPEED, cmd, 1)) {
     return;
   }
+  
+  DEBUG_PRINT(F("     p="));
+  DEBUG_PRINT(p[0]);
+  DEBUG_PRINT(F(", "));
+  DEBUG_PRINT(p[1]);
+  DEBUG_PRINTLN();
+  
   motionController.move(p[0], p[1]);
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
@@ -592,10 +555,10 @@ void handleMvCommand(const char* cmd) {
 */
 void handleScCommand(const char* cmd) {
   int angle;
-  if (parseCmdArgs(cmd, 3, 1, &angle)) {
+  if (!parseCmdArgs(cmd, 3, 1, &angle)) {
     return;
   }
-  if (validateIntArg(angle, -90, 90, cmd, 0)) {
+  if (!validateIntArg(angle, -90, 90, cmd, 0)) {
     return;
   }
   nextScan = 90 - angle;
@@ -611,7 +574,7 @@ void handleSample(void *, unsigned long time) {
   DEBUG_PRINT(F("// handleSample: dir="));
   DEBUG_PRINT(servo.angle());
   DEBUG_PRINT(F(", time="));
-  DEBUG_PRINTLN(timest);
+  DEBUG_PRINTLN(time);
   distanceTime = time;
   if (motionController.isForward() && !canMoveForward()
       || motionController.isBackward() && !canMoveBackward()) {
@@ -686,6 +649,53 @@ void resetWhelly() {
     mpu.calibrate();
     Serial.println(F("// Resetted"));
   */
+}
+
+/*
+   Returns true if wrong number of arguments
+*/
+bool parseCmdArgs(char *cmd, int from, int argc, int *argv) {
+  String args(cmd + from);
+  int s0 = 0;
+  int s1 = 0;
+  for (int i = 0; i < argc - 1; i++) {
+    s1 = args.indexOf(' ', s0);
+    if (s1 <= 0) {
+      Serial.print(F("!! Found "));
+      Serial.print(i + 1);
+      Serial.print(F(" arguments, expected "));
+      Serial.print(argc);
+      Serial.print(F(": "));      
+      Serial.print(cmd);
+      Serial.println();
+      return false;
+    }
+    *argv++ = args.substring(s0 , s1).toInt();
+    s0 = s1 + 1;
+  }
+  *argv = args.substring(s1).toInt();
+  return true;
+}
+
+/**
+   Returns true if value is invalid
+*/
+bool validateIntArg(int value, int minValue, int maxValue, const char *cmd, int arg) {
+  if (!inrange(value, minValue, maxValue)) {
+    Serial.print(F("!! Wrong arg["));
+    Serial.print(arg + 1);
+    Serial.print(F("]: value "));
+    Serial.print(value);
+    Serial.print(F(" must be in "));
+    Serial.print(minValue);
+    Serial.print(F(", "));
+    Serial.print(maxValue);
+    Serial.print(F(" range: "));
+    Serial.print(cmd);
+    Serial.println();
+    return false;
+  }
+  return true;
 }
 
 void sendCps() {

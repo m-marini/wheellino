@@ -8,8 +8,6 @@
 
 #define DISTANCE_PER_PULSE  (WHEEL_DIAMETER * PI / PULSES_PER_ROOT)
 
-#define MAX_PPS 60
-
 class LowPassFilter {
   public:
     LowPassFilter();
