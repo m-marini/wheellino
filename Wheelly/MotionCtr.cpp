@@ -16,10 +16,10 @@
 #define MIN_ROT_RANGE 3
 #define MAX_ROT_RANGE 30
 
-#define DEFAULT_P0 6
-#define DEFAULT_P1 40
-#define DEFAULT_NU SCALE
-#define DEFAULT_MU ((127 - DEFAULT_P0) * SCALE / 40)
+#define DEFAULT_P0 27
+#define DEFAULT_P1 73
+#define DEFAULT_NU 240
+#define DEFAULT_MU 284
 #define DEFAULT_H DEFAULT_MU
 
 /*
