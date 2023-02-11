@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue #36: Change motor controller to manage stiction
 
+### Fixed
+
+- Issue #38: Error at cl command
+
 ## [0.4.1] 2023-02-09
 
 ### Added
@@ -29,7 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [0.3.2] 2023-01-25
 
-### Fix
+### Fixed
 
 - Isssue #27: Configuration command error
 
