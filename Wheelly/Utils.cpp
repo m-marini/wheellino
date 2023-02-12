@@ -1,5 +1,9 @@
 #include "Utils.h"
 
+long clip(long value, long minValue, long maxValue){
+  return min(max(value, minValue), maxValue);
+}
+
 /*
   Returns normalized radians angle (in range -PI, PI)
 */

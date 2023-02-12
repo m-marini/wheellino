@@ -11,33 +11,37 @@ class MotorCtrl {
   public:
     MotorCtrl(byte forwPin, byte backPin, MotorSensor& sensor);
     void begin();
-    void speed(int value);
+    void speed(int value) {
+      _speed = value;
+    }
     /*
-     * Sets the configuration parameters
-     * [ 
-     *   nu, 
-     *   p0Forw, p1Forw, muForw, hForw,
-     *   p0Back, p1Back, muBack, hBack
-     * ]
-     */
+       Sets the configuration parameters
+       [
+         muForw, muBack, ax
+         p0Forw, p1Forw,
+         p0Back, p1Back,
+       ]
+    */
     void config(int* parms);
-    const int speed() const {return _speed;}
+    const int speed() const {
+      return _speed;
+    }
+    void polling(unsigned long timestamp);
 
   private:
     byte _forwPin;
     byte _backPin;
     MotorSensor& _sensor;
+    int _ax;
     int _speed;
     int _power;
-    int _nu;
     int _p0Forw;
     int _p1Forw;
     int _muForw;
-    int _hForw;
     int _p0Back;
     int _p1Back;
     int _muBack;
-    int _hBack;
+    unsigned long prevTimestamp;
 };
 
 /*
@@ -52,9 +56,9 @@ class MotionCtrl {
     void handleMotion(unsigned long clockTime);
     void move(int direction, int speed);
     /*
-     * Sets the configuration parameters
-     * [moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
-     */
+       Sets the configuration parameters
+       [moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
+    */
     void controllerConfig(int *p);
     void tau(unsigned long tau) {
       _sensors.tau(tau);

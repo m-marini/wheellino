@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue #36: Change motor controller to manage stiction
 - Issue #42: Merge filter and speedmeter
+- Issue #44: Add power acceleration limits
 
 ### Fixed
 
