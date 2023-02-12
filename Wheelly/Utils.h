@@ -5,5 +5,6 @@
 
 float normalRad(float rad);
 int normalDeg(int deg);
+long clip(long value, long min, long max);
 
 #endif

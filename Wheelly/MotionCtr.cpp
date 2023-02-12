@@ -5,7 +5,7 @@
 #include "Utils.h"
 #include "Fuzzy.h"
 
-#define SCALE 256
+#define SCALE 10000l
 #define MAX_ANGULAR_VALUE 10
 #define SPEED_THRESHOLD   0.5f
 
@@ -16,11 +16,11 @@
 #define MIN_ROT_RANGE 3
 #define MAX_ROT_RANGE 30
 
-#define DEFAULT_P0 27
-#define DEFAULT_P1 73
-#define DEFAULT_NU 240
-#define DEFAULT_MU 284
-#define DEFAULT_H DEFAULT_MU
+#define DEFAULT_P0      27
+#define DEFAULT_P1      73
+#define DEFAULT_MU      64
+#define DEFAULT_AX      1270
+#define DEFAULT_H       DEFAULT_MU
 
 /*
   Creates the motion controller
@@ -131,6 +131,8 @@ void MotionCtrl::polling(unsigned long clockTime) {
   _sensors.polling(clockTime);
   _stopTimer.polling(clockTime);
   _checkTimer.polling(clockTime);
+  _leftMotor.polling(clockTime);
+  _rightMotor.polling(clockTime);
 }
 
 /*
@@ -243,15 +245,13 @@ MotorCtrl::MotorCtrl(byte forwPin, byte backPin, MotorSensor& sensor) :
   _forwPin(forwPin),
   _backPin(backPin),
   _sensor(sensor),
-  _nu(DEFAULT_NU),
+  _ax(DEFAULT_AX),
   _p0Forw(DEFAULT_P0),
   _p1Forw(DEFAULT_P1),
   _muForw(DEFAULT_MU),
-  _hForw(DEFAULT_H),
   _p0Back(-DEFAULT_P0),
   _p1Back(-DEFAULT_P1),
-  _muBack(DEFAULT_MU),
-  _hBack(DEFAULT_H) {
+  _muBack(DEFAULT_MU) {
 }
 
 void MotorCtrl::begin() {
@@ -262,33 +262,30 @@ void MotorCtrl::begin() {
 /*
    Sets the configuration parameters
    [
-     nu,
-     p0Forw, p1Forw, muForw, hForw,
-     p0Back, p1Back, muBack, hBack
+         muForw, muBack, ax
+         p0Forw, p1Forw,
+         p0Back, p1Back,
    ]
 */
 void MotorCtrl::config(int* parms) {
-  _nu = parms[0];
-  _p0Forw = parms[1];
-  _p1Forw = parms[2];
-  _muForw = parms[3];
-  _hForw = parms[4];
+  _muForw = parms[0];
+  _muBack = parms[1];
+  _ax = parms[2];
+  _p0Forw = parms[3];
+  _p1Forw = parms[4];
   _p0Back = parms[5];
   _p1Back = parms[6];
-  _muBack = parms[7];
-  _hBack = parms[8];
 }
 
 /*
    Set speed
 */
-void MotorCtrl::speed(int value) {
+void MotorCtrl::polling(unsigned long timestamp) {
 
   DEBUG_PRINT(F("// MotorCtrl::speed "));
   DEBUG_PRINT(value);
   DEBUG_PRINTLN();
 
-  _speed = value;
   // Computes the power
   int realSpeed = round(_sensor.pps());
 
@@ -296,25 +293,23 @@ void MotorCtrl::speed(int value) {
   DEBUG_PRINT(realSpeed);
   DEBUG_PRINTLN();
 
-  if (value == 0) {
+  if (_speed == 0) {
     // Halt the motor
     _power = 0;
-  } else if (value > 0) {
+  } else if (_speed > 0) {
     // Move forward
-    int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
+    long dt = (long)(timestamp - prevTimestamp);
 
-    long requiredPwr = ((long)_nu * (_power - pth) + SCALE * pth + _muForw * value - _hForw * realSpeed) / SCALE;
+    int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
+    int dP = clip((long)_muForw * (_speed - realSpeed), -_ax, _ax) * dt / SCALE;
+    int requiredPwr = _power + dP;
 
     DEBUG_PRINT(F("//   _power: "));
     DEBUG_PRINT(_power);
     DEBUG_PRINT(F(", pth: "));
     DEBUG_PRINT(pth);
-    DEBUG_PRINT(F(", _nu: "));
-    DEBUG_PRINT(_nu);
     DEBUG_PRINT(F(", _mu: "));
     DEBUG_PRINT(_muForw);
-    DEBUG_PRINT(F(", _h: "));
-    DEBUG_PRINT(_hForw);
     DEBUG_PRINT(F(", req: "));
     DEBUG_PRINT(requiredPwr);
     DEBUG_PRINTLN();
@@ -323,10 +318,13 @@ void MotorCtrl::speed(int value) {
 
   } else  {
     // Move backward
+    long dt = (long)(timestamp - prevTimestamp);
+
     int pth = realSpeed == 0 ? _p1Back : _p0Back;
-    _power = min(
-               (int)(((long)_nu * (_power - pth) + SCALE * pth + _muBack * value - _hBack * realSpeed) / SCALE),
-               pth);
+    int dP = clip((long)_muBack * (_speed - realSpeed), -_ax, _ax) * dt / SCALE;
+    int requiredPwr = _power + dP;
+
+    _power = min(requiredPwr, pth);
   }
 
   DEBUG_PRINT(F("//   _power: "));

@@ -474,37 +474,29 @@ void handleCcCommand(const char* cmd) {
 /*
    Handles clr command (configure motor controllers)
        [
-         nu,
-         p0Forw, p1Forw, muForw, hForw,
-         p0Back, p1Back, muBack, hBack
+         muForw, muBack, ax
+         p0Forw, p1Forw,
+         p0Back, p1Back,
        ]
 */
 void handleClrCommand(const char* cmd, bool left) {
-  int p[9];
-  if (!parseCmdArgs(cmd, 3, 9, p)) {
+  int p[7];
+  if (!parseCmdArgs(cmd, 3, 7, p)) {
     return;
   }
   // Validates
-  if (!validateIntArg(p[0], 0, 256, cmd, 0)) {
-    return;
-  }
-  for (int i = 1; i < 3; i++) {
-    if (!validateIntArg(p[i], 0, 255, cmd, i)) {
+  for (int i = 0; i < 3; i++) {
+    if (!validateIntArg(p[i], 0, 16383, cmd, i)) {
       return;
     }
   }
   for (int i = 3; i < 5; i++) {
-    if (!validateIntArg(p[i], 0, 16383, cmd, i)) {
+    if (!validateIntArg(p[i], 0, 255, cmd, i)) {
       return;
     }
   }
   for (int i = 5; i < 7; i++) {
     if (!validateIntArg(p[i], -255, 0, cmd, i)) {
-      return;
-    }
-  }
-  for (int i = 7; i < 9; i++) {
-    if (!validateIntArg(p[i], 0, 16383, cmd, i)) {
       return;
     }
   }
