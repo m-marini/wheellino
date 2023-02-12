@@ -8,38 +8,23 @@
 
 #define DISTANCE_PER_PULSE  (WHEEL_DIAMETER * PI / PULSES_PER_ROOT)
 
-class LowPassFilter {
-  public:
-    LowPassFilter();
-    void value(float value, unsigned long clockTime);
-    void reset(unsigned long clockTime);
-    const float value() const {
-      return _value;
-    }
-    void decay(float decay) {
-      _decay = decay;
-    }
-  private:
-    float _value;
-    float _decay;
-    unsigned long _prevTime;
-};
-
 /*
   Speedometer measures the speed
 */
 class Speedometer {
   public:
-    Speedometer() {}
-    void forward(unsigned long time);
-    void backward(unsigned long time);
-    void reset();
-    const float pps(unsigned long time) const;
-    const unsigned long prevTime() const {
-      return _prevTime;
+    Speedometer();
+    void update(unsigned long time, int step);
+    void reset(unsigned long timestamp);
+    void tau(unsigned long tau) {
+      _tau = tau;
+    }
+    const float pps() const {
+      return _pps;
     }
   private:
     float _pps;
+    unsigned long _tau;
     unsigned long _prevTime;
 };
 
@@ -52,9 +37,9 @@ class MotorSensor {
     void begin();
     void polling(unsigned long clockTime);
     void direction(int speed);
-    void reset();
-    void decay(float decay) {
-      _filter.decay(decay);
+    void reset(unsigned long timestamp);
+    void tau(unsigned long tau) {
+      _speedometer.tau(tau);
     }
     // Sets the callback
     void onSample(void (*callback)(void* context, int dPulse, unsigned long clockTime, MotorSensor& sensor), void* context = NULL) {
@@ -67,7 +52,7 @@ class MotorSensor {
     }
 
     const float pps() const {
-      return _filter.value();
+      return _speedometer.pps();
     }
 
   private:
@@ -78,7 +63,6 @@ class MotorSensor {
     void (*_onSample)(void*, int, unsigned long clockTime, MotorSensor&);
     void *_context;
     Speedometer _speedometer;
-    LowPassFilter _filter;
 
     void update(int dPulse, unsigned long clockTime);
 };
@@ -93,12 +77,12 @@ class MotionSensor {
     void polling(unsigned long clockTime);
     void direction(int leftForward, int rightForward);
     void setOnChange(void (*callback)(void* context, unsigned long clockTime, MotionSensor& sensor), void* context = NULL);
-    void decay(float p);
+    void tau(unsigned long tau);
     void angle(int angle) {
       _angle = angle;
     }
 
-    void reset();
+    void reset(unsigned long timestamp);
 
     void setLeftPulses(int dPulse) {
       _dl = dPulse;

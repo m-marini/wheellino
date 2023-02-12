@@ -68,9 +68,9 @@ void MotionCtrl::begin() {
 /*
   Resets the controller
 */
-void MotionCtrl::reset() {
+void MotionCtrl::reset(unsigned long timestamp) {
   DEBUG_PRINTLN(F("// MotionCtrl::reset"));
-  _sensors.reset();
+  _sensors.reset(timestamp);
 }
 
 /*
