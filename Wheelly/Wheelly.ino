@@ -438,15 +438,14 @@ void handleCtCommand(const char* cmd) {
     Handles cs command (configure decay time of motion controller)
 */
 void handleCsCommand(const char* cmd) {
-  int decayTime;
-  if (!parseCmdArgs(cmd, 3, 1, &decayTime)) {
+  int tau;
+  if (!parseCmdArgs(cmd, 3, 1, &tau)) {
     return;
   }
-  if (!validateIntArg(decayTime, 1, 10000, cmd, 0)) {
+  if (!validateIntArg(tau, 1, 10000, cmd, 0)) {
     return;
   }
-  float decay = (float)1 / decayTime;
-  motionController.decay(decay);
+  motionController.tau(tau);
   sendEchoCommand(cmd);
 }
 
@@ -635,7 +634,7 @@ void processCommand(unsigned long time) {
 */
 void resetWhelly() {
   motionController.halt();
-  motionController.reset();
+  motionController.reset(millis());
   error = 0;
   /*
     Serial.println(F("// Resetting"));

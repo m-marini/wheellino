@@ -10,8 +10,7 @@
 #define TRACK               0.136f
 
 #define DEG_ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK * 180 / PI)
-// 1 / ms
-#define FILTER_DECAY  (1.0 / 300.0)
+#define DEFAULT_TAU 300ul
 
 /*
 
@@ -48,20 +47,20 @@ void MotionSensor::begin() {
   _rightSensor.begin();
 }
 
-void MotionSensor::reset() {
-  _leftSensor.reset();
-  _rightSensor.reset();
+void MotionSensor::reset(unsigned long timestamp) {
+  _leftSensor.reset(timestamp);
+  _rightSensor.reset(timestamp);
   _xPulses = 0;
   _yPulses = 0;
   _angle = 0;
 }
 
-void MotionSensor::decay(float decay) {
-  _leftSensor.decay(decay);
-  _rightSensor.decay(decay);
+void MotionSensor::tau(unsigned long tau) {
+  _leftSensor.tau(tau);
+  _rightSensor.tau(tau);
 
-  DEBUG_PRINT(F("// MotionCtrl::setDecay "));
-  DEBUG_PRINTF(decay, 6);
+  DEBUG_PRINT(F("// MotionCtrl::tau "));
+  DEBUG_PRINT(tau);
   DEBUG_PRINTLN();
 }
 
@@ -138,9 +137,9 @@ void MotionSensor::setOnChange(void (*callback)(void* context, unsigned long clo
 /*
 
 */
-MotorSensor::MotorSensor(byte sensorPin) {
-  _sensorPin = sensorPin;
-  _forward = true;
+MotorSensor::MotorSensor(byte sensorPin) :
+  _sensorPin(sensorPin),
+  _forward(true) {
 }
 
 /*
@@ -148,18 +147,14 @@ MotorSensor::MotorSensor(byte sensorPin) {
 */
 void MotorSensor::begin() {
   pinMode(_sensorPin, INPUT);
-  _speedometer.reset();
-  _filter.reset(millis());
+  _speedometer.reset(millis());
 }
 
-/*
 
-*/
-void MotorSensor::reset() {
+void MotorSensor::reset(unsigned long timestamp) {
   _forward = true;
   _pulses = 0;
-  _speedometer.reset();
-  _filter.reset(millis());
+  _speedometer.reset(timestamp);
 }
 
 /*
@@ -175,8 +170,7 @@ void MotorSensor::direction(int speed) {
   } else if (speed < 0) {
     _forward = false;
   } else {
-    _speedometer.reset();
-    _filter.reset(millis());
+    _speedometer.reset(millis());
   }
 }
 
@@ -188,10 +182,7 @@ void MotorSensor::polling(unsigned long clockTime) {
   int dPulse = pulse != _pulse ? _forward ? 1 : -1 : 0;
 
   _pulse = pulse;
-  if (dPulse != 0) {
-    update(dPulse, clockTime);
-  }
-  _filter.value(_speedometer.pps(clockTime), clockTime);
+  update(dPulse, clockTime);
 
 #ifdef DEBUG_POLLING
   DEBUG_PRINT(F("// MotorSensor::polling "));
@@ -212,70 +203,38 @@ void MotorSensor::update(int dPulse, unsigned long clockTime) {
   DEBUG_PRINT(_pulses);
   DEBUG_PRINTLN();
 
-  if (dPulse < 0) {
-    _speedometer.backward(clockTime);
-  } else if (dPulse > 0) {
-    _speedometer.forward(clockTime);
-  }
-  if (_onSample != NULL) {
+  _speedometer.update(clockTime, dPulse);
+  if (_onSample != NULL && dPulse != 0) {
     _onSample(_context, dPulse, clockTime, *this);
   }
+}
+
+Speedometer::Speedometer(): _tau(DEFAULT_TAU) {
 }
 
 /*
    Speedometer section
 */
-
-void Speedometer::forward(unsigned long clockTime) {
+void Speedometer::update(unsigned long clockTime, int dpulse) {
   unsigned long dt = clockTime - _prevTime;
-  if (dt > 0) {
-    _pps = 1000.0 / dt;
-    _prevTime = clockTime;
-    DEBUG_PRINT(F("// Speedometer::forward speed "));
-    DEBUG_PRINTF(_pps, 3);
-    DEBUG_PRINTLN();
-  }
-}
-
-void Speedometer::backward(unsigned long clockTime) {
-  unsigned long dt = clockTime - _prevTime;
-  if (dt > 0) {
-    _pps = -1000.0 / dt;
-    _prevTime = clockTime;
-    DEBUG_PRINT(F("// Speedometer::backward speed "));
-    DEBUG_PRINTF(_pps, 3);
-    DEBUG_PRINTLN();
-  }
-}
-
-const float Speedometer::pps(unsigned long clockTime) const {
-  unsigned long dt = clockTime - _prevTime;
-  if (dt > 0 && _pps != 0) {
-    float pps = (_pps < 0 ? -1000.0 : 1000.0) / dt;
-    return abs(pps) <= abs(_pps) ? pps : _pps;
+  if (dt > _tau) {
+    _pps = 1000.0 * dpulse / dt;
   } else {
-    return _pps;
+    _pps = (1000.0 * dpulse + _pps * (_tau - dt)) / _tau;
   }
+  DEBUG_PRINT(F("// Speedometer::update dpulse:"));
+  DEBUG_PRINT(dpulse);
+  DEBUG_PRINT(F(", dt: "));
+  DEBUG_PRINT(dt);
+  DEBUG_PRINT(F(", tau: "));
+  DEBUG_PRINT(_tau);
+  DEBUG_PRINT(F(", pps: "));
+  DEBUG_PRINTF(_pps, 3);
+  DEBUG_PRINTLN();
+  _prevTime = clockTime;
 }
 
-void Speedometer::reset() {
+void Speedometer::reset(unsigned long timestamp) {
   _pps = 0;
-  _prevTime = millis();
-}
-
-/*
-   Low pass filter section
-*/
-LowPassFilter::LowPassFilter() : _decay(FILTER_DECAY) {}
-
-void LowPassFilter::value(float value, unsigned long clockTime) {
-  float alpha = min((clockTime - _prevTime) * _decay, 1);
-  _value = _value * (1 - alpha) + value * alpha;
-  _value += (-_value + value) * alpha;
-  _prevTime = clockTime;
-}
-
-void LowPassFilter::reset(unsigned long clockTime) {
-  _value = 0;
-  _prevTime = clockTime;
+  _prevTime = timestamp;
 }

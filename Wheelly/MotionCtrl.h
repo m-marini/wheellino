@@ -48,7 +48,7 @@ class MotionCtrl {
     MotionCtrl(byte leftForwPin, byte leftBackPin, byte rightForwPin, byte rightBackPin, byte leftSensorPin, byte rightSensorPin);
     void begin();
     void polling(unsigned long clockTime = millis());
-    void reset();
+    void reset(unsigned long timestamp);
     void handleMotion(unsigned long clockTime);
     void move(int direction, int speed);
     /*
@@ -56,8 +56,8 @@ class MotionCtrl {
      * [moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
      */
     void controllerConfig(int *p);
-    void decay(float p) {
-      _sensors.decay(p);
+    void tau(unsigned long tau) {
+      _sensors.tau(tau);
     }
 
     void halt();
