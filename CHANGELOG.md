@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- Issue #47: WheellyESP32
+
 ### Changed
 
 - Issue #36: Change motor controller to manage stiction
 - Issue #42: Merge filter and speedmeter
 - Issue #44: Add power acceleration limits
+- Issue #46: New larger base, contact bars and control board
 
 ### Fixed
 
