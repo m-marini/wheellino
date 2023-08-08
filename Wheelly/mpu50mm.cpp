@@ -144,7 +144,8 @@ const mpu_errors_t MPU6050::calibrate(unsigned int minNoSamples, unsigned long w
   Vector3 acc;
   while (_rc == 0 && !(_numSamples >= minNoSamples && numAccSamples >= minNoSamples)) {
     polling();
-    if (readIntStatus() == 0 && dataReady()) {
+    if (readIntStatus() == 0) {
+      //    if (readIntStatus() == 0 && dataReady()) {
       Vector3 accel;
       if (readAcc(accel) == 0) {
         acc += accel;
