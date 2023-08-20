@@ -968,16 +968,16 @@
       )
     )
     (symbol "Regulator_Linear:AP2204R-3.3" (pin_names (offset 0.254)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at -5.08 3.175 0)
-        (effects (font (size 1.27 1.27)) (justify left))
+      (property "Reference" "U1" (at 0 7.62 0)
+        (effects (font (size 1.27 1.27)))
       )
-      (property "Value" "AP2204R-3.3" (at 0 3.175 0)
-        (effects (font (size 1.27 1.27)) (justify left))
+      (property "Value" "3V3" (at 0 5.08 0)
+        (effects (font (size 1.27 1.27)))
       )
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-89-3" (at 0 5.715 0)
+      (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical" (at 0 5.715 0)
         (effects (font (size 1.27 1.27)) hide)
       )
-      (property "Datasheet" "https://www.diodes.com/assets/Datasheets/AP2204.pdf" (at 0 0 0)
+      (property "Datasheet" "" (at 0 0 0)
         (effects (font (size 1.27 1.27)) hide)
       )
       (property "ki_keywords" "linear regulator ldo fixed positive" (at 0 0 0)
@@ -1000,12 +1000,12 @@
           (name "VIN" (effects (font (size 1.27 1.27))))
           (number "1" (effects (font (size 1.27 1.27))))
         )
-        (pin power_in line (at 0 -7.62 90) (length 2.54)
-          (name "GND" (effects (font (size 1.27 1.27))))
-          (number "2" (effects (font (size 1.27 1.27))))
-        )
         (pin power_out line (at 7.62 0 180) (length 2.54)
           (name "VOUT" (effects (font (size 1.27 1.27))))
+          (number "2" (effects (font (size 1.27 1.27))))
+        )
+        (pin power_in line (at 0 -7.62 90) (length 2.54)
+          (name "GND" (effects (font (size 1.27 1.27))))
           (number "3" (effects (font (size 1.27 1.27))))
         )
       )
@@ -1457,10 +1457,6 @@
     (stroke (width 0) (type default))
     (uuid 4e10d7d2-624e-4285-9faf-0929ee8175ef)
   )
-  (wire (pts (xy 24.13 101.6) (xy 24.13 106.68))
-    (stroke (width 0) (type default))
-    (uuid 4f5d7393-e3c0-44af-8fda-090f111f5c1b)
-  )
   (wire (pts (xy 212.09 97.79) (xy 218.44 97.79))
     (stroke (width 0) (type default))
     (uuid 4feef1e2-a3b8-4676-a7c7-09723f526c3a)
@@ -1617,10 +1613,6 @@
     (stroke (width 0) (type default))
     (uuid 8ef6fa99-3b92-43df-ae4c-ba6c47e49da0)
   )
-  (wire (pts (xy 24.13 114.3) (xy 24.13 115.57))
-    (stroke (width 0) (type default))
-    (uuid 9207f298-b59f-42bd-9eb3-11ad35c823d7)
-  )
   (wire (pts (xy 245.11 62.23) (xy 245.11 73.66))
     (stroke (width 0) (type default))
     (uuid 94deb9ee-4115-4cd5-8f0a-2e5aaa638f86)
@@ -1737,6 +1729,10 @@
     (stroke (width 0) (type default))
     (uuid cadd1132-3b15-49ce-a4fc-05f2ebb9fd4a)
   )
+  (wire (pts (xy 24.13 114.3) (xy 24.13 115.57))
+    (stroke (width 0) (type default))
+    (uuid cc883f01-8afa-4820-b5ec-dc9409ecbe5c)
+  )
   (wire (pts (xy 154.94 78.74) (xy 162.56 78.74))
     (stroke (width 0) (type default))
     (uuid cd23e75c-ceb3-42ff-ac11-47860237daf3)
@@ -1849,6 +1845,10 @@
     (stroke (width 0) (type default))
     (uuid f57a536a-b49f-4d80-8f50-935b91f0ea42)
   )
+  (wire (pts (xy 24.13 101.6) (xy 24.13 106.68))
+    (stroke (width 0) (type default))
+    (uuid f60ae97c-b40a-4c41-a437-f67f42083589)
+  )
   (wire (pts (xy 62.23 58.42) (xy 62.23 63.5))
     (stroke (width 0) (type default))
     (uuid f7abb1f5-40be-4148-9fd9-2b9bd9864c72)
@@ -1882,7 +1882,7 @@
   (symbol (lib_id "Device:R") (at 166.37 137.16 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 09c3aa27-b09a-42f7-81e9-d5741ecc7d8f)
-    (property "Reference" "R1" (at 168.91 135.89 0)
+    (property "Reference" "R5" (at 168.91 135.89 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "220" (at 168.91 138.43 0)
@@ -1899,7 +1899,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R1") (unit 1)
+          (reference "R5") (unit 1)
         )
       )
       (project "wheellino"
@@ -1913,7 +1913,7 @@
   (symbol (lib_id "PCM_Espressif:ESP32-DevKitC") (at 121.92 81.28 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 0a962434-0ed6-449e-91c1-ed5967fbc3d6)
-    (property "Reference" "U2" (at 124.1141 116.84 0)
+    (property "Reference" "U1" (at 124.1141 116.84 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "ESP32-DevKitC" (at 124.1141 119.38 0)
@@ -1966,38 +1966,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "U2") (unit 1)
-        )
-      )
-    )
-  )
-
-  (symbol (lib_id "Device:C") (at 24.13 110.49 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
-    (uuid 0ada54ef-1a07-4efd-b6ff-59b0b7fa3119)
-    (property "Reference" "C7" (at 27.94 109.2199 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "1n" (at 27.94 111.7599 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_THT:C_Rect_L7.0mm_W2.0mm_P5.00mm" (at 25.0952 114.3 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 24.13 110.49 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 5b6cccb0-4449-40ca-a504-a8404258b770))
-    (pin "2" (uuid ea51014c-76b8-4564-bc37-3e591c9a87f3))
-    (instances
-      (project "wheellino-esp32"
-        (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C7") (unit 1)
-        )
-      )
-      (project "wheellino"
-        (path "/e63e39d7-6ac0-4ffd-8aa3-1841a4541b55"
-          (reference "C4") (unit 1)
+          (reference "U1") (unit 1)
         )
       )
     )
@@ -2006,7 +1975,7 @@
   (symbol (lib_id "Connector:Conn_01x07_Socket") (at 193.04 48.26 180) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 0f25ab26-564a-460f-a568-d00a31d54c5a)
-    (property "Reference" "J8" (at 193.675 35.56 0)
+    (property "Reference" "J5" (at 193.675 35.56 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "GY521" (at 193.675 38.1 0)
@@ -2028,7 +1997,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J8") (unit 1)
+          (reference "J5") (unit 1)
         )
       )
     )
@@ -2037,7 +2006,7 @@
   (symbol (lib_id "power:+3.3V") (at 45.72 50.8 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 102c7f02-3bd1-4562-a919-9c733db34def)
-    (property "Reference" "#PWR039" (at 45.72 54.61 0)
+    (property "Reference" "#PWR07" (at 45.72 54.61 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 45.72 45.72 0)
@@ -2053,7 +2022,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR039") (unit 1)
+          (reference "#PWR07") (unit 1)
         )
       )
       (project "wheellino"
@@ -2067,7 +2036,7 @@
   (symbol (lib_id "Connector:Conn_01x03_Pin") (at 124.46 25.4 180) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 11dd4963-4718-4797-bf46-063127e26cad)
-    (property "Reference" "J2" (at 125.73 24.13 0)
+    (property "Reference" "J4" (at 125.73 24.13 0)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "Servo" (at 125.73 26.67 0)
@@ -2085,7 +2054,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J2") (unit 1)
+          (reference "J4") (unit 1)
         )
       )
     )
@@ -2094,7 +2063,7 @@
   (symbol (lib_id "power:+12V") (at 76.2 129.54 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 14832206-b2de-4c36-9230-7e564a34644b)
-    (property "Reference" "#PWR017" (at 76.2 133.35 0)
+    (property "Reference" "#PWR014" (at 76.2 133.35 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+12V" (at 76.2 124.46 0)
@@ -2110,7 +2079,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR017") (unit 1)
+          (reference "#PWR014") (unit 1)
         )
       )
     )
@@ -2119,7 +2088,7 @@
   (symbol (lib_id "power:+5VD") (at 62.23 20.32 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 15683543-7b06-4b41-af4e-ef793d3a2bf6)
-    (property "Reference" "#PWR029" (at 62.23 24.13 0)
+    (property "Reference" "#PWR011" (at 62.23 24.13 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 62.23 15.24 0)
@@ -2135,7 +2104,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR029") (unit 1)
+          (reference "#PWR011") (unit 1)
         )
       )
       (project "wheellino"
@@ -2149,7 +2118,7 @@
   (symbol (lib_id "power:+5VD") (at 214.63 90.17 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 16fe35fb-39b0-4f50-914e-db8d630f54f1)
-    (property "Reference" "#PWR032" (at 214.63 93.98 0)
+    (property "Reference" "#PWR029" (at 214.63 93.98 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 214.63 85.09 0)
@@ -2165,7 +2134,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR032") (unit 1)
+          (reference "#PWR029") (unit 1)
         )
       )
       (project "wheellino"
@@ -2210,7 +2179,7 @@
   (symbol (lib_id "power:+3.3V") (at 234.95 142.24 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 21599317-0800-44ea-87e9-b27af141cbea)
-    (property "Reference" "#PWR05" (at 234.95 146.05 0)
+    (property "Reference" "#PWR033" (at 234.95 146.05 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 234.95 137.16 0)
@@ -2226,7 +2195,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR05") (unit 1)
+          (reference "#PWR033") (unit 1)
         )
       )
       (project "wheellino"
@@ -2240,7 +2209,7 @@
   (symbol (lib_id "power:+5VD") (at 245.11 54.61 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 21a8e013-913e-479a-8907-10eccc446ae6)
-    (property "Reference" "#PWR026" (at 245.11 58.42 0)
+    (property "Reference" "#PWR036" (at 245.11 58.42 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 245.11 49.53 0)
@@ -2256,7 +2225,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR026") (unit 1)
+          (reference "#PWR036") (unit 1)
         )
       )
       (project "wheellino"
@@ -2270,7 +2239,7 @@
   (symbol (lib_id "power:GND") (at 218.44 106.68 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 2626ea07-41d9-45fd-969a-97f94ab1b9ab)
-    (property "Reference" "#PWR031" (at 218.44 113.03 0)
+    (property "Reference" "#PWR030" (at 218.44 113.03 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 218.44 111.76 0)
@@ -2286,7 +2255,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR031") (unit 1)
+          (reference "#PWR030") (unit 1)
         )
       )
       (project "wheellino"
@@ -2331,7 +2300,7 @@
   (symbol (lib_id "Device:C_Polarized") (at 234.95 151.13 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 2d156d1f-31fd-4bce-8e82-ddbafdccd6ae)
-    (property "Reference" "C3" (at 238.76 148.9709 0)
+    (property "Reference" "C7" (at 238.76 148.9709 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "22uF" (at 238.76 151.5109 0)
@@ -2348,7 +2317,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C3") (unit 1)
+          (reference "C7") (unit 1)
         )
       )
       (project "wheellino"
@@ -2362,7 +2331,7 @@
   (symbol (lib_id "power:+3.3V") (at 21.59 50.8 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 34d56ecd-211a-49b3-8255-cc0299a6dacf)
-    (property "Reference" "#PWR038" (at 21.59 54.61 0)
+    (property "Reference" "#PWR01" (at 21.59 54.61 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 21.59 45.72 0)
@@ -2378,7 +2347,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR038") (unit 1)
+          (reference "#PWR01") (unit 1)
         )
       )
       (project "wheellino"
@@ -2392,7 +2361,7 @@
   (symbol (lib_id "power:GND") (at 76.2 149.86 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 350864b6-58f9-4292-b0cb-2d3ffd52da60)
-    (property "Reference" "#PWR013" (at 76.2 156.21 0)
+    (property "Reference" "#PWR015" (at 76.2 156.21 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 76.2 154.94 0)
@@ -2408,7 +2377,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR013") (unit 1)
+          (reference "#PWR015") (unit 1)
         )
       )
       (project "wheellino"
@@ -2422,7 +2391,7 @@
   (symbol (lib_id "power:+5VD") (at 261.62 137.16 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 365af8d0-e562-461a-96fb-b1aae06f1883)
-    (property "Reference" "#PWR018" (at 261.62 140.97 0)
+    (property "Reference" "#PWR039" (at 261.62 140.97 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 261.62 132.08 0)
@@ -2438,7 +2407,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR018") (unit 1)
+          (reference "#PWR039") (unit 1)
         )
       )
       (project "wheellino"
@@ -2452,7 +2421,7 @@
   (symbol (lib_id "Connector:Conn_01x04_Pin") (at 256.54 62.23 180) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 3a743916-3db9-4a2c-bc53-f0d00a441db6)
-    (property "Reference" "J9" (at 257.81 59.69 0)
+    (property "Reference" "J7" (at 257.81 59.69 0)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "LCD" (at 257.81 62.23 0)
@@ -2471,7 +2440,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J9") (unit 1)
+          (reference "J7") (unit 1)
         )
       )
     )
@@ -2480,7 +2449,7 @@
   (symbol (lib_id "Connector_Generic:Conn_02x03_Odd_Even") (at 269.24 144.78 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3bde74ba-964a-45ee-9fd2-a0aa5a3a41b8)
-    (property "Reference" "J7" (at 270.51 135.89 0)
+    (property "Reference" "J9" (at 270.51 135.89 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "5V" (at 270.51 138.43 0)
@@ -2501,7 +2470,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J7") (unit 1)
+          (reference "J9") (unit 1)
         )
       )
     )
@@ -2510,7 +2479,7 @@
   (symbol (lib_id "power:GND") (at 167.64 121.92 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3c116313-55fa-4300-bcf6-9b35a81f8272)
-    (property "Reference" "#PWR09" (at 167.64 128.27 0)
+    (property "Reference" "#PWR021" (at 167.64 128.27 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 167.64 127 0)
@@ -2526,7 +2495,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR09") (unit 1)
+          (reference "#PWR021") (unit 1)
         )
       )
       (project "wheellino"
@@ -2540,7 +2509,7 @@
   (symbol (lib_id "power:GND") (at 203.2 154.94 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 3e3253be-f593-402a-a203-a6eb265ba680)
-    (property "Reference" "#PWR03" (at 203.2 161.29 0)
+    (property "Reference" "#PWR027" (at 203.2 161.29 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 203.2 160.02 0)
@@ -2556,7 +2525,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR03") (unit 1)
+          (reference "#PWR027") (unit 1)
         )
       )
       (project "wheellino"
@@ -2570,7 +2539,7 @@
   (symbol (lib_id "Connector_Generic:Conn_02x03_Odd_Even") (at 269.24 116.84 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 42933f0e-fddd-4a48-9335-70f2001927fc)
-    (property "Reference" "J6" (at 270.51 107.95 0)
+    (property "Reference" "J8" (at 270.51 107.95 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "12V" (at 270.51 110.49 0)
@@ -2591,7 +2560,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J6") (unit 1)
+          (reference "J8") (unit 1)
         )
       )
     )
@@ -2600,7 +2569,7 @@
   (symbol (lib_id "power:GND") (at 218.44 154.94 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 4424c640-e6b5-45c9-a5b8-d29fa9299010)
-    (property "Reference" "#PWR04" (at 218.44 161.29 0)
+    (property "Reference" "#PWR031" (at 218.44 161.29 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 218.44 160.02 0)
@@ -2616,7 +2585,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR04") (unit 1)
+          (reference "#PWR031") (unit 1)
         )
       )
       (project "wheellino"
@@ -2630,7 +2599,7 @@
   (symbol (lib_id "Device:R") (at 232.41 91.44 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 494391c9-0630-4db5-98ea-f6a61143386e)
-    (property "Reference" "R7" (at 234.95 90.17 0)
+    (property "Reference" "R9" (at 234.95 90.17 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "220" (at 234.95 92.71 0)
@@ -2647,7 +2616,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R7") (unit 1)
+          (reference "R9") (unit 1)
         )
       )
       (project "wheellino"
@@ -2661,7 +2630,7 @@
   (symbol (lib_id "power:GND") (at 59.69 30.48 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 4b7d303a-d1ab-4f68-af02-2a82162d788f)
-    (property "Reference" "#PWR030" (at 59.69 36.83 0)
+    (property "Reference" "#PWR09" (at 59.69 36.83 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 59.69 35.56 0)
@@ -2677,7 +2646,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR030") (unit 1)
+          (reference "#PWR09") (unit 1)
         )
       )
       (project "wheellino"
@@ -2691,7 +2660,7 @@
   (symbol (lib_id "power:GND") (at 59.69 105.41 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 51e8e926-188e-4bfc-9688-e87574ebef82)
-    (property "Reference" "#PWR035" (at 59.69 111.76 0)
+    (property "Reference" "#PWR010" (at 59.69 111.76 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 59.69 110.49 0)
@@ -2707,7 +2676,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR035") (unit 1)
+          (reference "#PWR010") (unit 1)
         )
       )
       (project "wheellino"
@@ -2721,7 +2690,7 @@
   (symbol (lib_id "power:GND") (at 241.3 66.04 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 547f7c13-9561-42df-8497-a43cb558e733)
-    (property "Reference" "#PWR025" (at 241.3 72.39 0)
+    (property "Reference" "#PWR035" (at 241.3 72.39 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 241.3 71.12 0)
@@ -2737,7 +2706,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR025") (unit 1)
+          (reference "#PWR035") (unit 1)
         )
       )
       (project "wheellino"
@@ -2751,7 +2720,7 @@
   (symbol (lib_id "power:GND") (at 166.37 153.67 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 571e1d53-e650-4972-8b49-2f6f467ecba0)
-    (property "Reference" "#PWR08" (at 166.37 160.02 0)
+    (property "Reference" "#PWR020" (at 166.37 160.02 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 166.37 158.75 0)
@@ -2767,7 +2736,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR08") (unit 1)
+          (reference "#PWR020") (unit 1)
         )
       )
       (project "wheellino"
@@ -2781,7 +2750,7 @@
   (symbol (lib_id "power:GND") (at 210.82 64.77 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 58ca9d0f-2abf-436b-aa92-4b66e65b5042)
-    (property "Reference" "#PWR024" (at 210.82 71.12 0)
+    (property "Reference" "#PWR028" (at 210.82 71.12 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 210.82 69.85 0)
@@ -2797,7 +2766,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR024") (unit 1)
+          (reference "#PWR028") (unit 1)
         )
       )
       (project "wheellino"
@@ -2811,7 +2780,7 @@
   (symbol (lib_id "power:GND") (at 34.29 115.57 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 5ada3051-0534-4c84-a409-2c508fed5f81)
-    (property "Reference" "#PWR041" (at 34.29 121.92 0)
+    (property "Reference" "#PWR06" (at 34.29 121.92 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 34.29 120.65 0)
@@ -2827,7 +2796,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR041") (unit 1)
+          (reference "#PWR06") (unit 1)
         )
       )
       (project "wheellino"
@@ -2841,7 +2810,7 @@
   (symbol (lib_id "Device:R") (at 76.2 138.43 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 5b50e9c0-d891-44a1-92be-c1911b9d6981)
-    (property "Reference" "R5" (at 78.74 137.16 0)
+    (property "Reference" "R3" (at 78.74 137.16 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "100K" (at 78.74 139.7 0)
@@ -2858,7 +2827,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R5") (unit 1)
+          (reference "R3") (unit 1)
         )
       )
       (project "wheellino"
@@ -2869,41 +2838,10 @@
     )
   )
 
-  (symbol (lib_id "Device:C") (at 34.29 110.49 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
-    (uuid 5fb99c0e-bdb6-483b-a85d-4dd0ffd1f4db)
-    (property "Reference" "C8" (at 38.1 109.2199 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Value" "1n" (at 38.1 111.7599 0)
-      (effects (font (size 1.27 1.27)) (justify left))
-    )
-    (property "Footprint" "Capacitor_THT:C_Rect_L7.0mm_W2.0mm_P5.00mm" (at 35.2552 114.3 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "~" (at 34.29 110.49 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid 76d0b0b2-fa0f-49f3-8ecf-bdba64897d53))
-    (pin "2" (uuid eeb125d3-f0dc-4f81-847f-3c623a45e81d))
-    (instances
-      (project "wheellino-esp32"
-        (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C8") (unit 1)
-        )
-      )
-      (project "wheellino"
-        (path "/e63e39d7-6ac0-4ffd-8aa3-1841a4541b55"
-          (reference "C4") (unit 1)
-        )
-      )
-    )
-  )
-
   (symbol (lib_id "Connector_Generic:Conn_02x02_Odd_Even") (at 52.07 99.06 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 60f2b0d8-9c51-4161-9101-ff901d69b30c)
-    (property "Reference" "J5" (at 53.34 92.71 0)
+    (property "Reference" "J2" (at 53.34 92.71 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "Contact Sensors" (at 53.34 95.25 0)
@@ -2922,7 +2860,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J5") (unit 1)
+          (reference "J2") (unit 1)
         )
       )
     )
@@ -2931,7 +2869,7 @@
   (symbol (lib_id "Device:C_Polarized") (at 74.93 64.77 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 6318c773-b90e-4502-a4ec-f422c1e2baa0)
-    (property "Reference" "C6" (at 78.74 62.6109 0)
+    (property "Reference" "C4" (at 78.74 62.6109 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "22uF" (at 78.74 65.1509 0)
@@ -2948,7 +2886,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C6") (unit 1)
+          (reference "C4") (unit 1)
         )
       )
       (project "wheellino"
@@ -2962,7 +2900,7 @@
   (symbol (lib_id "Device:R") (at 34.29 91.44 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 65624549-2715-4ddc-a1ac-15c0bd5df0a8)
-    (property "Reference" "R9" (at 36.83 90.17 0)
+    (property "Reference" "R2" (at 36.83 90.17 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "10K" (at 36.83 92.71 0)
@@ -2979,7 +2917,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R9") (unit 1)
+          (reference "R2") (unit 1)
         )
       )
       (project "wheellino"
@@ -2993,7 +2931,7 @@
   (symbol (lib_id "power:+12V") (at 260.35 110.49 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 65f24246-6353-4d21-83fe-be62d10c9a5c)
-    (property "Reference" "#PWR019" (at 260.35 114.3 0)
+    (property "Reference" "#PWR038" (at 260.35 114.3 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+12V" (at 260.35 105.41 0)
@@ -3009,7 +2947,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR019") (unit 1)
+          (reference "#PWR038") (unit 1)
         )
       )
     )
@@ -3018,7 +2956,7 @@
   (symbol (lib_id "power:GND") (at 234.95 154.94 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 6b199da7-62a1-428c-8bf7-52763936b1fe)
-    (property "Reference" "#PWR06" (at 234.95 161.29 0)
+    (property "Reference" "#PWR034" (at 234.95 161.29 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 234.95 160.02 0)
@@ -3034,7 +2972,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR06") (unit 1)
+          (reference "#PWR034") (unit 1)
         )
       )
       (project "wheellino"
@@ -3048,7 +2986,7 @@
   (symbol (lib_id "power:+3.3V") (at 24.13 85.09 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 6eddf043-a8e6-4337-b329-84938129762a)
-    (property "Reference" "#PWR036" (at 24.13 88.9 0)
+    (property "Reference" "#PWR03" (at 24.13 88.9 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 24.13 80.01 0)
@@ -3064,7 +3002,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR036") (unit 1)
+          (reference "#PWR03") (unit 1)
         )
       )
       (project "wheellino"
@@ -3078,7 +3016,7 @@
   (symbol (lib_id "power:GND") (at 279.4 151.13 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 6f3c3bf5-01ba-44d1-95b5-b3e7bd51ca72)
-    (property "Reference" "#PWR021" (at 279.4 157.48 0)
+    (property "Reference" "#PWR041" (at 279.4 157.48 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 279.4 156.21 0)
@@ -3094,7 +3032,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR021") (unit 1)
+          (reference "#PWR041") (unit 1)
         )
       )
       (project "wheellino"
@@ -3105,10 +3043,41 @@
     )
   )
 
+  (symbol (lib_id "Device:C_Polarized") (at 34.29 110.49 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 6fe52346-d252-4f0c-8ce4-9efce5103481)
+    (property "Reference" "C2" (at 38.1 108.331 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "1uF" (at 38.1 110.871 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.50mm" (at 35.2552 114.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 34.29 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid c64fea47-7dbf-471a-ba27-de1e50b788d9))
+    (pin "2" (uuid 8e573fd4-1753-4b78-b892-89349b13f64f))
+    (instances
+      (project "wheellino-esp32"
+        (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
+          (reference "C2") (unit 1)
+        )
+      )
+      (project "wheellino"
+        (path "/e63e39d7-6ac0-4ffd-8aa3-1841a4541b55"
+          (reference "C1") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "power:GND") (at 45.72 69.85 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 730d4b0f-f886-4f15-810f-a3b4bd5cea83)
-    (property "Reference" "#PWR034" (at 45.72 76.2 0)
+    (property "Reference" "#PWR08" (at 45.72 76.2 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 45.72 74.93 0)
@@ -3124,7 +3093,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR034") (unit 1)
+          (reference "#PWR08") (unit 1)
         )
       )
       (project "wheellino"
@@ -3138,7 +3107,7 @@
   (symbol (lib_id "power:GND") (at 121.92 116.84 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 7bfa870d-218d-4d93-9cd2-4e9689005191)
-    (property "Reference" "#PWR015" (at 121.92 123.19 0)
+    (property "Reference" "#PWR019" (at 121.92 123.19 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 121.92 121.92 0)
@@ -3154,7 +3123,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR015") (unit 1)
+          (reference "#PWR019") (unit 1)
         )
       )
       (project "wheellino"
@@ -3168,7 +3137,7 @@
   (symbol (lib_id "power:+3.3V") (at 34.29 85.09 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 7d2dd275-5ac7-4c05-8944-de0e19b66294)
-    (property "Reference" "#PWR037" (at 34.29 88.9 0)
+    (property "Reference" "#PWR05" (at 34.29 88.9 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 34.29 80.01 0)
@@ -3184,7 +3153,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR037") (unit 1)
+          (reference "#PWR05") (unit 1)
         )
       )
       (project "wheellino"
@@ -3198,7 +3167,7 @@
   (symbol (lib_id "power:GND") (at 193.04 154.94 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 7ed64d70-6680-46f2-a0b9-7e518a7ae93c)
-    (property "Reference" "#PWR01" (at 193.04 161.29 0)
+    (property "Reference" "#PWR024" (at 193.04 161.29 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 193.04 160.02 0)
@@ -3214,7 +3183,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR01") (unit 1)
+          (reference "#PWR024") (unit 1)
         )
       )
       (project "wheellino"
@@ -3258,7 +3227,7 @@
   (symbol (lib_id "power:GND") (at 21.59 69.85 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 84643b51-417b-447a-97d0-c0f4a575d5a3)
-    (property "Reference" "#PWR033" (at 21.59 76.2 0)
+    (property "Reference" "#PWR02" (at 21.59 76.2 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 21.59 74.93 0)
@@ -3274,7 +3243,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR033") (unit 1)
+          (reference "#PWR02") (unit 1)
         )
       )
       (project "wheellino"
@@ -3319,7 +3288,7 @@
   (symbol (lib_id "Device:C") (at 193.04 151.13 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 8e0c6f1f-67f8-434e-86e5-865a99453ad2)
-    (property "Reference" "C1" (at 196.85 149.8599 0)
+    (property "Reference" "C5" (at 196.85 149.8599 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "1n" (at 196.85 152.3999 0)
@@ -3336,7 +3305,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C1") (unit 1)
+          (reference "C5") (unit 1)
         )
       )
       (project "wheellino"
@@ -3350,7 +3319,7 @@
   (symbol (lib_id "Connector_Generic:Conn_02x03_Odd_Even") (at 33.02 60.96 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid 94401806-a6a2-4fd1-8070-14305adb2de9)
-    (property "Reference" "J4" (at 34.29 52.07 0)
+    (property "Reference" "J1" (at 34.29 52.07 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "Motor Sensors" (at 34.29 54.61 0)
@@ -3371,7 +3340,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J4") (unit 1)
+          (reference "J1") (unit 1)
         )
       )
     )
@@ -3380,7 +3349,7 @@
   (symbol (lib_id "Regulator_Linear:AP2204R-3.3") (at 218.44 147.32 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid 9cd10cb4-634f-4a34-8df7-06a8d72a88c7)
-    (property "Reference" "U1" (at 218.44 139.7 0)
+    (property "Reference" "U2" (at 218.44 139.7 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "3V3" (at 218.44 142.24 0)
@@ -3393,12 +3362,12 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid 4d096702-7e17-47dc-af65-0d2d4eb66159))
-    (pin "2" (uuid 531c0321-930c-4d83-997b-a3b5301aa836))
     (pin "3" (uuid c8e98db7-1e06-421f-886e-e25b514ac07f))
+    (pin "2" (uuid 531c0321-930c-4d83-997b-a3b5301aa836))
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "U1") (unit 1)
+          (reference "U2") (unit 1)
         )
       )
       (project "wheellino"
@@ -3443,7 +3412,7 @@
   (symbol (lib_id "power:+5VD") (at 203.2 142.24 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a065a1da-9a56-413a-9abe-4631bb753b66)
-    (property "Reference" "#PWR02" (at 203.2 146.05 0)
+    (property "Reference" "#PWR026" (at 203.2 146.05 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 203.2 137.16 0)
@@ -3459,7 +3428,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR02") (unit 1)
+          (reference "#PWR026") (unit 1)
         )
       )
       (project "wheellino"
@@ -3473,7 +3442,7 @@
   (symbol (lib_id "power:GND") (at 181.61 121.92 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a57e8325-021a-4dee-95ee-6481204bfccf)
-    (property "Reference" "#PWR011" (at 181.61 128.27 0)
+    (property "Reference" "#PWR023" (at 181.61 128.27 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 181.61 127 0)
@@ -3489,7 +3458,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR011") (unit 1)
+          (reference "#PWR023") (unit 1)
         )
       )
       (project "wheellino"
@@ -3503,7 +3472,7 @@
   (symbol (lib_id "Device:C_Polarized") (at 203.2 151.13 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a5df47ad-e24a-41cd-9eb3-d09e084a9fb1)
-    (property "Reference" "C2" (at 207.01 148.9709 0)
+    (property "Reference" "C6" (at 207.01 148.9709 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "22uF" (at 207.01 151.5109 0)
@@ -3520,7 +3489,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C2") (unit 1)
+          (reference "C6") (unit 1)
         )
       )
       (project "wheellino"
@@ -3534,7 +3503,7 @@
   (symbol (lib_id "Connector_Generic:Conn_02x04_Odd_Even") (at 204.47 97.79 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid a820fbfa-89ad-4d18-8aaa-526dab7b51c3)
-    (property "Reference" "J3" (at 205.74 88.9 0)
+    (property "Reference" "J6" (at 205.74 88.9 0)
       (effects (font (size 1.27 1.27)))
     )
     (property "Value" "Motor Drivers" (at 205.74 91.44 0)
@@ -3557,7 +3526,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J3") (unit 1)
+          (reference "J6") (unit 1)
         )
       )
     )
@@ -3566,7 +3535,7 @@
   (symbol (lib_id "power:GND") (at 109.22 29.21 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ab0c436c-d8e6-4a85-8e53-19ddd4d875a3)
-    (property "Reference" "#PWR027" (at 109.22 35.56 0)
+    (property "Reference" "#PWR017" (at 109.22 35.56 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 109.22 34.29 0)
@@ -3582,7 +3551,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR027") (unit 1)
+          (reference "#PWR017") (unit 1)
         )
       )
       (project "wheellino"
@@ -3596,7 +3565,7 @@
   (symbol (lib_id "Device:R") (at 167.64 107.95 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ab982c30-2ae8-46b1-8854-80625ea4b7e2)
-    (property "Reference" "R2" (at 170.18 106.68 0)
+    (property "Reference" "R6" (at 170.18 106.68 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "220" (at 170.18 109.22 0)
@@ -3613,7 +3582,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R2") (unit 1)
+          (reference "R6") (unit 1)
         )
       )
       (project "wheellino"
@@ -3627,7 +3596,7 @@
   (symbol (lib_id "power:+5VD") (at 121.92 43.18 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c6b32670-5ee4-4084-b127-e11b221fb312)
-    (property "Reference" "#PWR016" (at 121.92 46.99 0)
+    (property "Reference" "#PWR018" (at 121.92 46.99 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 121.92 38.1 0)
@@ -3643,7 +3612,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR016") (unit 1)
+          (reference "#PWR018") (unit 1)
         )
       )
       (project "wheellino"
@@ -3657,7 +3626,7 @@
   (symbol (lib_id "Device:C_Polarized") (at 63.5 146.05 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c6d5aa83-7035-4296-9145-39eda8557a49)
-    (property "Reference" "C5" (at 67.31 143.8909 0)
+    (property "Reference" "C3" (at 67.31 143.8909 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "22uF" (at 67.31 146.4309 0)
@@ -3674,7 +3643,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C5") (unit 1)
+          (reference "C3") (unit 1)
         )
       )
       (project "wheellino"
@@ -3688,7 +3657,7 @@
   (symbol (lib_id "Device:R") (at 181.61 107.95 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid c8938f3a-f7fa-46d1-a002-a92c8be14b7c)
-    (property "Reference" "R4" (at 184.15 106.68 0)
+    (property "Reference" "R8" (at 184.15 106.68 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "220" (at 184.15 109.22 0)
@@ -3705,7 +3674,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R4") (unit 1)
+          (reference "R8") (unit 1)
         )
       )
       (project "wheellino"
@@ -3716,10 +3685,41 @@
     )
   )
 
+  (symbol (lib_id "Device:C_Polarized") (at 24.13 110.49 0) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid cac3f1e1-7c21-4f84-8336-641d2453db33)
+    (property "Reference" "C1" (at 27.94 108.331 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Value" "1uF" (at 27.94 110.871 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+    )
+    (property "Footprint" "Capacitor_THT:CP_Radial_D5.0mm_P2.50mm" (at 25.0952 114.3 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 24.13 110.49 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 8c6a657f-e33f-4895-87b3-6c84d4c81d52))
+    (pin "2" (uuid f0dfb161-6455-4141-a8b5-5f13480413e1))
+    (instances
+      (project "wheellino-esp32"
+        (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
+          (reference "C1") (unit 1)
+        )
+      )
+      (project "wheellino"
+        (path "/e63e39d7-6ac0-4ffd-8aa3-1841a4541b55"
+          (reference "C1") (unit 1)
+        )
+      )
+    )
+  )
+
   (symbol (lib_id "Connector:Conn_01x04_Pin") (at 77.47 27.94 180) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid cea17f6c-4287-440f-80f6-4a2418b63309)
-    (property "Reference" "J1" (at 78.74 25.4 0)
+    (property "Reference" "J3" (at 78.74 25.4 0)
       (effects (font (size 1.27 1.27)) (justify right))
     )
     (property "Value" "SR04" (at 78.74 27.94 0)
@@ -3738,7 +3738,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "J1") (unit 1)
+          (reference "J3") (unit 1)
         )
       )
     )
@@ -3747,7 +3747,7 @@
   (symbol (lib_id "power:+5VD") (at 109.22 20.32 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ced718e5-baa9-4458-a529-51ce76998598)
-    (property "Reference" "#PWR028" (at 109.22 24.13 0)
+    (property "Reference" "#PWR016" (at 109.22 24.13 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5VD" (at 109.22 15.24 0)
@@ -3763,7 +3763,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR028") (unit 1)
+          (reference "#PWR016") (unit 1)
         )
       )
       (project "wheellino"
@@ -3777,7 +3777,7 @@
   (symbol (lib_id "Device:R") (at 180.34 137.16 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d0511e9f-c019-45ee-aa66-3bb97f13ffb7)
-    (property "Reference" "R3" (at 182.88 135.89 0)
+    (property "Reference" "R7" (at 182.88 135.89 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "220" (at 182.88 138.43 0)
@@ -3794,7 +3794,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R3") (unit 1)
+          (reference "R7") (unit 1)
         )
       )
       (project "wheellino"
@@ -3808,7 +3808,7 @@
   (symbol (lib_id "power:GND") (at 279.4 123.19 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid d5aa2552-267e-40c3-a974-94d2d1cce6ca)
-    (property "Reference" "#PWR020" (at 279.4 129.54 0)
+    (property "Reference" "#PWR040" (at 279.4 129.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 279.4 128.27 0)
@@ -3824,7 +3824,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR020") (unit 1)
+          (reference "#PWR040") (unit 1)
         )
       )
       (project "wheellino"
@@ -3838,7 +3838,7 @@
   (symbol (lib_id "power:GND") (at 24.13 115.57 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid da2431b4-29a3-48bd-a44a-03b1036fc4e3)
-    (property "Reference" "#PWR040" (at 24.13 121.92 0)
+    (property "Reference" "#PWR04" (at 24.13 121.92 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 24.13 120.65 0)
@@ -3854,7 +3854,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR040") (unit 1)
+          (reference "#PWR04") (unit 1)
         )
       )
       (project "wheellino"
@@ -3868,7 +3868,7 @@
   (symbol (lib_id "power:GND") (at 246.38 154.94 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid dce99aa0-82d9-49e9-8ebb-16bf64c55972)
-    (property "Reference" "#PWR07" (at 246.38 161.29 0)
+    (property "Reference" "#PWR037" (at 246.38 161.29 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 246.38 160.02 0)
@@ -3884,7 +3884,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR07") (unit 1)
+          (reference "#PWR037") (unit 1)
         )
       )
       (project "wheellino"
@@ -3898,7 +3898,7 @@
   (symbol (lib_id "power:GND") (at 232.41 106.68 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e99eaf04-a9ce-4dc5-a488-c07697805274)
-    (property "Reference" "#PWR014" (at 232.41 113.03 0)
+    (property "Reference" "#PWR032" (at 232.41 113.03 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 232.41 111.76 0)
@@ -3914,7 +3914,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR014") (unit 1)
+          (reference "#PWR032") (unit 1)
         )
       )
       (project "wheellino"
@@ -3928,7 +3928,7 @@
   (symbol (lib_id "Device:R") (at 24.13 91.44 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid e9cae892-b20d-4401-be5b-0d61343e2672)
-    (property "Reference" "R8" (at 26.67 90.17 0)
+    (property "Reference" "R1" (at 26.67 90.17 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "10K" (at 26.67 92.71 0)
@@ -3945,7 +3945,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R8") (unit 1)
+          (reference "R1") (unit 1)
         )
       )
       (project "wheellino"
@@ -3959,7 +3959,7 @@
   (symbol (lib_id "Device:R") (at 76.2 146.05 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid ea79e0d4-da75-460a-b423-f4861abfcc26)
-    (property "Reference" "R6" (at 78.74 144.78 0)
+    (property "Reference" "R4" (at 78.74 144.78 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "22K" (at 78.74 147.32 0)
@@ -3976,7 +3976,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "R6") (unit 1)
+          (reference "R4") (unit 1)
         )
       )
       (project "wheellino"
@@ -3990,7 +3990,7 @@
   (symbol (lib_id "power:GND") (at 180.34 153.67 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid f90d1f6f-11d9-428f-983d-933b195a1059)
-    (property "Reference" "#PWR010" (at 180.34 160.02 0)
+    (property "Reference" "#PWR022" (at 180.34 160.02 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 180.34 158.75 0)
@@ -4006,7 +4006,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR010") (unit 1)
+          (reference "#PWR022") (unit 1)
         )
       )
       (project "wheellino"
@@ -4051,7 +4051,7 @@
   (symbol (lib_id "power:+3.3V") (at 203.2 35.56 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid fcc7fe86-c1c7-49f1-97df-5efe2c6b059f)
-    (property "Reference" "#PWR023" (at 203.2 39.37 0)
+    (property "Reference" "#PWR025" (at 203.2 39.37 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+3.3V" (at 203.2 30.48 0)
@@ -4067,7 +4067,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR023") (unit 1)
+          (reference "#PWR025") (unit 1)
         )
       )
       (project "wheellino"
@@ -4081,7 +4081,7 @@
   (symbol (lib_id "power:GND") (at 74.93 68.58 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
     (uuid fd655243-6677-40d2-b984-18a63ed28f95)
-    (property "Reference" "#PWR022" (at 74.93 74.93 0)
+    (property "Reference" "#PWR013" (at 74.93 74.93 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (at 74.93 73.66 0)
@@ -4097,7 +4097,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "#PWR022") (unit 1)
+          (reference "#PWR013") (unit 1)
         )
       )
       (project "wheellino"
@@ -4111,7 +4111,7 @@
   (symbol (lib_id "Device:C") (at 246.38 151.13 0) (unit 1)
     (in_bom yes) (on_board yes) (dnp no)
     (uuid ff5437bc-d428-4b95-b997-7c2bca1f832a)
-    (property "Reference" "C4" (at 255.27 151.1299 0)
+    (property "Reference" "C8" (at 255.27 151.1299 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Value" "1n" (at 255.27 153.6699 0)
@@ -4128,7 +4128,7 @@
     (instances
       (project "wheellino-esp32"
         (path "/0480ca6e-13d8-4737-bbb5-7e508575e39e"
-          (reference "C4") (unit 1)
+          (reference "C8") (unit 1)
         )
       )
       (project "wheellino"
