@@ -26,6 +26,7 @@ void setup() {
   ProxyServo.onReached(handleReached);
   ProxyServo.attach(SERVO_PIN);
   ProxyServo.angle(FRONT_ANGLE);
+  delay(500);
   Serial.println("Start.");
   timeout = millis() + TEST_DURATION;
 }
