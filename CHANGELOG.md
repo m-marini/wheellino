@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Issue #61: Bug Wifi post config dump
+
 ## [0.6.0] 2023-08-22
 
 ### Added
+
 - Issue #47: WheellyESP32
 
 ### Changed
