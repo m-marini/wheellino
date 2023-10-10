@@ -105,7 +105,7 @@ void ApiServerClass::handleGetWiFiConfig(AsyncWebServerRequest & request) {
 */
 void ApiServerClass::handlePostWiFiConfig(AsyncWebServerRequest & request, JsonVariant & jsonDoc) {
   WiFiModuleClass* wiFiModule = _wiFiModule;
-  if (wiFiModule) {
+  if (!wiFiModule) {
     sendError(request, HTTP_CODE_NOT_FOUND, "WiFi configuration not available");
     return;
   }
