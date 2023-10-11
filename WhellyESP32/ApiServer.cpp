@@ -9,7 +9,7 @@
 #include "ApiServer.h"
 
 static const char* DEFAULT_SERVER_NAME = "wheelly";
-static const unsigned long MAX_SCAN_DURATION = 1000000;
+static const unsigned long MAX_SCAN_DURATION = 30000;
 
 ApiServerClass ApiServer;
 
@@ -42,7 +42,7 @@ static void postWifiConfigCallback(AsyncWebServerRequest *request, JsonVariant& 
 }
 
 /*
-   Loads the network list
+ * Processed the enqueed network list request 
 */
 void ApiServerClass::polling(const unsigned long) {
   if (_networkListRequest) {
@@ -62,7 +62,8 @@ void ApiServerClass::polling(const unsigned long) {
 }
 
 /*
-   Handles netwok list request
+   Handles netwok list request.
+   Enques the request to be processed in polling loop
 */
 void ApiServerClass::handleGetNetworkList(AsyncWebServerRequest &request) {
   DEBUG_PRINTLN("// Scanning networks...");
@@ -70,7 +71,7 @@ void ApiServerClass::handleGetNetworkList(AsyncWebServerRequest &request) {
     sendError(request, HTTP_CODE_TOO_MANY_REQUESTS, "Server is processing other request");
   } else {
     // Set rx timeout
-    //request.client()->setRxTimeout(MAX_SCAN_DURATION);
+    request.client()->setRxTimeout(MAX_SCAN_DURATION);
     _networkListRequest = &request;
     setActivity();
   }
