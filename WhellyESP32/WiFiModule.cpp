@@ -170,9 +170,10 @@ void WiFiModuleClass::polling(const unsigned long clockTime) {
           break;
         case WL_DISCONNECTED:
         case WL_IDLE_STATUS:
+        case WL_NO_SSID_AVAIL:
           break;
         default:
-          Serial.print("!! Failed with status: ");
+          Serial.print("!! Wifi failed with status: ");
           Serial.println(status);
       }
       if (_onChange) {

@@ -19,6 +19,12 @@ void ContactSensors::begin(void) {
    Polls for contact sensors
 */
 void ContactSensors::polling(const unsigned long t0) {
-  _frontClear = digitalRead(_frontSensorPin);
-  _rearClear = digitalRead(_rearSensorPin);
+  boolean frontClear = digitalRead(_frontSensorPin);
+  boolean rearClear = digitalRead(_rearSensorPin);
+  boolean changed = _frontClear != frontClear || _rearClear != rearClear;
+  _frontClear = frontClear;
+  _rearClear = rearClear;
+  if (_onChanged && changed) {
+    _onChanged(_context, *this);
+  }
 }

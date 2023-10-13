@@ -11,7 +11,15 @@
 #include "Display.h"
 
 /*
-   Wheelly controller
+   Wheelly controller.
+   Handles all the behavior of wheelly robot:
+   - commands from wifi modules
+   - scanning of proxy sensors
+   - contact sensors
+   - mpu sensors
+   - motor sensors
+   - drives the motors
+   - operational timing processes
 */
 class Wheelly {
   public:
@@ -142,6 +150,9 @@ class Wheelly {
 
     ContactSensors _contactSensors;
 
+    unsigned long _sendInterval;
+    Timer _sendTimer;
+
     Timer _ledTimer;
     boolean _ledActive;
 
@@ -149,6 +160,8 @@ class Wheelly {
     unsigned long _counter;
     unsigned long _statsTime;
 
+    Timer _scanTimer;
+    unsigned long _scanInterval;
     SR04Class _sr04;
     unsigned long _distanceTime;
     int _nextScan;
@@ -158,15 +171,20 @@ class Wheelly {
 
     void (*_onReply)(void*, const char*);
     void* _context;
+    
+    int _lastYaw;
 
     const boolean canMoveForward(void) const;
     const boolean canMoveBackward(void) const;
     const int forwardBlockDistanceTime() const;
 
+    void handleServoReached(void);
+    void handleAutoScan(void);
     void handleEchoSample(const unsigned long);
     void handleStats(void);
     void handleLed(const unsigned long n);
     void handleMpuData(void);
+    void handleChangedContacts(void);
 
     void sendStatus(void);
 };

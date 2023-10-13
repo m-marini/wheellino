@@ -84,7 +84,6 @@ void loop() {
   telnetServer.polling(now);
   ApiServer.polling(now);
   pollSerialPort(now);
-
   wheelly.polling(now);
 }
 

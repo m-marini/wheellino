@@ -16,6 +16,11 @@ static const unsigned long MPU_INTERVAL = 1000ul;
 static const unsigned long LED_INTERVAL = 200;
 
 /*
+   Send Interval
+*/
+static const unsigned long DEFAULT_SEND_INTERVAL = 500ul;
+
+/*
    Statistics
 */
 static const unsigned long STATS_INTERVAL = 10000ul;
@@ -31,6 +36,7 @@ static const int DISTANCE_TICK = 5;
 /*
    Proxy sensor servo
 */
+static const unsigned long DEFAULT_SCAN_INTERVAL = 1000ul;
 static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
 static const int SERVO_OFFSET = 4;
@@ -41,6 +47,8 @@ static const int FRONT_DIRECTION = 90;
 */
 Wheelly::Wheelly() :
   _motionCtrl(LEFT_FORW_PIN, LEFT_BACK_PIN, RIGHT_FORW_PIN, RIGHT_BACK_PIN, LEFT_PIN, RIGHT_PIN),
+  _scanInterval(DEFAULT_SCAN_INTERVAL),
+  _sendInterval(DEFAULT_SEND_INTERVAL),
   _sr04(TRIGGER_PIN, ECHO_PIN),
   _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN) {
 }
@@ -74,6 +82,14 @@ boolean Wheelly::begin(void) {
   _statsTimer.start();
   _statsTime = millis();
 
+  // Setup send timer
+  _sendTimer.onNext([](void *context, const unsigned long) {
+    ((Wheelly*)context)->sendStatus();
+  }, this);
+  _sendTimer.interval(_sendInterval);
+  _sendTimer.continuous(true);
+  _sendTimer.start();
+
   // Setup SR04 proximity sensor
   _sr04.begin();
   //  SR04.noSamples(NO_SAMPLES);
@@ -82,15 +98,21 @@ boolean Wheelly::begin(void) {
   }, this);
 
   // Setup proxy servo
+  _scanTimer.onNext([](void *context, const unsigned long) {
+    ((Wheelly*)context)->handleAutoScan();
+  }, this);
+  _scanTimer.interval(_scanInterval);
   _proxyServo.attach(SERVO_PIN);
   _proxyServo.offset(SERVO_OFFSET);
   _proxyServo.onReached([](void *context, const int) {
-    // Handles position reached event from scan servo
-    ((Wheelly*)context)->_sr04.start();
+    ((Wheelly*)context)->handleServoReached();
   }, this);
   _proxyServo.angle(FRONT_DIRECTION);
 
   // Setup contact sensors
+  _contactSensors.onChanged([](void *context, ContactSensors & sensors) {
+    ((Wheelly*)context)->handleChangedContacts();
+  }, this);
   _contactSensors.begin();
 
   // Setup mpu
@@ -126,6 +148,7 @@ void Wheelly::polling(const unsigned long t0) {
   // Increments cps counter
   _counter++;
 
+  _scanTimer.polling(t0);
   _proxyServo.polling(t0);
   _sr04.polling(t0);
   _statsTimer.polling(t0);
@@ -143,6 +166,7 @@ void Wheelly::polling(const unsigned long t0) {
   _ledTimer.polling(t0);
 
   _motionCtrl.polling(t0);
+  _sendTimer.polling(t0);
 
   _display.error(_mpuError);
   _display.move(!_motionCtrl.isHalt());
@@ -185,6 +209,34 @@ void Wheelly::handleMpuData() {
   _yaw = roundf(_mpu.yaw() * 180 / PI);
   _mpuTimeout = millis() + MPU_INTERVAL;
   _motionCtrl.angle(_yaw);
+
+  if (_lastYaw != _yaw) {
+    sendStatus();
+  }
+}
+
+/*
+   Handles servo auto scan
+*/
+void Wheelly::handleAutoScan(void) {
+  DEBUG_PRINTLN(F("//Wheelly::handleAutoScan"));
+  _proxyServo.angle(_nextScan);
+}
+
+/**
+   Handles changed contacts
+*/
+void Wheelly::handleChangedContacts(void) {
+  DEBUG_PRINTLN("//Wheelly::handleChangedContacts");
+  sendStatus();
+}
+
+/**
+   Handles position reached event from scan servo
+*/
+void Wheelly::handleServoReached(void) {
+  DEBUG_PRINTLN(F("//Wheelly::handleServoReached"));
+  _sr04.start();
 }
 
 /*
@@ -192,8 +244,8 @@ void Wheelly::handleMpuData() {
 */
 void Wheelly::handleEchoSample(const unsigned long echoTime) {
   _distanceTime = echoTime;
-  //DEBUG_PRINT("Distance time=");
-  //DEBUG_PRINTLN(echoTime);
+  DEBUG_PRINT("//Wheelly::handleEchoSample ");
+  DEBUG_PRINTLN(echoTime);
   if (_motionCtrl.isForward() && !canMoveForward()
       || _motionCtrl.isBackward() && !canMoveBackward()) {
     // Halt robot if cannot move
@@ -204,7 +256,6 @@ void Wheelly::handleEchoSample(const unsigned long echoTime) {
   if (now >= _resetTime) {
     _nextScan = FRONT_DIRECTION;
   }
-  _proxyServo.angle(_nextScan);
 
   if (_distanceTime == 0) {
     _display.distance(-1);
@@ -214,6 +265,7 @@ void Wheelly::handleEchoSample(const unsigned long echoTime) {
     distance *= DISTANCE_TICK;
     _display.distance(distance);
   }
+  _scanTimer.start();
 }
 
 /*
@@ -224,6 +276,7 @@ void Wheelly::handleEchoSample(const unsigned long echoTime) {
 void Wheelly::scan(const int angle, const unsigned long t0) {
   _nextScan = 90 - angle;
   _resetTime = t0 + SCANNER_RESET_INTERVAL;
+  _scanTimer.stop();
 }
 
 /*
@@ -262,6 +315,7 @@ void Wheelly::sendReply(const char* data) {
 void Wheelly::sendStatus() {
   const int voltageValue = analogRead(VOLTAGE_PIN);
   char bfr[256];
+  _lastYaw = _yaw;
   // st time x y yaw servo distance lpps rpps frontSig rearSig volt canF canB err halt dir speed nextScan
   sprintf(bfr, "st %ld %.1f %.1f %d %d %ld %.1f %.1f %d %d %d %d %d %d %d %d %d %d",
           millis(),
@@ -283,6 +337,7 @@ void Wheelly::sendStatus() {
           _motionCtrl.speed(),
           (90 - _nextScan));
   sendReply(bfr);
+  _sendTimer.restart();
 }
 
 /*
