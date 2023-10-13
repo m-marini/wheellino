@@ -31,6 +31,7 @@ class CommandInterpreter {
     const boolean handleMvCommand(const char* cmd);
     const boolean handleCcCommand(const char* cmd);
     const boolean handleCsCommand(const char* cmd);
+    const boolean handleCiCommand(const char* cmd);
     const boolean handleClrCommand(const char* cmd, const boolean left);
     const boolean validateIntArg(const int value, const int minValue, const int maxValue, const char* cmd, const int arg);
     const boolean parseCmdArgs(const char* command, const int from, const int argc, int *argv);

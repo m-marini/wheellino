@@ -194,6 +194,17 @@ void Wheelly::move(const int direction, const int speed) {
   }
 }
 
+/**
+   Configures intervals [send interval, scan interval]
+   @param p the intervals
+*/
+void Wheelly::configIntervals(const int *intervals) {
+  _sendInterval = intervals[0];
+  _scanInterval = intervals[1];
+  _sendTimer.interval(_sendInterval);
+  _scanTimer.interval(_scanInterval);
+}
+
 /*
    Resets wheelly
 */
@@ -277,6 +288,7 @@ void Wheelly::scan(const int angle, const unsigned long t0) {
   _nextScan = 90 - angle;
   _resetTime = t0 + SCANNER_RESET_INTERVAL;
   _scanTimer.stop();
+  _proxyServo.angle(_nextScan);
 }
 
 /*

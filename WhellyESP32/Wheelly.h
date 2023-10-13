@@ -117,13 +117,19 @@ class Wheelly {
       _motionCtrl.leftMotor().config(p);
     }
 
-    /*
+    /**
        Configures right motor controller
        @param p the right motor controller parameters
     */
     void configRightMotorController(const int *p) {
       _motionCtrl.rightMotor().config(p);
     }
+
+    /**
+       Configures intervals [send interval, scan interval]
+       @param p the right motor controller parameters
+    */
+    void configIntervals(const int *p);
 
     /*
        Sets activity
@@ -171,7 +177,7 @@ class Wheelly {
 
     void (*_onReply)(void*, const char*);
     void* _context;
-    
+
     int _lastYaw;
 
     const boolean canMoveForward(void) const;

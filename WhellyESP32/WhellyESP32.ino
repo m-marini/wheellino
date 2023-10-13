@@ -20,8 +20,8 @@ static const unsigned long SERIAL_TIMEOUT = 2000ul;
 static char line[100];
 
 /*
- * WiFi module
- */
+   WiFi module
+*/
 static WiFiModuleClass wiFiModule;
 
 /*
