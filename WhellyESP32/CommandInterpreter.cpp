@@ -6,6 +6,7 @@
 #include "debug.h"
 
 static const int MAX_SPEED = 40;
+static const char version[] = "0.6.1";
 
 /*
    Returns true if wrong number of arguments
@@ -57,28 +58,6 @@ const boolean CommandInterpreter::parseCmdArgs(const char* command, const int fr
   DEBUG_PRINT("]");
   DEBUG_PRINTLN();
   *argv = atoi(s0);
-  /*
-    const String cmd = command;
-    const String args = cmd.substring(from);
-    int s0 = 0;
-    int s1 = 0;
-    for (int i = 0; i < argc - 1; i++) {
-    s1 = args.indexOf(' ', s0);
-    if (s1 <= 0) {
-      char error[256];
-      sprintf(error, "!! Found %d arguments, expected %d: %s",
-              i + 1,
-              argc,
-              cmd.c_str());
-      Serial.println(error);
-      _wheelly.sendReply(error);
-      return false;
-    }
-     argv++ = args.substring(s0 , s1).toInt();
-    s0 = s1 + 1;
-    }
-    argv = args.substring(s1).toInt();
-  */
   return true;
 }
 
@@ -161,7 +140,17 @@ const boolean CommandInterpreter::execute(const unsigned long time, const char* 
     return handleClrCommand(cmd, true);
   } else if (strncmp(cmd, "cr ", 3) == 0) {
     // cr command
-    return handleClrCommand(cmd, false);
+    return handleClrCommand(cmd, true);
+  } else if (strncmp(cmd, "ci ", 3) == 0) {
+    // cr command
+    return handleCiCommand(cmd);
+  } else if (strcmp(cmd, "vr") == 0) {
+    // vr command
+    char bfr[256];
+    strcpy(bfr, "// vr ");
+    strcat(bfr, version);
+    _wheelly.sendReply(bfr);
+    return true;
   } else if (strncmp(cmd, "//", 2) == 0
              || strncmp(cmd, "!!", 2) == 0
              || cmd[0] == 0) {
@@ -259,6 +248,28 @@ const boolean CommandInterpreter::handleCsCommand(const char* cmd) {
     return false;
   }
   _wheelly.configMotorSensors(tau);
+  char bfr[256];
+  strcpy(bfr, "// ");
+  strcat(bfr, cmd);
+  _wheelly.sendReply(bfr);
+  return true;
+}
+
+
+/*
+    Handles ci command (configure intervals)
+*/
+const boolean CommandInterpreter::handleCiCommand(const char* cmd) {
+  int intervals[2];
+  if (!parseCmdArgs(cmd, 3, 2, intervals)) {
+    return false;
+  }
+  for (int i = 0; i < 2; i++) {
+    if (!validateIntArg(intervals[i], 1, 60000, cmd, i)) {
+      return false;
+    }
+  }
+  _wheelly.configIntervals(intervals);
   char bfr[256];
   strcpy(bfr, "// ");
   strcat(bfr, cmd);

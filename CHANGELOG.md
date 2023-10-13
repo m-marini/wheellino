@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- Issue #55: Add configure proxy scan interval
+
 ### Fixed
 
 - Issue #61: Bug Wifi post config dump

@@ -37,11 +37,21 @@ class ContactSensors {
       return _rearClear;
     }
 
+    /**
+       Sets callback on reached
+    */
+    void onChanged(void (*callback)(void *context, ContactSensors& sensors), void* context = NULL) {
+      _onChanged = callback;
+      _context = context;
+    }
+
   private:
     const uint8_t _frontSensorPin;
     const uint8_t _rearSensorPin;
     boolean _frontClear;
     boolean _rearClear;
+    void *_context;
+    void (*_onChanged)(void *, ContactSensors&);
 };
 
 #endif
