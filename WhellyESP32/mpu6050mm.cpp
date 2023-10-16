@@ -24,7 +24,7 @@
 #endif
 
 #define REVALIDATION_SAMPLE_COUNT 1000
-#define FIFO_BLOCK_SIZE 6
+//#define FIFO_BLOCK_SIZE 6
 #define STATUS_BLOCK_SIZE 14
 #define RESET_TIMEOUT 1
 
@@ -89,6 +89,15 @@ static Vector3 fromBytes(const uint8_t *data, const float scale) {
 }
 
 /*
+   Creates the MPU controller
+   @param address the I2C address
+*/
+MPU6050Class::MPU6050Class(const uint8_t address) : _address(address),
+  _readPtr(_buffer),
+  _writePtr(_buffer) {
+}
+
+/*
    Initializes the MPU controller
    @param afsSel the AFS selection
    @param fsSel the FS selection
@@ -105,11 +114,8 @@ const uint8_t MPU6050Class::begin(
 
   _gyroScale = GYRO_SCALE[fsSel];
   _accScale = ACC_SCALE[afsSel];
-  //memcpy(&_gyroScale, GYRO_SCALE + fsSel, sizeof(float));
-  //memcpy(&_accScale, ACC_SCALE + afsSel, sizeof(float));
   float goRate = dlpfCfg == DLPF_0 ? 8000.0 : 1000.0;
   _sampleRate = goRate / (1 + samplingDiv);
-  _numSamples = 0;
 
   if (mpuRegWrite(SIGNAL_PATH_RESET_REG, 0x07) != 0) {
     return _rc;
@@ -147,8 +153,6 @@ const uint8_t MPU6050Class::begin(
   if (flushFifo() != 0) {
     return _rc;
   }
-  //  delay(30);
-  //  delay(5);
   return _rc;
 }
 
@@ -156,6 +160,8 @@ const uint8_t MPU6050Class::begin(
    Flushes the fifo
 */
 const uint8_t MPU6050Class::flushFifo() {
+  _available = 0;
+  _readPtr = _writePtr = _buffer;
   if (mpuRegWrite(USER_CTRL_REG, FIFO_RESET_UC) != 0) {
     return _rc;
   }
@@ -173,21 +179,36 @@ const uint8_t MPU6050Class::flushFifo() {
 */
 const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long warmup) {
   _gyroOffset = Vector3();
+  Serial.println("// MPU Calibrating ...");
+
   unsigned long timeout = millis() + warmup;
   _rc = 0;
-  DEBUG_PRINTLN("// Warming up ...");
+  DEBUG_PRINTLN("// MPU Warming up ...");
   // Waits for warmup duration just polling the MPU
-  while (_rc == 0 && millis() <= timeout) {
-    polling();
+  while (millis() <= timeout) {
+    getGyro(_gyroOffset);
+    if (_rc) {
+      return _rc;
+    }
   }
 
-  DEBUG_PRINTLN("// Calibrating ...");
   _calibrating = true;
+  int numSamples = 0;
   int numAccSamples = 0;
   Vector3 acc;
+  DEBUG_PRINTLN("// MPU Start calibration ...");
   while (_rc == 0 && !(numAccSamples >= minNoSamples)) {
+    // Processes gyro samples
+    Vector3 gyro;
+    while (getGyro(gyro)) {
+      numSamples++;
+      _gyroOffset += gyro;
+    }
+    if (_rc) {
+      break;
+    }
+
     // Polls MPU for acceleration values
-    polling();
     if (readIntStatus() == 0 && dataReady()) {
       Vector3 accel;
       if (readAcc(accel) == 0) {
@@ -197,28 +218,40 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
     }
   }
   _calibrating = false;
-  if (_rc == 0) {
-    _gyroOffset /= (float)_numSamples;
-    acc /= (float) numAccSamples;
-    Vector3 accVersus = acc.unit();
-    float angle = acosf(accVersus * Vector3(0, 0, 1));
-    Vector3 axis = Vector3(0, 0, 1).cross(accVersus);
-    Quaternion q = Quaternion::rot(angle, axis);
-    _quat = q;
-    _gravity = acc;
-
-#ifdef DEBUG
-    DEBUG_PRINT("// Calibrated gyro offset: ");
-    DEBUG_PRINT(_gyroOffset.toString());
-    DEBUG_PRINTLN();
-
-    DEBUG_PRINT("// gravity: ");
-    DEBUG_PRINT(_gravity.toString());
-    DEBUG_PRINTLN();
-#endif
-
-    startMonitoring();
+  if (_rc) {
+    return _rc;
   }
+
+  _gyroOffset /= (float)numSamples;
+  acc /= (float) numAccSamples;
+  Vector3 accVersus = acc.unit();
+  float angle = acosf(accVersus * Vector3(0, 0, 1));
+  Vector3 axis = Vector3(0, 0, 1).cross(accVersus);
+  Quaternion q = Quaternion::rot(angle, axis);
+  _quat = q;
+  _gravity = acc;
+
+  Serial.print("// MPU Calibration completed:");
+  Serial.println();
+  Serial.print("//   ");
+  Serial.print(numSamples);
+  Serial.print(" gyroscope samples");
+  Serial.println();
+  Serial.print("//   offset: ");
+  Serial.print(_gyroOffset.toString());
+  Serial.println();
+
+  Serial.print("//   ");
+  Serial.print(numAccSamples);
+  Serial.print(" accelerometer samples");
+  Serial.println();
+  Serial.print("//   rotation angle (DEG): ");
+  Serial.print(angle * 180 / PI);
+  Serial.println();
+  Serial.print("//   vector: ");
+  Serial.print(_gravity.toString());
+  Serial.println();
+
   return _rc;
 }
 
@@ -234,20 +267,13 @@ void MPU6050Class::polling(unsigned long clockTime) {
 #endif
 
   Vector3 gyro;
-  uint16_t len = readFifoCount();
-  if (len >= FIFO_BLOCK_SIZE) {
-    boolean dataReady = false;
-    while (len >= FIFO_BLOCK_SIZE) {
-      if (readFifoBlock(gyro) != 0) {
-        return;
-      }
-      applyData(gyro);
-      dataReady = true;
-      len -= FIFO_BLOCK_SIZE;
-    }
-    if (dataReady && _onData != NULL) {
-      _onData(_context);
-    }
+  boolean dataReady = false;
+  while (getGyro(gyro)) {
+    applyData(gyro);
+    dataReady = true;
+  }
+  if (dataReady && _onData != NULL) {
+    _onData(_context);
   }
 }
 
@@ -264,19 +290,13 @@ void MPU6050Class::startMonitoring() {
   @param gyro the gyroscope vector
 */
 void MPU6050Class::applyData(Vector3 & gyro) {
-  _numSamples++;
-  if (_monitoring) {
-    if (_normalizationCountdown == 0) {
-      _quat = _quat.unit();
-      _normalizationCountdown = REVALIDATION_SAMPLE_COUNT;
-    }
-    _normalizationCountdown--;
-    Vector3 angle = (gyro - _gyroOffset) / sampleRate() * (PI / 180);
-    _quat *= Quaternion::rot(angle);
+  if (_normalizationCountdown == 0) {
+    _quat = _quat.unit();
+    _normalizationCountdown = REVALIDATION_SAMPLE_COUNT;
   }
-  if (_calibrating) {
-    _gyroOffset += gyro;
-  }
+  _normalizationCountdown--;
+  Vector3 angle = (gyro - _gyroOffset) / sampleRate() * (PI / 180);
+  _quat *= Quaternion::rot(angle);
 }
 
 /*
@@ -348,25 +368,6 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t reg, const uint8_t value) 
     throwError(msg);
     return _rc;
   }
-  unsigned long t0 = micros();
-  /*
-    //#ifdef DEBUG_MPU_WRITE
-    DEBUG_PRINT("// Write @0x0");
-    DEBUG_PRINTF(_address, HEX);
-    DEBUG_PRINT(" 0x0");
-    DEBUG_PRINTF(reg, HEX);
-    DEBUG_PRINT(" 0x0");
-    DEBUG_PRINTF(value, HEX);
-    DEBUG_PRINT(" 0b0");
-    DEBUG_PRINTF(value, BIN);
-    DEBUG_PRINTLN();
-    DEBUG_PRINT("Write delay ");
-    DEBUG_PRINT(t1 - t0);
-    DEBUG_PRINT(" us");
-    DEBUG_PRINTLN();
-    //#endif
-  */
-  unsigned long t1 = micros();
   return _rc;
 }
 
@@ -436,24 +437,6 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t *data, const size_t len) {
 }
 
 /*
-   Reads fifo buffer
-   @param gyro the result gyroscope vector
-*/
-const uint8_t MPU6050Class::readFifoBlock(Vector3 & gyro) {
-  uint8_t block[FIFO_BLOCK_SIZE];
-  if (readFifo(block, sizeof(block)) == 0) {
-    gyro = fromBytes(block, _gyroScale);
-
-#ifdef DUMP_FIFO
-    DEBUG_PRINTLN("// FIFO");
-    dumpData(block, sizeof(block));
-#endif
-
-  }
-  return _rc;
-}
-
-/*
    Reads the acceleration data from MPU
    @param acc the result acceleration vector
 */
@@ -466,4 +449,66 @@ const uint8_t MPU6050Class::readAcc(Vector3 & acc) {
     DEBUG_PRINTLN();
   }
   return _rc;
+}
+
+/**
+   Returns true if data available
+   @param gyro the output data
+*/
+const boolean MPU6050Class::getGyro(Vector3& gyro) {
+  if (_available < MPU_BLOCK_SIZE) {
+    // If no data available fill buffer from fifo
+    fillBuffer();
+  }
+  if (_available < MPU_BLOCK_SIZE) {
+    // No data available
+    return false;
+  }
+  // Reads data
+  gyro = fromBytes(_readPtr, _gyroScale);
+
+  // Decrements the available data
+  _available -= MPU_BLOCK_SIZE;
+
+  // Updates read pointer
+  _readPtr += MPU_BLOCK_SIZE;
+  if (_readPtr - _buffer >= MPU_BUFFER_SIZE) {
+    // Rolls the read pointer
+    _readPtr = _buffer;
+  }
+  return true;
+}
+
+/**
+   Fills the buffer from fifo
+*/
+void MPU6050Class::fillBuffer(void) {
+  uint16_t len = readFifoCount();
+  // Repeats read util no more data or full buffer size
+  while (len > 0 && _available < MPU_BUFFER_SIZE) {
+    // Computes write buffer block size
+    size_t writeSize = _writePtr >= _readPtr
+                       ? _buffer - _writePtr + MPU_BUFFER_SIZE
+                       : _readPtr - _writePtr;
+    if (writeSize > len) {
+      writeSize = len;
+    }
+
+    // Reads fifo block
+    if (readFifo(_writePtr, writeSize)) {
+      // Errors reading fifo
+      break;
+    }
+
+    // Increments the available data
+    _available += writeSize;
+    len -= writeSize;
+
+    // Moves the write pointer
+    _writePtr += writeSize;
+    if (_writePtr - _buffer >= MPU_BUFFER_SIZE) {
+      // Rolls the pointer
+      _writePtr = _buffer;
+    }
+  }
 }
