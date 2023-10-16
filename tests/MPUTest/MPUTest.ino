@@ -2,23 +2,28 @@
 #include <Wire.h>
 
 #include "mpu6050mm.h"
+#include "num.h"
 
 #define SERIAL_BPS  115200
 #define WIRE_CLOCK  400000
 
+#define GYRO_TEST_DURATION_MS 5000
+
 #define EXPECTED_FREQUENCE  125.0
 #define FREQUENCE_THRESHOLD 10.0
+#define MAX_SAMPLES_COUNT   1024
 #define GYRO_THRESHOLD      4.0
 #define ACC_THRESHOLD_G     0.1
-#define YAW_THRESHOLD_DEG   3
-
-#define GYRO_TEST_DURATION_MS 1000
+#define YAW_THRESHOLD_DEG   (1.0 / 10000 * GYRO_TEST_DURATION_MS)
+#define SIGMA_THRESHOLD_DEG 0.5
 
 #define READ_ACC_TIMEOUT_US   10000
 #define READ_FIFO_TIMEOUT_US  10000
 
-MPU6050Class Mpu;
 static int sampleCounter;
+static float yawData[MAX_SAMPLES_COUNT];
+
+MPU6050Class Mpu;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
@@ -71,9 +76,10 @@ void setup() {
     err++;
   }
 
-  if (!testReadFifo(++n)) {
+  if (!testGyroBuffer(++n)) {
     err++;
   }
+
   if (!testCalibration(++n)) {
     err++;
   }
@@ -92,6 +98,88 @@ void setup() {
 
 void loop() {
   delay(10000);
+}
+
+static const boolean testGyroBuffer(const int n) {
+  char name[128];
+  sprintf(name, "Test gyroscope buffer");
+  Serial.println();
+  Serial.print(n);
+  Serial.print(". ");
+  Serial.print(name);
+  Serial.println();
+
+  uint8_t rc = Mpu.reset();
+  if (rc != 0) {
+    Serial.print("KO reset rc=");
+    printRc(rc);
+    Serial.println();
+    return false;
+  }
+  rc = Mpu.begin();
+  if (rc != 0) {
+    Serial.print("KO begin rc=");
+    printRc(rc);
+    Serial.println();
+    return false;
+  }
+
+  const unsigned long t0 = millis();
+  const unsigned long timeout = t0 + GYRO_TEST_DURATION_MS;
+  unsigned long t1;
+  sampleCounter = 0;
+  Vector3 gyroAverage;
+  do {
+    t1 = millis();
+    rc = Mpu.rc();
+    if (rc) {
+      break;
+    }
+    Vector3 gyro;
+    if (Mpu.getGyro(gyro)) {
+      gyroAverage += gyro;
+      sampleCounter++;
+    }
+  } while (t1 < timeout);
+
+  if (rc != 0) {
+    Serial.print("KO reading buffer rc=");
+    printRc(rc);
+    Serial.println();
+    return false;
+  }
+
+  if (sampleCounter <= 0) {
+    Serial.print("KO ");
+    Serial.print(name);
+    Serial.print(" no data read");
+    Serial.println();
+    return false;
+  }
+
+  float freq = 1000.0 * sampleCounter / (t1 - t0);
+  if (abs(freq - EXPECTED_FREQUENCE) > FREQUENCE_THRESHOLD) {
+    Serial.print("KO ");
+    Serial.print(name);
+    Serial.print(" unexpected frequence: ");
+    Serial.print(freq, 2);
+    Serial.print(", expected: ");
+    Serial.print(EXPECTED_FREQUENCE);
+    Serial.println();
+    return false;
+  }
+
+  gyroAverage /= sampleCounter;
+  Serial.print("OK ");
+  Serial.print(name);
+  Serial.print(", sample counter: ");
+  Serial.print(sampleCounter);
+  Serial.print(", frequency: ");
+  Serial.print(freq, 2);
+  Serial.print(", gyroAverage: ");
+  Serial.print(gyroAverage.toString());
+  Serial.println();
+  return true;
 }
 
 static const boolean testGyro(const int n) {
@@ -128,10 +216,11 @@ static const boolean testGyro(const int n) {
   const unsigned long t0 = millis();
   const unsigned long timeout = t0 + GYRO_TEST_DURATION_MS;
   unsigned long t1;
-  int yaw;
+
+  // Accumulates data on buffer
   sampleCounter = 0;
   Mpu.onData([](void *ctx) {
-    sampleCounter++;
+    yawData[sampleCounter++] = Mpu.yaw();
   });
   do {
     t1 = millis();
@@ -140,12 +229,17 @@ static const boolean testGyro(const int n) {
     if (rc) {
       break;
     }
-    yaw = roundf(Mpu.yaw() * 180 / PI);
-  } while (abs(yaw) <= YAW_THRESHOLD_DEG && t1 < timeout);
+  } while (t1 < timeout && sampleCounter < MAX_SAMPLES_COUNT);
 
   if (rc != 0) {
     Serial.print("KO polling rc=");
     printRc(rc);
+    Serial.println();
+    return false;
+  }
+
+  if (sampleCounter == 0) {
+    Serial.print("KO no samples");
     Serial.println();
     return false;
   }
@@ -158,16 +252,65 @@ static const boolean testGyro(const int n) {
     Serial.print(freq, 2);
     Serial.print(", expected: ");
     Serial.print(EXPECTED_FREQUENCE);
+    Serial.print(", sample counter: ");
+    Serial.print(sampleCounter);
+    Serial.println();
+    return false;
+  }
+
+  // Computes average yaw
+  float avgYaw = 0;
+  for (int i = 0; i < sampleCounter; i++) {
+    avgYaw += yawData[i];
+  }
+  avgYaw /= sampleCounter;
+
+  // Computes sigma
+  float sigma = 0;
+  for (int i = 0; i < sampleCounter; i++) {
+    float diff = normalRad(yawData[i] - avgYaw);
+    sigma += diff * diff;
+  }
+  sigma = sqrt(sigma / (sampleCounter - 1));
+
+  if (abs(avgYaw * 180 / PI) > YAW_THRESHOLD_DEG) {
+    Serial.print("KO ");
+    Serial.print(name);
+    Serial.print(" unexpected yaw (>");
+    Serial.print(YAW_THRESHOLD_DEG, 4);
+    Serial.print("), sample counter: ");
+    Serial.print(sampleCounter);
+    Serial.print(", yaw: ");
+    Serial.print(avgYaw * 180 / PI, 4);
+    Serial.print(", sigma: ");
+    Serial.print(sigma * 180 / PI, 4);
+    Serial.println();
+    return false;
+  }
+
+  if (sigma * 180 / PI > SIGMA_THRESHOLD_DEG) {
+    Serial.print("KO ");
+    Serial.print(name);
+    Serial.print(" unexpected sigma (>");
+    Serial.print(SIGMA_THRESHOLD_DEG, 4);
+    Serial.print("), sample counter: ");
+    Serial.print(sampleCounter);
+    Serial.print(", yaw: ");
+    Serial.print(avgYaw * 180 / PI, 4);
+    Serial.print(", sigma: ");
+    Serial.print(sigma * 180 / PI, 4);
     Serial.println();
     return false;
   }
 
   Serial.print("OK ");
   Serial.print(name);
-  Serial.print(", yaw: ");
-  Serial.print(yaw);
   Serial.print(", sample counter: ");
   Serial.print(sampleCounter);
+  Serial.print(", yaw: ");
+  Serial.print(avgYaw * 180 / PI, 4);
+  Serial.print(", sigma: ");
+  Serial.print(sigma * 180 / PI, 4);
   Serial.println();
   return true;
 }
@@ -231,88 +374,6 @@ static const boolean testCalibration(const int n) {
   Serial.print(grav.toString());
   Serial.print(", offset: ");
   Serial.print(gyroOffset.toString());
-  Serial.println();
-  return true;
-}
-
-static const boolean testReadFifo(const int n) {
-  char name[128];
-  sprintf(name, "Test mpu read fifo");
-  // Write divider
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
-
-  uint8_t rc = Mpu.reset();
-  if (rc != 0) {
-    Serial.print("KO reset rc=");
-    printRc(rc);
-    Serial.println();
-    return false;
-  }
-  rc = Mpu.begin();
-  if (rc != 0) {
-    Serial.print("KO begin rc=");
-    printRc(rc);
-    Serial.println();
-    return false;
-  }
-  rc = Mpu.readIntStatus();
-  if (rc != 0) {
-    Serial.print("KO readStatus rc=");
-    printRc(rc);
-    Serial.println();
-    return false;
-  }
-
-  // Wait for fifo data
-  unsigned long t0 = micros();
-  unsigned long timout = t0 + READ_FIFO_TIMEOUT_US;
-  unsigned long t1;
-  uint16_t ct;
-  do {
-    ct = Mpu.readFifoCount();
-    t1 = micros();
-  } while (ct < 6 && t1 <= timout);
-  if (ct < 6) {
-    Serial.print("KO timed out fifo count: ");
-    Serial.print(ct);
-    Serial.println();
-    return false;
-  }
-  // Wait for data ready
-  rc = Mpu.readIntStatus();
-  if (rc != 0) {
-    Serial.print("KO readStatus rc=");
-    printRc(rc);
-    Serial.println();
-    return false;
-  }
-  if (Mpu.fifoOverflow()) {
-    Serial.print("KO fifo overflowed");
-    Serial.println();
-    return false;
-  }
-
-  Vector3 gyro;
-  rc = Mpu.readFifoBlock(gyro);
-  if (rc != 0) {
-    Serial.print("KO readFifoBlock rc=");
-    printRc(rc);
-    Serial.println();
-    return false;
-  }
-
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.print(", ");
-  Serial.print(gyro.toString());
-  Serial.print(" in ");
-  Serial.print(t1 - t0);
-  Serial.print(" us, fifo count: ");
-  Serial.print(ct);
   Serial.println();
   return true;
 }
