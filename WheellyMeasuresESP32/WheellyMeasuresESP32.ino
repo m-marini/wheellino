@@ -160,10 +160,14 @@ static void pollTest(const unsigned long t0) {
     leftPwr = rightPwr = 0;
     leftMotor.power(0);
     rightMotor.power(0);
+    addRecord(leftIndex, leftMeasures, t0, 0, 0);
+    addRecord(rightIndex, rightMeasures, t0, 0, 0);
+    if (!running) {
+      return;
+    }
     running = false;
-
-    char *msg = "completed";
     Display.move(false);
+    char *msg = "completed";
     Serial.println(msg);
     telnetServer.println(msg);
     dumpData("l", leftIndex, leftMeasures);
@@ -412,6 +416,8 @@ static void startTest(const unsigned long durationParam, const int leftPwrParam,
   leftPwr = rightPwr = 0;
   startTime = millis();
   running = true;
+  addRecord(leftIndex, leftMeasures, startTime, 0, 0);
+  addRecord(rightIndex, rightMeasures, startTime, 0, 0);
 
   leftMotor.power(0);
   rightMotor.power(0);
