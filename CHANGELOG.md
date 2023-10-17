@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue #55: Add configure proxy scan interval
 - Issue #69: Add physic measures
 
+### Changed
+
+- Issue #71: Change measures with power ramp up and down
+
 ### Fixed
 
 - Issue #61: Bug Wifi post config dump
