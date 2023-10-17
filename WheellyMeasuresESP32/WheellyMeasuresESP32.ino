@@ -9,19 +9,21 @@
 //#define DEBUG
 #include "debug.h"
 
+#include "pins.h"
+
 #include "WiFiModule.h"
 #include "TelnetServer.h"
 #include "Timer.h"
 #include "MotorCtrl.h"
 #include "Contacts.h"
-#include "pins.h"
+#include "Display.h"
 
 /*
    Serial config
 */
 #define SERIAL_BPS  115200
 #define MAX_POWER   255
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 2048
 
 #define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
 
@@ -41,11 +43,6 @@ static WiFiModuleClass wiFiModule;
 static TelnetServerClass telnetServer;
 
 /*
-   Timers
-*/
-static Timer testTimer;
-
-/*
    Motor sensors
 */
 MotorSensor leftSensor(LEFT_PIN);
@@ -62,19 +59,32 @@ MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, rightSensor);
 */
 ContactSensors contacts(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN);
 
+/**
+   LCD
+*/
+static DisplayClass Display;
+
 /*
    Variables
 */
 static boolean running;
 static int leftPwr;
 static int rightPwr;
-static int rightPulses[BUFFER_SIZE];
-static int leftPulses[BUFFER_SIZE];
-static unsigned long rightTime[BUFFER_SIZE];
-static unsigned long leftTime[BUFFER_SIZE];
+static int maxLeftPwr;
+static int maxRightPwr;
+static unsigned long startTime;
+static unsigned long duration;
+
+struct Record {
+  unsigned long time;
+  int power;
+  int pulses;
+};
+
+static Record leftMeasures[BUFFER_SIZE];
+static Record rightMeasures[BUFFER_SIZE];
 static size_t leftIndex;
 static size_t rightIndex;
-static unsigned long startTime;
 
 /*
    Set up
@@ -85,6 +95,10 @@ void setup() {
   Serial.println();
 
   delay(100);
+
+  Display.begin();
+  Display.clear();
+
   Serial.println();
 
   wiFiModule.onChange(handleOnChange);
@@ -92,8 +106,6 @@ void setup() {
 
   telnetServer.onClient(handleOnClient);
   telnetServer.onLineReady(handleLineReady);
-
-  testTimer.onNext(handleTestTimer);
 
   leftSensor.onSample(handleLeftSensor);
   rightSensor.onSample(handleRightSensor);
@@ -109,6 +121,8 @@ void setup() {
 
   Serial.print("Wheelly measures started.");
   Serial.println();
+  Display.clear();
+  Display.print("Wheelly measures started.");
 }
 
 /*
@@ -116,18 +130,69 @@ void setup() {
 */
 void loop() {
   unsigned long t0 = millis();
+  Display.polling(t0);
   wiFiModule.polling(t0);
   telnetServer.polling(t0);
   contacts.polling(t0);
   leftMotor.polling(t0);
   rightMotor.polling(t0);
-  testTimer.polling(t0);
+  pollTest(t0);
+}
+
+/**
+   Polls the test
+*/
+static void pollTest(const unsigned long t0) {
+  if (!running || t0 < startTime) {
+    return;
+  }
+  const unsigned long dt = t0 - startTime;
+
+  DEBUG_PRINT("// pollTest t0: ");
+  DEBUG_PRINT(t0);
+  DEBUG_PRINT(", startTime: ");
+  DEBUG_PRINT(startTime);
+  DEBUG_PRINT(", dt: ");
+  DEBUG_PRINT(dt);
+  DEBUG_PRINTLN();
+
+  if (dt > duration) {
+    leftPwr = rightPwr = 0;
+    leftMotor.power(0);
+    rightMotor.power(0);
+    running = false;
+
+    char *msg = "completed";
+    Display.move(false);
+    Serial.println(msg);
+    telnetServer.println(msg);
+    dumpData("l", leftIndex, leftMeasures);
+    dumpData("r", rightIndex, rightMeasures);
+    return;
+  }
+  int left;
+  int right;
+  if (dt <= duration / 2) {
+    left = map(dt, 0, duration / 2, 0, maxLeftPwr);
+    right = map(dt, 0, duration / 2, 0, maxRightPwr);
+  } else {
+    left = map(dt, duration / 2, duration, maxLeftPwr, 0);
+    right = map(dt, duration / 2, duration, maxRightPwr, 0);
+  }
+  if (leftPwr != left) {
+    leftPwr = left;
+    leftMotor.power(left);
+  }
+  if (rightPwr != right) {
+    rightPwr = right;
+    rightMotor.power(right);
+  }
 }
 
 /*
    Handles the wifi module state change
 */
-static void handleOnChange(void *, WiFiModuleClass& module) {
+static void handleOnChange(void *, WiFiModuleClass & module) {
   char bfr[256];
   if (module.connected()) {
     telnetServer.begin();
@@ -141,16 +206,19 @@ static void handleOnChange(void *, WiFiModuleClass& module) {
     strcpy(bfr, "Disconnected");
   }
   Serial.println(bfr);
+  Display.clear();
+  Display.print(bfr);
 }
 
 /*
   Handles the wifi client connection, disconnection
 */
-static void handleOnClient(void*, TelnetServerClass& telnet) {
+static void handleOnClient(void*, TelnetServerClass & telnet) {
   boolean hasClient = telnet.hasClient();
   Serial.println(hasClient
                  ? "Client connected"
                  : "Client disconnected");
+  Display.connected(hasClient);
   if (hasClient) {
     telnet.println("Wheelly measures ready");
   }
@@ -161,9 +229,9 @@ static void handleOnClient(void*, TelnetServerClass& telnet) {
    @param line the line
 */
 static void handleLineReady(void *, const char* line) {
-  Serial.print("<- ");
   Serial.print(line);
   Serial.println();
+  Display.activity();
   execute(line);
 }
 
@@ -315,86 +383,75 @@ static const boolean handleStopCommand() {
   }
 }
 
-static void handleTestTimer(void*, const unsigned long) {
-  leftMotor.power(0);
-  rightMotor.power(0);
-  running = false;
-
-  char *msg = "completed";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  dumpData("l", leftIndex, leftPulses, leftTime);
-  dumpData("r", rightIndex, rightPulses, rightTime);
-}
-
-static void dumpData(const char* id, const size_t n, const int* pulses, const unsigned long* times) {
+static void dumpData(const char* id, const size_t n, const Record * records) {
   char msg[256];
   sprintf(msg, "%ss %ld", id, n);
   Serial.println(msg);
   telnetServer.println(msg);
 
-  for (size_t i = 0; i < n; i++) {
-    sprintf(msg, "%sd %ld %ld %d", id, i, times[i] - startTime, pulses[i]);
-    Serial.println(msg);
+  for (size_t i = 0; i < n; i++, records++) {
+    sprintf(msg, "%sd %ld %ld %d %d", id, i,
+            records->time - startTime,
+            records->pulses,
+            records->power);
+    DEBUG_PRINTLN(msg);
     telnetServer.println(msg);
   }
   sprintf(msg, "%se", id);
-  Serial.println(msg);
+  DEBUG_PRINTLN(msg);
   telnetServer.println(msg);
 }
 
-static void startTest(const unsigned long duration, const int leftPwrParam, const int rightPwrParam) {
-  running = true;
-  leftPwr = leftPwrParam;
-  rightPwr = rightPwrParam;
+static void startTest(const unsigned long durationParam, const int leftPwrParam, const int rightPwrParam) {
+  duration = durationParam;
+  maxLeftPwr = leftPwrParam;
+  maxRightPwr = rightPwrParam;
   leftIndex = 0;
   rightIndex = 0;
 
-  leftMotor.power(leftPwr);
-  rightMotor.power(rightPwr);
-
-  testTimer.interval(duration);
-  testTimer.start();
+  leftPwr = rightPwr = 0;
   startTime = millis();
+  running = true;
+
+  leftMotor.power(0);
+  rightMotor.power(0);
 
   char* msg = "started";
   Serial.println(msg);
   telnetServer.println(msg);
+  Display.move(true);
 }
 
 static void stopTest(const char* msg) {
   running = false;
-  testTimer.stop();
   leftMotor.power(0);
   rightMotor.power(0);
 
+  Display.move(false);
   Serial.println(msg);
   telnetServer.println(msg);
 }
 
-static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
-  if (leftIndex >= BUFFER_SIZE) {
-    stopTest("!! Left buffer overflow");
-  } else {
-    leftPulses[leftIndex] = dPulse;
-    leftTime[leftIndex] = clockTime;
-    leftIndex++;
+static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
+  if (running) {
+    addRecord(leftIndex, leftMeasures, clockTime, leftPwr, dPulse);
   }
 }
 
-static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
-  if (rightIndex >= BUFFER_SIZE) {
-    stopTest("!! Right buffer overflow");
-  } else {
-    rightPulses[rightIndex] = dPulse;
-    rightTime[rightIndex] = clockTime;
-    rightIndex++;
+static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
+  if (running) {
+    addRecord(rightIndex, rightMeasures, clockTime, rightPwr, dPulse);
   }
 }
 
-static void handleContacts(void *, ContactSensors& sensors) {
+static void handleContacts(void *, ContactSensors & sensors) {
   boolean front = !sensors.frontClear();
   boolean rear = !sensors.rearClear();
+  block_t block = front
+                  ? rear ? FULL_BLOCK : FORWARD_BLOCK
+                  : rear ? BACKWARD_BLOCK : NO_BLOCK;
+
+  Display.block(block);
   if (running && (front || rear)) {
     // Stop by contact
     char msg[256];
@@ -402,5 +459,16 @@ static void handleContacts(void *, ContactSensors& sensors) {
             front ? "front" : "",
             rear ? "rear" : "");
     stopTest(msg);
+  }
+}
+
+static void addRecord(size_t& index, Record* records, const unsigned long t0, const int power, const int dPulses) {
+  if (index >= BUFFER_SIZE) {
+    stopTest("!! Buffer overflow");
+  } else {
+    records[index].pulses = dPulses;
+    records[index].power = power;
+    records[index].time = t0;
+    index++;
   }
 }
