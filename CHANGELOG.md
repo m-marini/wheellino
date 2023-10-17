@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue #61: Bug Wifi post config dump
 - Issue #64: API get networks list often run in Guru meditation
 - Issue #67: Yaw drift
+- Issue #73: Fix report with start and stop test records
 
 ## [0.6.0] 2023-08-22
 
