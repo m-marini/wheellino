@@ -17,13 +17,13 @@
 #include "MotorCtrl.h"
 #include "Contacts.h"
 #include "Display.h"
+#include "Tests.h"
 
 /*
    Serial config
 */
 #define SERIAL_BPS  115200
 #define MAX_POWER   255
-#define BUFFER_SIZE 2048
 
 #define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
 
@@ -67,24 +67,19 @@ static DisplayClass Display;
 /*
    Variables
 */
-static boolean running;
-static int leftPwr;
-static int rightPwr;
-static int maxLeftPwr;
-static int maxRightPwr;
-static unsigned long startTime;
-static unsigned long duration;
+static RecordList leftRecords;
+static RecordList rightRecords;
 
-struct Record {
-  unsigned long time;
-  int power;
-  int pulses;
-};
+/*
+  Tests
+*/
+static FrictionTest frictionTest(leftSensor, rightSensor,
+                                 leftMotor, rightMotor, contacts,
+                                 leftRecords, rightRecords);
 
-static Record leftMeasures[BUFFER_SIZE];
-static Record rightMeasures[BUFFER_SIZE];
-static size_t leftIndex;
-static size_t rightIndex;
+static PowerTest powerTest(leftSensor, rightSensor,
+                           leftMotor, rightMotor, contacts,
+                           leftRecords, rightRecords);
 
 /*
    Set up
@@ -119,6 +114,22 @@ void setup() {
   contacts.onChanged(handleContacts);
   contacts.begin();
 
+  powerTest.onCompletion([](void *) {
+    handleTestCompletion();
+  });
+
+  powerTest.onStop([](void *, const char* reason) {
+    handleTestStop(reason);
+  });
+
+  frictionTest.onCompletion([](void *) {
+    handleTestCompletion();
+  });
+
+  frictionTest.onStop([](void *, const char* reason) {
+    handleTestStop(reason);
+  });
+
   Serial.print("Wheelly measures started.");
   Serial.println();
   Display.clear();
@@ -136,61 +147,30 @@ void loop() {
   contacts.polling(t0);
   leftMotor.polling(t0);
   rightMotor.polling(t0);
-  pollTest(t0);
+  powerTest.polling(t0);
+  frictionTest.polling(t0);
 }
 
 /**
-   Polls the test
+   Power test completion
 */
-static void pollTest(const unsigned long t0) {
-  if (!running || t0 < startTime) {
-    return;
-  }
-  const unsigned long dt = t0 - startTime;
+static void handleTestCompletion(void) {
+  Display.move(false);
+  char *msg = "completed";
+  Serial.println(msg);
+  telnetServer.println(msg);
+  dumpData("l", leftRecords);
+  dumpData("r", rightRecords);
+}
 
-  DEBUG_PRINT("// pollTest t0: ");
-  DEBUG_PRINT(t0);
-  DEBUG_PRINT(", startTime: ");
-  DEBUG_PRINT(startTime);
-  DEBUG_PRINT(", dt: ");
-  DEBUG_PRINT(dt);
-  DEBUG_PRINTLN();
 
-  if (dt > duration) {
-    leftPwr = rightPwr = 0;
-    leftMotor.power(0);
-    rightMotor.power(0);
-    addRecord(leftIndex, leftMeasures, t0, 0, 0);
-    addRecord(rightIndex, rightMeasures, t0, 0, 0);
-    if (!running) {
-      return;
-    }
-    running = false;
-    Display.move(false);
-    char *msg = "completed";
-    Serial.println(msg);
-    telnetServer.println(msg);
-    dumpData("l", leftIndex, leftMeasures);
-    dumpData("r", rightIndex, rightMeasures);
-    return;
-  }
-  int left;
-  int right;
-  if (dt <= duration / 2) {
-    left = map(dt, 0, duration / 2, 0, maxLeftPwr);
-    right = map(dt, 0, duration / 2, 0, maxRightPwr);
-  } else {
-    left = map(dt, duration / 2, duration, maxLeftPwr, 0);
-    right = map(dt, duration / 2, duration, maxRightPwr, 0);
-  }
-  if (leftPwr != left) {
-    leftPwr = left;
-    leftMotor.power(left);
-  }
-  if (rightPwr != right) {
-    rightPwr = right;
-    rightMotor.power(right);
-  }
+/**
+   Power test completion
+*/
+static void handleTestStop(const char * reason) {
+  Display.move(false);
+  Serial.println(reason);
+  telnetServer.println(reason);
 }
 
 /*
@@ -331,12 +311,15 @@ static const boolean execute(const char* command) {
 
   DEBUG_PRINT("// processCommand: ");
   DEBUG_PRINTLN(cmd);
-  if (strcmp(cmd, "stop") == 0) {
+  if (strcmp(cmd, "ha") == 0) {
     // stop command
-    return handleStopCommand();
-  } else if (strncmp(cmd, "start ", 6) == 0) {
+    return handleHaltCommand();
+  } else if (strncmp(cmd, "pw ", 3) == 0) {
     // start command
-    return handleStartCommand(cmd);
+    return handleStartPowerCommand(cmd);
+  } else if (strncmp(cmd, "fr ", 3) == 0) {
+    // start command
+    return handleStartFrictionCommand(cmd);
   } else {
     char msg[256];
     strcpy(msg, "!! Wrong command: ");
@@ -347,57 +330,103 @@ static const boolean execute(const char* command) {
   }
 }
 
-static const boolean handleStartCommand(const char* cmd) {
-  if (!running) {
-    int params[3];
-    if (!parseCmdArgs(cmd, 6, 3, params)) {
-      return false;
-    }
-    // Validate duration
-    if (!validateIntArg(params[0], 1, 60000, cmd, 0)) {
-      return false;
-    }
-    // Validate left power
-    if (!validateIntArg(params[1], -MAX_POWER, MAX_POWER, cmd, 1)) {
-      return false;
-    }
-    // Validate right power
-    if (!validateIntArg(params[2], -MAX_POWER, MAX_POWER, cmd, 2)) {
-      return false;
-    }
-    startTest(params[0], params[1], params[2]);
-    return true;
-  } else {
+
+static const boolean handleStartPowerCommand(const char* cmd) {
+  if (powerTest.isRunning() || frictionTest.isRunning()) {
     char* msg = "!! Measures already running";
     Serial.println(msg);
     telnetServer.println(msg);
     return false;
   }
+  int params[3];
+  if (!parseCmdArgs(cmd, 3, 3, params)) {
+    return false;
+  }
+  // Validate duration
+  if (!validateIntArg(params[0], 1, 60000, cmd, 0)) {
+    return false;
+  }
+  // Validate left power
+  if (!validateIntArg(params[1], -MAX_POWER, MAX_POWER, cmd, 1)) {
+    return false;
+  }
+  // Validate right power
+  if (!validateIntArg(params[2], -MAX_POWER, MAX_POWER, cmd, 2)) {
+    return false;
+  }
+  powerTest.start(millis(), params[0], params[1], params[2]);
+  char* msg = "started";
+  Serial.println(msg);
+  telnetServer.println(msg);
+  Display.move(true);
+  return true;
 }
 
-static const boolean handleStopCommand() {
-  if (running) {
-    stopTest("// Stopped");
-    return true;
-  } else {
-    char* msg = "!! Measures not running";
+static const boolean handleStartFrictionCommand(const char* cmd) {
+  if (powerTest.isRunning() || frictionTest.isRunning()) {
+    char* msg = "!! Measures already running";
     Serial.println(msg);
     telnetServer.println(msg);
     return false;
   }
+  int params[4];
+  if (!parseCmdArgs(cmd, 3, 4, params)) {
+    return false;
+  }
+  // Validate interval
+  if (!validateIntArg(params[0], 1, 1000, cmd, 0)) {
+    return false;
+  }
+  // Validate duration
+  if (!validateIntArg(params[1], 1, 1000, cmd, 1)) {
+    return false;
+  }
+  // Validate left power
+  if (!validateIntArg(params[2], -1, 1, cmd, 2)) {
+    return false;
+  }
+  // Validate right power
+  if (!validateIntArg(params[3], -1, 1, cmd, 3)) {
+    return false;
+  }
+  frictionTest.start(millis(), params[0], params[1], params[2], params[3]);
+  char* msg = "started";
+  Serial.println(msg);
+  telnetServer.println(msg);
+  Display.move(true);
+  return true;
 }
 
-static void dumpData(const char* id, const size_t n, const Record * records) {
+static const boolean handleHaltCommand() {
+  if (powerTest.isRunning()) {
+    powerTest.stop("// Stopped");
+    return true;
+  }
+  if (frictionTest.isRunning()) {
+    frictionTest.stop("// Stopped");
+    return true;
+  }
+
+  char* msg = "!! Measures not running";
+  Serial.println(msg);
+  telnetServer.println(msg);
+  return false;
+}
+
+static void dumpData(const char* id, const RecordList& records) {
+  size_t n = records.size();
   char msg[256];
   sprintf(msg, "%ss %ld", id, n);
   Serial.println(msg);
   telnetServer.println(msg);
 
-  for (size_t i = 0; i < n; i++, records++) {
+  const Record* ptr = records.records();
+  const unsigned long startTime = ptr->time;
+  for (size_t i = 0; i < n; i++, ptr++) {
     sprintf(msg, "%sd %ld %ld %d %d", id, i,
-            records->time - startTime,
-            records->pulses,
-            records->power);
+            ptr->time - startTime,
+            ptr->pulses,
+            ptr->power);
     DEBUG_PRINTLN(msg);
     telnetServer.println(msg);
   }
@@ -406,48 +435,14 @@ static void dumpData(const char* id, const size_t n, const Record * records) {
   telnetServer.println(msg);
 }
 
-static void startTest(const unsigned long durationParam, const int leftPwrParam, const int rightPwrParam) {
-  duration = durationParam;
-  maxLeftPwr = leftPwrParam;
-  maxRightPwr = rightPwrParam;
-  leftIndex = 0;
-  rightIndex = 0;
-
-  leftPwr = rightPwr = 0;
-  startTime = millis();
-  running = true;
-  addRecord(leftIndex, leftMeasures, startTime, 0, 0);
-  addRecord(rightIndex, rightMeasures, startTime, 0, 0);
-
-  leftMotor.power(0);
-  rightMotor.power(0);
-
-  char* msg = "started";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  Display.move(true);
-}
-
-static void stopTest(const char* msg) {
-  running = false;
-  leftMotor.power(0);
-  rightMotor.power(0);
-
-  Display.move(false);
-  Serial.println(msg);
-  telnetServer.println(msg);
-}
-
 static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
-  if (running) {
-    addRecord(leftIndex, leftMeasures, clockTime, leftPwr, dPulse);
-  }
+  powerTest.processLeftPulses(clockTime, dPulse);
+  frictionTest.processLeftPulses(clockTime, dPulse);
 }
 
 static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
-  if (running) {
-    addRecord(rightIndex, rightMeasures, clockTime, rightPwr, dPulse);
-  }
+  powerTest.processRightPulses(clockTime, dPulse);
+  frictionTest.processRightPulses(clockTime, dPulse);
 }
 
 static void handleContacts(void *, ContactSensors & sensors) {
@@ -458,23 +453,6 @@ static void handleContacts(void *, ContactSensors & sensors) {
                   : rear ? BACKWARD_BLOCK : NO_BLOCK;
 
   Display.block(block);
-  if (running && (front || rear)) {
-    // Stop by contact
-    char msg[256];
-    sprintf(msg, "!! Stopped for %s, %s contacts",
-            front ? "front" : "",
-            rear ? "rear" : "");
-    stopTest(msg);
-  }
-}
-
-static void addRecord(size_t& index, Record* records, const unsigned long t0, const int power, const int dPulses) {
-  if (index >= BUFFER_SIZE) {
-    stopTest("!! Buffer overflow");
-  } else {
-    records[index].pulses = dPulses;
-    records[index].power = power;
-    records[index].time = t0;
-    index++;
-  }
+  powerTest.processContacts(front, rear);
+  frictionTest.processContacts(front, rear);
 }
