@@ -321,7 +321,7 @@ class MotionCtrlClass {
 
     unsigned long _prevTime;
 
-    void power(const int left, const int right);
+    void motorSpeed(const int left, const int right);
 };
 
 #endif

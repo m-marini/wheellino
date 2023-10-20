@@ -305,13 +305,14 @@ class Quaternion {
 };
 
 /*
-   Returns the fuzzy positivity of the value
-   value <= 0       => 0
-   value >= range   => 1
+   Returns the fuzzy greater than a value
+   value <= min => 0
+   value >= max => 1
    @param value the value
-   @param the range
+   @param minValue the min value
+   @param maxValue the max value
 */
-extern const float fuzzyPositive(const float value, const float range);
+extern const float fuzzyGreater(const float value, const float minValue, const float maxValue);
 
 
 /*
