@@ -310,7 +310,6 @@ class MotionCtrlClass {
     MotionSensor _sensors;
     Timer _stopTimer;
     Timer _checkTimer;
-    int _moveRotThreshold;
     int _minRotRange;
     int _maxRotRange;
     int _maxRotPps;
