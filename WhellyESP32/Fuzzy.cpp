@@ -7,8 +7,8 @@
    @param value the value
    @param the range
 */
-const float fuzzyPositive(const float value, const float range) {
-  return min(max(value / range, (float)0), (float)1);
+const float fuzzyGreater(const float value, const float minValue, const float maxValue) {
+  return min(max((value - minValue) / (maxValue - minValue), (float)0), (float)1);
 }
 
 /*

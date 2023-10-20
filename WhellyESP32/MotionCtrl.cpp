@@ -8,7 +8,6 @@
 #include "pins.h"
 
 #define SCALE 10000l
-#define MAX_ANGULAR_VALUE 10
 #define SPEED_THRESHOLD   0.5f
 
 #define TRACK               0.136f
@@ -19,9 +18,9 @@
 #define MOTOR_SAFE_INTERVAL 1000ul
 #define MOTOR_CHECK_INTERVAL 100ul
 
-#define MOVE_ROT_THRESHOLD 30
 #define MIN_ROT_RANGE 3
 #define MAX_ROT_RANGE 30
+#define MAX_ANGULAR_VALUE 10
 
 #define DEFAULT_P0      27
 #define DEFAULT_P1      73
@@ -36,7 +35,6 @@ MotionCtrlClass::MotionCtrlClass(byte leftForwPin, byte leftBackPin, byte rightF
   : _sensors(leftSensorPin, rightSensorPin),
     _leftMotor(leftForwPin, leftBackPin, _sensors.leftSensor()),
     _rightMotor(rightForwPin, rightBackPin, _sensors.rightSensor()),
-    _moveRotThreshold(MOVE_ROT_THRESHOLD),
     _minRotRange(MIN_ROT_RANGE),
     _maxRotRange(MAX_ROT_RANGE),
     _maxRotPps(MAX_ANGULAR_VALUE) {
@@ -87,7 +85,7 @@ void MotionCtrlClass::halt() {
   DEBUG_PRINTLN("// MotionCtrlClass::halt");
   _speed = 0;
   _halt = true;
-  power(0, 0);
+  motorSpeed(0, 0);
   _stopTimer.stop();
   _checkTimer.stop();
 }
@@ -97,13 +95,10 @@ void MotionCtrlClass::halt() {
   @param p the controller parameters
 */
 void MotionCtrlClass::configController(const int* p) {
-  _moveRotThreshold = p[0];
-  _minRotRange = p[1];
-  _maxRotRange = p[2];
-  _maxRotPps = p[3];
+  _minRotRange = p[0];
+  _maxRotRange = p[1];
+  _maxRotPps = p[2];
   DEBUG_PRINTLN("// MotionCtrlClass::setControllerConfig");
-  DEBUG_PRINT(", _moveRotThreshold: ");
-  DEBUG_PRINT(_moveRotThreshold);
   DEBUG_PRINT(", _minRotRange: ");
   DEBUG_PRINT(_minRotRange);
   DEBUG_PRINT(", _maxRotRange ");
@@ -168,72 +163,53 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
   DEBUG_PRINT("// MotionCtrlClass::handleMotion ");
   DEBUG_PRINT(clockTime);
   DEBUG_PRINTLN();
-  if (!_halt && dt > 0) {
-    // Compute motor power
-    int dir1 = angle();
-    int toDir1 = _direction;
-    int turn1 = normalDeg(toDir1 - dir1);
-
-    DEBUG_PRINT("//     dir: ");
-    DEBUG_PRINT(dir1);
-    DEBUG_PRINT(", to: ");
-    DEBUG_PRINT(toDir1);
-    DEBUG_PRINT(", turn: ");
-    DEBUG_PRINT(turn1);
-    DEBUG_PRINTLN();
-
-    int rotRange = _maxRotRange - _minRotRange;
-
-    float isCw = fuzzyPositive(turn1 - _minRotRange, rotRange);
-    float isCcw = fuzzyPositive(-turn1 - _minRotRange, rotRange);
-    float isLin = 1 - fuzzyPositive(abs(turn1), _moveRotThreshold);
-    Defuzzier fuzzy;
-
-    fuzzy.add(_maxRotPps, isCw);
-    fuzzy.add(-_maxRotPps, isCcw);
-    fuzzy.add(0, 1 - max(isCw, isCcw));
-    int cwSpeed = round(fuzzy.defuzzy());
-
-    fuzzy.reset();
-    fuzzy.add(_speed, isLin);
-    fuzzy.add(0, 1 - isLin);
-    int linSpeed = round(fuzzy.defuzzy());
-
-    DEBUG_PRINT("//     isCw: ");
-    DEBUG_PRINT(isCw);
-    DEBUG_PRINT(", isCcw: ");
-    DEBUG_PRINT(isCcw);
-    DEBUG_PRINT(", isLin: ");
-    DEBUG_PRINT(isLin);
-    DEBUG_PRINT(", cwSpeed: ");
-    DEBUG_PRINT(cwSpeed);
-    DEBUG_PRINT(", linSpeed: ");
-    DEBUG_PRINT(linSpeed);
-    DEBUG_PRINTLN();
-
-    int left = linSpeed + cwSpeed;
-    int right = linSpeed - cwSpeed;
-
-    /*
-      float mx = max(max(abs(left), abs(right)), 1);
-
-      left /= mx;
-      right /= mx;
-    */
-
-    DEBUG_PRINT("//     motors: ");
-    DEBUG_PRINT(left);
-    DEBUG_PRINT(", ");
-    DEBUG_PRINT(right);
-    DEBUG_PRINTLN();
-    power(left, right);
+  if (_halt || dt <= 0) {
+    return;
   }
+  // Compute motor power
+  int dir1 = angle();
+  int toDir1 = _direction;
+  int turn1 = normalDeg(toDir1 - dir1);
+
+  DEBUG_PRINT("//     dir: ");
+  DEBUG_PRINT(dir1);
+  DEBUG_PRINT(", to: ");
+  DEBUG_PRINT(toDir1);
+  DEBUG_PRINT(", turn: ");
+  DEBUG_PRINT(turn1);
+  DEBUG_PRINTLN();
+
+  float isRot = fuzzyGreater(abs(turn1), _minRotRange, _maxRotRange);
+  float isLin = 1 - isRot;
+
+  int rotLeft =  turn1 < 0 ? -_maxRotPps : _maxRotPps;
+  int rotRight =  turn1 < 0 ? _maxRotPps : -_maxRotPps;
+
+  Defuzzier fuzzy;
+
+  fuzzy.add(rotLeft, isRot);
+  fuzzy.add(_speed, isLin);
+  fuzzy.add(0, 1 - max(isRot, isLin));
+  int left = round(fuzzy.defuzzy());
+
+  fuzzy.reset();
+  fuzzy.add(rotRight, isRot);
+  fuzzy.add(_speed, isLin);
+  fuzzy.add(0, 1 - max(isRot, isLin));
+  int right = round(fuzzy.defuzzy());
+
+  DEBUG_PRINT("//     motors: ");
+  DEBUG_PRINT(left);
+  DEBUG_PRINT(", ");
+  DEBUG_PRINT(right);
+  DEBUG_PRINTLN();
+  motorSpeed(left, right);
 }
 
 /*
 
 */
-void MotionCtrlClass::power(int left, int right) {
+void MotionCtrlClass::motorSpeed(int left, int right) {
 
   DEBUG_PRINT("// MotionCtrlClass::power ");
   DEBUG_PRINT(left);

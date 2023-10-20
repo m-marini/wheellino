@@ -6,7 +6,7 @@
 #include "debug.h"
 
 static const int MAX_SPEED = 40;
-static const char version[] = "0.6.1";
+static const char version[] = "0.7.0";
 
 /*
    Returns true if wrong number of arguments
@@ -211,20 +211,20 @@ const boolean CommandInterpreter::handleMvCommand(const char* cmd) {
 
 /*
    Handles cc command (configure controller)
-   [ moveRotThreshold, minRotRange, maxRotRange, maxRotPps ]
+   [ minRotRange, maxRotRange, maxRotPps ]
 */
 const boolean CommandInterpreter::handleCcCommand(const char* cmd) {
-  int params[4];
-  if (!parseCmdArgs(cmd, 3, 4, params)) {
+  int params[3];
+  if (!parseCmdArgs(cmd, 3, 3, params)) {
     return false;
   }
   // Validates
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 2; i++) {
     if (!validateIntArg(params[i], 0, 180, cmd, i)) {
       return false;
     }
   }
-  if (!validateIntArg(params[3], 0, 20, cmd, 3)) {
+  if (!validateIntArg(params[3], 0, 20, cmd, 2)) {
     return false;
   }
 

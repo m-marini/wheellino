@@ -310,7 +310,6 @@ class MotionCtrlClass {
     MotionSensor _sensors;
     Timer _stopTimer;
     Timer _checkTimer;
-    int _moveRotThreshold;
     int _minRotRange;
     int _maxRotRange;
     int _maxRotPps;
@@ -321,7 +320,7 @@ class MotionCtrlClass {
 
     unsigned long _prevTime;
 
-    void power(const int left, const int right);
+    void motorSpeed(const int left, const int right);
 };
 
 #endif
