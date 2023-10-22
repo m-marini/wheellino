@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Issue #75: Change motion by mixing rotation and movement
+- Issue #80: Change stiction and friction test
 
 ## [0.6.1] 2023-10-20
 

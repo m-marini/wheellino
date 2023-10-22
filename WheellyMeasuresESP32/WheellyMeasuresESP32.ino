@@ -205,6 +205,9 @@ static void handleOnClient(void*, TelnetServerClass & telnet) {
   Display.connected(hasClient);
   if (hasClient) {
     telnet.println("Wheelly measures ready");
+  } else {
+    powerTest.stop("!! Disconnected");
+    frictionTest.stop("!! Disconnected");
   }
 }
 
@@ -377,15 +380,15 @@ static const boolean handleStartFrictionCommand(const char* cmd) {
   if (!validateIntArg(params[0], 1, 1000, cmd, 0)) {
     return false;
   }
-  // Validate duration
+  // Validate pulses threshold
   if (!validateIntArg(params[1], 1, 1000, cmd, 1)) {
     return false;
   }
-  // Validate left power
+  // Validate left direction
   if (!validateIntArg(params[2], -1, 1, cmd, 2)) {
     return false;
   }
-  // Validate right power
+  // Validate right direction
   if (!validateIntArg(params[3], -1, 1, cmd, 3)) {
     return false;
   }
@@ -453,6 +456,8 @@ static void handleContacts(void *, ContactSensors & sensors) {
                   : rear ? BACKWARD_BLOCK : NO_BLOCK;
 
   Display.block(block);
-  powerTest.processContacts(front, rear);
-  frictionTest.processContacts(front, rear);
+  if (front || rear) {
+    powerTest.processContacts(front, rear);
+    frictionTest.processContacts();
+  }
 }
