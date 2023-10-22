@@ -5,32 +5,120 @@
 
 #define MAX_POWER 255
 
-void FrictionTest::stepTimerCallback(void* test, const unsigned long) {
-  ((FrictionTest*)test)->handleStepTimer();
+/**
+   Creates the motor test
+*/
+MotorTest::MotorTest(MotorCtrl& motor, MotorSensor& sensor, RecordList& records) :
+  _motor(motor),
+  _sensor(sensor),
+  _records(records)
+{
 }
 
-void FrictionTest::stopTimerCallback(void* test, const unsigned long) {
-  ((FrictionTest*)test)->handleStopTimer();
+/**
+   Starts the test
+*/
+void MotorTest::start(const unsigned long t0, const int step, const unsigned long thresholdPulses) {
+  DEBUG_PRINT("MotorTest::start");
+  DEBUG_PRINTLN();
+  _step = step;
+  _thresholdPulses = thresholdPulses;
+  _startPulses = _sensor.pulses();
+  _records.clear();
+  _records.add(t0, 0, 0);
+  _power = 0;
+  _motor.power(0);
+  _status = TEST_RAMP_UP;
+  if (step == 0) {
+    complete(t0);
+  }
+}
+
+/**
+   Stops the test
+*/
+void MotorTest::stop(void) {
+  DEBUG_PRINT("MotorTest::stop");
+  DEBUG_PRINTLN();
+  _motor.power(0);
+  _status = TEST_STOPPED;
+}
+
+/**
+   Completes the test
+*/
+void MotorTest::complete(const unsigned long t0) {
+  DEBUG_PRINT("MotorTest::complete");
+  DEBUG_PRINTLN();
+  _records.add(t0, 0, 0);
+  _motor.power(0);
+  _status = TEST_COMPLETED;
+}
+
+/**
+   Runs for a step
+   Returns true if step ok else false if test has stopped
+*/
+void MotorTest::runStep(const unsigned long t0) {
+  DEBUG_PRINT("MotorTest::runStep");
+  DEBUG_PRINTLN();
+  switch (_status) {
+    case TEST_RAMP_UP:
+      _power += _step;
+      if (_power > MAX_POWER) {
+        stop();
+      }
+      DEBUG_PRINT("  power=");
+      DEBUG_PRINT(_power);
+      DEBUG_PRINTLN();
+      _motor.power(_power);
+      break;
+    case TEST_RAMP_DOWN:
+      _power -= _step;
+      DEBUG_PRINT("  power=");
+      DEBUG_PRINT(_power);
+      DEBUG_PRINTLN();
+      _motor.power(_power);
+      if (_power == 0) {
+        complete(t0);
+      }
+      break;
+  }
+}
+
+/**
+   Adds the pulses
+*/
+void MotorTest::addPulses(const unsigned long t0, const int dPulses) {
+  // Add record
+  if (isRunning()) {
+    if (!_records.add(t0, _power, dPulses)) {
+      stop();
+    } else if (_status == TEST_RAMP_UP
+               && abs(_sensor.pulses() - _startPulses) >= _thresholdPulses) {
+      // Ramp up completed
+      _status = TEST_RAMP_DOWN;
+    }
+  }
+}
+
+void FrictionTest::stepTimerCallback(void* test, const unsigned long) {
+  ((FrictionTest*)test)->handleStepTimer();
 }
 
 /**
    Creates the friction test
 */
-FrictionTest::FrictionTest(MotorSensor& leftSensor, MotorSensor& rightSensor,
-                           MotorCtrl& leftMotor, MotorCtrl& rightMotor,
-                           ContactSensors& contacts,
-                           RecordList& leftRecords, RecordList& rightRecords):
-  _leftSensor(leftSensor),
-  _rightSensor(rightSensor),
-  _leftMotor(leftMotor),
-  _rightMotor(rightMotor),
-  _contacts(contacts),
-  _leftRecords(leftRecords),
-  _rightRecords(rightRecords)
+FrictionTest::FrictionTest(MotorSensor & leftSensor, MotorSensor & rightSensor,
+                           MotorCtrl & leftMotor, MotorCtrl & rightMotor,
+                           ContactSensors & contacts,
+                           RecordList & leftRecords, RecordList & rightRecords):
+  _leftMotorTest(leftMotor, leftSensor, leftRecords),
+  _rightMotorTest(rightMotor, rightSensor, rightRecords),
+  _contacts(contacts)
 {
   _stepTimer.continuous(true);
   _stepTimer.onNext(stepTimerCallback, this);
-  _stopTimer.onNext(stopTimerCallback, this);
 }
 
 /**
@@ -38,22 +126,14 @@ FrictionTest::FrictionTest(MotorSensor& leftSensor, MotorSensor& rightSensor,
 */
 void FrictionTest::start(const unsigned long t0,
                          const unsigned long stepInterval,
-                         const unsigned long stopDuration,
+                         const unsigned long sustain,
                          const int leftStep, const int rightStep) {
   _startTime = t0;
-  _leftStep = leftStep;
-  _rightStep = rightStep;
-  _leftRecords.clear();
-  _rightRecords.clear();
-  _leftRecords.add(t0, 0, 0);
-  _rightRecords.add(t0, 0, 0);
-  _leftMotor.power(0);
-  _rightMotor.power(0);
-  _running = true;
-  if (_leftStep == 0 && _rightStep == 0) {
+  _leftMotorTest.start(t0, leftStep, sustain);
+  _rightMotorTest.start(t0, rightStep, sustain);
+  if (isCompleted()) {
     completeTest(t0);
   } else {
-    _stopTimer.interval(stopDuration);
     _stepTimer.interval(stepInterval);
     _stepTimer.start();
   }
@@ -63,63 +143,40 @@ void FrictionTest::start(const unsigned long t0,
    Polls the test
 */
 void FrictionTest::polling(const unsigned long t0) {
-  _stopTimer.polling(t0);
   _stepTimer.polling(t0);
-}
-
-void FrictionTest::runStop(const unsigned long t0) {
-  DEBUG_PRINT("FrictionTest::runStop");
-  DEBUG_PRINTLN();
-  if (_running && !_stopTimer.isRunning()) {
-    _stepTimer.stop();
-    _stopTimer.start();
-  }
 }
 
 void FrictionTest::completeTest(const unsigned long t0) {
   DEBUG_PRINT("FrictionTest::completeTest");
   DEBUG_PRINTLN();
-  _stopTimer.stop();
-  _leftPwr = _rightPwr = 0;
-  _leftMotor.power(0);
-  _rightMotor.power(0);
-  _leftRecords.add(t0, 0, 0);
-  _rightRecords.add(t0, 0, 0);
-  if (!_running) {
-    return;
-  }
-  _running = false;
   if (_onCompletion) {
     _onCompletion(_completionContext);
   }
 }
 
-void FrictionTest::handleStopTimer(void) {
-  completeTest(millis());
-}
-
 void FrictionTest::handleStepTimer(void) {
-  _leftPwr += _leftStep;
-  _rightPwr += _rightStep;
-  if (abs(_leftPwr) > MAX_POWER || abs(_rightPwr) > MAX_POWER) {
-    stop("Power limit reached");
-    return;
+  if (isRunning()) {
+    const unsigned long t0 = millis();
+    _leftMotorTest.runStep(t0);
+    _rightMotorTest.runStep(t0);
+    if (_leftMotorTest.isStopped() || _rightMotorTest.isStopped()) {
+      stop("Power limit reached");
+      return;
+    }
+    if (isCompleted()) {
+      completeTest(t0);
+      return;
+    }
   }
-  _leftMotor.power(_leftPwr);
-  _rightMotor.power(_rightPwr);
 }
 
 /**
    Processes contacts
 */
-void FrictionTest::processContacts(const boolean front, const boolean rear) {
-  if (_running && (front || rear)) {
+void FrictionTest::processContacts(void) {
+  if (isRunning()) {
     // Stop by contact
-    char msg[256];
-    sprintf(msg, "!! Stopped for %s, %s contacts",
-            front ? "front" : "",
-            rear ? "rear" : "");
-    stop(msg);
+    stop("!! Stopped for contact");
   }
 }
 
@@ -127,12 +184,11 @@ void FrictionTest::processContacts(const boolean front, const boolean rear) {
    Processes left pulses
 */
 void FrictionTest::processLeftPulses(const unsigned long t0, const int dPulses) {
-  if (_running && !_leftRecords.add(t0, _leftPwr, dPulses)) {
-    stop("!! Buffer overflow");
-  }
-  _leftStep = 0;
-  if (_rightStep == 0) {
-    runStop(t0);
+  if (isRunning()) {
+    _leftMotorTest.addPulses(t0, dPulses);
+    if (_leftMotorTest.isStopped()) {
+      stop("!! Buffer overflow");
+    }
   }
 }
 
@@ -140,12 +196,11 @@ void FrictionTest::processLeftPulses(const unsigned long t0, const int dPulses) 
    Processes right pulses
 */
 void FrictionTest::processRightPulses(const unsigned long t0, const int dPulses) {
-  if (_running && !_rightRecords.add(t0, _rightPwr, dPulses)) {
-    stop("!! Buffer overflow");
-  }
-  _rightStep = 0;
-  if (_leftStep == 0) {
-    runStop(t0);
+  if (isRunning()) {
+    _rightMotorTest.addPulses(t0, dPulses);
+    if (_rightMotorTest.isStopped()) {
+      stop("!! Buffer overflow");
+    }
   }
 }
 
@@ -154,9 +209,8 @@ void FrictionTest::processRightPulses(const unsigned long t0, const int dPulses)
 */
 void FrictionTest::stop(const char * reason) {
   _stepTimer.stop();
-  _running = false;
-  _leftMotor.power(0);
-  _rightMotor.power(0);
+  _leftMotorTest.stop();
+  _rightMotorTest.stop();
 
   if (_onStop) {
     _onStop(_stopContext, reason);
@@ -166,10 +220,10 @@ void FrictionTest::stop(const char * reason) {
 /**
    Creates the power test
 */
-PowerTest::PowerTest(MotorSensor& leftSensor, MotorSensor& rightSensor,
-                     MotorCtrl& leftMotor, MotorCtrl& rightMotor,
-                     ContactSensors& contacts,
-                     RecordList& leftRecords, RecordList& rightRecords):
+PowerTest::PowerTest(MotorSensor & leftSensor, MotorSensor & rightSensor,
+                     MotorCtrl & leftMotor, MotorCtrl & rightMotor,
+                     ContactSensors & contacts,
+                     RecordList & leftRecords, RecordList & rightRecords):
   _leftSensor(leftSensor),
   _rightSensor(rightSensor),
   _leftMotor(leftMotor),

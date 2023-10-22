@@ -8,6 +8,11 @@
 
 #define BUFFER_SIZE 2048
 
+#define TEST_STOPPED    0
+#define TEST_RAMP_UP    1
+#define TEST_RAMP_DOWN  2
+#define TEST_COMPLETED  3
+
 struct Record {
   unsigned long time;
   int power;
@@ -64,6 +69,75 @@ class RecordList {
 };
 
 /**
+   Test of the motor
+   Creates a power ramp up until movement
+   then runs for constant power
+   then ramp down to stop
+*/
+class MotorTest {
+  public:
+    /**
+       Creates the motor test
+    */
+    MotorTest(MotorCtrl& motor, MotorSensor& sensor, RecordList& records);
+
+    /**
+       Starts the test
+    */
+    void start(const unsigned long t0, const int step, const unsigned long thresholdPulses);
+
+    /**
+       Stops the test
+    */
+    void stop(void);
+
+    /**
+       Runs for a step
+    */
+    void runStep(const unsigned long t0);
+
+    /**
+       Returns true if the test is stopped
+    */
+    const boolean isStopped() const {
+      return _status == TEST_STOPPED;
+    }
+
+
+    /**
+       Returns true if the test is completed
+    */
+    const boolean isCompleted() const {
+      return _status == TEST_COMPLETED;
+    }
+
+    /**
+       Returns true if the test is running
+    */
+    const boolean isRunning() const {
+      return _status == TEST_RAMP_UP
+             || _status == TEST_RAMP_DOWN;
+    }
+
+    /**
+       Adds the pulses
+    */
+    void addPulses(const unsigned long t0, const int dPulses);
+
+  private:
+    MotorCtrl& _motor;
+    MotorSensor& _sensor;
+    RecordList& _records;
+    int _step;
+    unsigned long _thresholdPulses;
+    long _startPulses;
+    int _power;
+    int _status;
+
+    void complete(const unsigned long t0);
+};
+
+/**
    Handles the friction test
 */
 class FrictionTest {
@@ -76,7 +150,7 @@ class FrictionTest {
     /**
        Starts the test
     */
-    void start(const unsigned long t0, const unsigned long stepInterval, const unsigned long stopDuration, const int leftStep, const int rightStep);
+    void start(const unsigned long t0, const unsigned long stepInterval, const unsigned long thresholdPulses, const int leftStep, const int rightStep);
 
     /**
        Stops the test
@@ -117,43 +191,36 @@ class FrictionTest {
     /**
        Processes contacts
     */
-    void processContacts(const boolean front, const boolean rear);
+    void processContacts(void);
 
     /**
        Returns true if test is running
     */
     const boolean isRunning(void) const {
-      return _running;
+      return _leftMotorTest.isRunning() || _rightMotorTest.isRunning();
+    }
+
+    /**
+       Returns true if test is completed
+    */
+    const boolean isCompleted(void) const {
+      return _leftMotorTest.isCompleted() && _rightMotorTest.isCompleted();
     }
 
   private:
-    MotorSensor &_leftSensor;
-    MotorSensor &_rightSensor;
-    MotorCtrl &_leftMotor;
-    MotorCtrl &_rightMotor;
+    MotorTest _leftMotorTest;
+    MotorTest _rightMotorTest;
     ContactSensors &_contacts;
-    RecordList& _leftRecords;
-    RecordList& _rightRecords;
     Timer _stepTimer;
-    Timer _stopTimer;
-    boolean _running;
-    int _leftPwr;
-    int _rightPwr;
-    int _leftStep;
-    int _rightStep;
     unsigned long _startTime;
-    unsigned long _stepDuration;
     void* _completionContext;
     void* _stopContext;
     void (*_onCompletion)(void *);
     void (*_onStop)(void *, const char*);
 
-    void handleStopTimer(void);
     void handleStepTimer(void);
     void completeTest(const unsigned long t0);
-    void runStop(const unsigned long t0);
     static void stepTimerCallback(void*, const unsigned long);
-    static void stopTimerCallback(void*, const unsigned long);
 };
 
 
