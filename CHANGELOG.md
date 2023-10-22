@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue #75: Change motion by mixing rotation and movement
 - Issue #80: Change stiction and friction test
 
+### Removed
+
+- Issue #82: Remove arduino one board code
+
 ## [0.6.1] 2023-10-20
 
 ### Added
