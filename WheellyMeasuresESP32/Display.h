@@ -59,6 +59,9 @@ class DisplayClass : public Print {
     // Sets the distance
     void distance(const int distance);
 
+    // Sets the supply level
+    void supply(const int level);
+
     // Shows the wifi info
     void showWiFiInfo(const char* info);
 
@@ -74,6 +77,7 @@ class DisplayClass : public Print {
     uint8_t _connected;
     unsigned long _activityTime;
     int _distance;
+    int _supplyLevel;
     char _buffer[SCROLL_BUFFER_SIZE];
     char _wiFiInfo[WIFI_BUFFER_SIZE];
 

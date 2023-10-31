@@ -43,6 +43,12 @@ static const int SERVO_OFFSET = 4;
 static const int FRONT_DIRECTION = 90;
 
 /*
+   Voltage levels
+*/
+static const int MIN_VOLTAGE_VALUE = 1896;
+static const int MAX_VOLTAGE_VALUE = 2621;
+
+/*
    Creates wheelly controller
 */
 Wheelly::Wheelly() :
@@ -326,6 +332,20 @@ void Wheelly::sendReply(const char* data) {
 */
 void Wheelly::sendStatus() {
   const int voltageValue = analogRead(VOLTAGE_PIN);
+  const int v = voltageValue;
+  const int hLevel = min(max(
+                           (int)map(v, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
+                           0), 9);
+  const int level = (hLevel + 1) / 2;
+  DEBUG_PRINT("// Wheelly::sendStatus v=");
+  DEBUG_PRINT(v);
+  DEBUG_PRINT(" , hlevel=");
+  DEBUG_PRINT(hLevel);
+  DEBUG_PRINT(" , level=");
+  DEBUG_PRINT(level);
+  DEBUG_PRINTLN();
+  _display.supply(level);
+
   char bfr[256];
   _lastYaw = _yaw;
   // st time x y yaw servo distance lpps rpps frontSig rearSig volt canF canB err halt dir speed nextScan
