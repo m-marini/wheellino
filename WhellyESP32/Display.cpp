@@ -10,11 +10,10 @@ static const unsigned long ACTIVITY_INTERVAL = 2000ul;
 
 static const char* ERROR_STRING = "\x01 ";
 static const char* MOVING_STRING = "\x02 ";
-static const char* FORWARD_BLOCK_STRING = "\x03 ";
-static const char* BACKWARD_BLOCK_STRING = "\x04 ";
-static const char* FULL_BLOCK_STRING = "\x05 ";
-static const char* CONNECTED_STRING = "\x06\x07 ";
-static const char* ACTIVITY_STRING = "\x08";
+static const char* BLOCK_STRING = "\x03 ";
+static const char* CONNECTED_STRING = "\x04\x05 ";
+static const char* ACTIVITY_STRING = "\x06";
+static const char* SUPPLY_STRING = "\x07";
 static const char* BLANK1_STRING = " ";
 static const char* BLANK2_STRING = "  ";
 static const char* BLANK3_STRING = "   ";
@@ -102,6 +101,64 @@ static uint8_t activityChar[] = { 0b01110,
                                   0b10001
                                 };
 
+static uint8_t supplyCharSet[][8] = {
+  { // Supply chars
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b11111
+  }, {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b11111,
+    0b11111
+  }, {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b10001,
+    0b11111,
+    0b11111,
+    0b11111
+  }, {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b10001,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111
+  }, {
+    0b01110,
+    0b11111,
+    0b10001,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111
+  }, {
+    0b01110,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111,
+    0b11111
+  }
+};
+
 /*
    Handles scrolling timer
 */
@@ -126,14 +183,12 @@ DisplayClass::DisplayClass(const uint8_t addr)
 */
 void DisplayClass::begin() {
   _lcd.begin(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-  _lcd.createChar(1, errorChar);
-  _lcd.createChar(2, uparrowChar);
-  _lcd.createChar(3, forwardBlockChar);
-  _lcd.createChar(4, backwardBlockChar);
-  _lcd.createChar(5, fullBlockChar);
-  _lcd.createChar(6, connectedChar);
-  _lcd.createChar(7, terminalChar);
-  _lcd.createChar(8, activityChar);
+  _lcd.createChar(ERROR_STRING[0], errorChar);
+  _lcd.createChar(MOVING_STRING[0], uparrowChar);
+  _lcd.createChar(CONNECTED_STRING[0], connectedChar);
+  _lcd.createChar(CONNECTED_STRING[1], terminalChar);
+  _lcd.createChar(ACTIVITY_STRING[0], activityChar);
+  _lcd.createChar(SUPPLY_STRING[0], supplyCharSet[0]);
   _lcd.setBacklight(255);
   _timer.start();
 }
@@ -211,6 +266,19 @@ void DisplayClass::block(const block_t block) {
   const block_t old = _block;
   _block = block;
   if (old != _block) {
+    uint8_t* customChar = fullBlockChar;
+    switch (_block) {
+      case FORWARD_BLOCK:
+        customChar = forwardBlockChar;
+        break;
+      case BACKWARD_BLOCK:
+        customChar = backwardBlockChar;
+        break;
+      default:
+        customChar = fullBlockChar;
+        break;
+    }
+    _lcd.createChar(BLOCK_STRING[0], customChar);
     showInfo();
   }
 }
@@ -223,6 +291,23 @@ void DisplayClass::activity(const unsigned long time) {
   unsigned long old = _activityTime;
   _activityTime = time + ACTIVITY_INTERVAL;
   if (time >= old) {
+    showInfo();
+  }
+}
+
+/*
+   Sets the supply status
+   @param levelthe supply level
+*/
+void DisplayClass::supply(const int level) {
+  const int old = _supplyLevel;
+  _supplyLevel = min(max(level, 0), (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
+  if (old != _supplyLevel) {
+    DEBUG_PRINT("DisplayClass::supply(");
+    DEBUG_PRINT(_supplyLevel);
+    DEBUG_PRINT(")");
+    DEBUG_PRINTLN();
+    _lcd.createChar(SUPPLY_STRING[0], supplyCharSet[_supplyLevel]);
     showInfo();
   }
 }
@@ -255,23 +340,7 @@ void DisplayClass::showInfo() {
 
   // BL
   _lcd.setCursor(4, 1);
-  if (_blink) {
-    _lcd.print(BLANK2_STRING);
-  } else {
-    switch (_block) {
-      case FORWARD_BLOCK:
-        _lcd.print(FORWARD_BLOCK_STRING);
-        break;
-      case BACKWARD_BLOCK:
-        _lcd.print(BACKWARD_BLOCK_STRING);
-        break;
-      case FULL_BLOCK:
-        _lcd.print(FULL_BLOCK_STRING);
-        break;
-      default:
-        _lcd.print(BLANK2_STRING);
-    }
-  }
+  _lcd.print(_blink || _block == NO_BLOCK ?  BLANK2_STRING : BLOCK_STRING);
 
   // Distance
   char distance[10];
@@ -290,6 +359,10 @@ void DisplayClass::showInfo() {
   // Act
   _lcd.setCursor(13, 1);
   _lcd.print(millis() <= _activityTime && !_blink ? ACTIVITY_STRING : BLANK1_STRING);
+
+  // Supply
+  _lcd.setCursor(15, 1);
+  _lcd.print(SUPPLY_STRING);
 }
 
 /**

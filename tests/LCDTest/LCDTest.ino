@@ -10,6 +10,7 @@
 #define SERIAL_BPS  115200
 
 #define DISPLAY_INTERVAL  10000
+#define LEVEL_INTERVAL    200
 
 static DisplayClass Display;
 
@@ -19,6 +20,21 @@ void setup() {
   Serial.println("Starting ...");
 
   Display.begin();
+
+  Serial.println("Testing supply level");
+  Display.clear();
+  Display.showWiFiInfo("Testing supply level");
+  Display.error(0);
+  Display.move(false);
+  Display.distance(-1);
+  Display.block(NO_BLOCK);
+  Display.connected(false);
+  for (int i = 0; i < 10; i++) {
+    for (int level = 0; level < 6; level++) {
+      Display.supply(level);
+      waitForTimeout(LEVEL_INTERVAL);      
+    }
+  }
 
   Serial.println("Testing distance 5 cm");
   Display.clear();
@@ -78,6 +94,7 @@ void setup() {
 void loop() {
   delay(1000);
 }
+
 static void waitForTimeout(const unsigned long interval) {
   unsigned long t0 = millis();
   const unsigned long timeout = t0 + interval;
