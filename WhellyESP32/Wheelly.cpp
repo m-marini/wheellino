@@ -29,8 +29,9 @@ static const unsigned long STATS_INTERVAL = 10000ul;
    Proximity sensor
    Proximity distance scanner
 */
-static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100);
-static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100);
+static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100); // 20 cm
+static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100); // 400 cm
+static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100); // 3 cm
 static const int DISTANCE_TICK = 5;
 
 /*
@@ -260,7 +261,7 @@ void Wheelly::handleServoReached(void) {
    Handles sample event from distance sensor
 */
 void Wheelly::handleEchoSample(const unsigned long echoTime) {
-  _distanceTime = echoTime;
+  _distanceTime = echoTime > MIN_ECHO_TIME ? echoTime : 0;
   DEBUG_PRINT("//Wheelly::handleEchoSample ");
   DEBUG_PRINTLN(echoTime);
   if (_motionCtrl.isForward() && !canMoveForward()

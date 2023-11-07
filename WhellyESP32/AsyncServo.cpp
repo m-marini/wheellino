@@ -28,6 +28,7 @@ void AsyncServoClass::angle(const int value) {
     DEBUG_PRINTLN();
     _servo.write(wr);
   }
+  _reached = false;
   _timer.interval(max(da * MILLIS_PER_DEG, MIN_INTERVAL));
   _timer.start();
 }
@@ -37,6 +38,7 @@ void AsyncServoClass::angle(const int value) {
 */
 void AsyncServoClass::_handleTimeout(void * context, unsigned long) {
   AsyncServoClass* servo = (AsyncServoClass*) context;
+  servo->_reached = true;
   if (servo->_onReached != NULL) {
     servo->_onReached(servo->_context, servo->_angle);
   }
