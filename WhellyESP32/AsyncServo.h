@@ -61,6 +61,7 @@ class AsyncServoClass {
     int _angle;
     void *_context;
     int _offset;
+    boolean _reached;
 
     static void _handleTimeout(void *, const unsigned long);
 };

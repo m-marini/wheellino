@@ -34,15 +34,12 @@ class SR04Class {
     uint8_t _echoPin;
     void (*_onSample)(void*, const unsigned long);
 
-    int _noMeasures;
-    int _noValidSamples;
-    unsigned long _totalDuration;
+    boolean _armed;
+    unsigned long _lastMeasure;
+    unsigned long _duration;
     void* _context;
-    Timer _timer;
 
-    void _measure(void);
-    void _send(void);
-    static void _handleTimeout(void *context, unsigned long);
+    void measure(const unsigned long t0);
 };
 
 #endif
