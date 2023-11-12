@@ -37,6 +37,13 @@ class Speedometer {
       return _pps;
     }
 
+    /**
+       Returns the tau parameter
+    */
+    const unsigned long tau(void) const {
+      return _tau;
+    }
+
   private:
     float _pps;
     unsigned long _tau;
@@ -104,8 +111,15 @@ class MotorSensor {
     /*
        Returns the speed (pps)
     */
-    const float pps() const {
+    const float pps(void) const {
       return _speedometer.pps();
+    }
+
+    /**
+       Returns the tau parameter
+    */
+    const unsigned long tau(void) const {
+      return _speedometer.tau();
     }
 
   private:
@@ -139,23 +153,31 @@ class MotorCtrl {
     /*
        Sets the motor speed
     */
-    void speed(const int value) {
-      _speed = value;
-    }
+    void speed(const int value);
 
-    /*
-       Sets the configuration parameters
+    /**
+       Sets the tcs parameters
        [
-         muForw, muBack, ax
-         p0Forw, p1Forw,
-         p0Back, p1Back,
+         p0Forw, p1Forw, pxForw
+         p0Back, p1Back, pxBack
+         ax, alpha
        ]
        p0Forw, p0Back: power for dynamic friction (min power for moving motor)
        p1Forw, p1Back: power for static friction (min power for stopped motor)
-       muForw, muBack: delta power by delta speed by dt (power correction for speed difference)
-       ax: maximum delta power by dt
+       pxForw, pxBack: max theoretical power to run max speed
+       ax: asr acceleration value
+       alpha: alpha mix value
     */
-    void config(const int* parms);
+    void tcsConfig(const int* parms);
+
+    /**
+       Sets the feedback parameters
+       [
+         muForw, muBack
+       ]
+      muForw, muBack: delta power by delta speed by dt (power correction for speed difference)
+    */
+    void muConfig(const long* parms);
 
     /*
        Returns the speed
@@ -179,11 +201,89 @@ class MotorCtrl {
       _automatic = automatic;
     }
 
-    /*
+    /*s
        Returns the sensor
     */
-    MotorSensor& sensor(void) {
+    MotorSensor& sensor(void) const {
       return _sensor;
+    }
+
+    /**
+       Returns the power applied to motor
+    */
+    const int power(void) const {
+      return _power;
+    }
+
+    /**
+       Returns the p0Forw parameter
+    */
+    const int p0Forw(void) const {
+      return _p0Forw;
+    }
+
+    /**
+       Returns the p1Forw parameter
+    */
+    const int p1Forw(void) const {
+      return _p1Forw;
+    }
+
+    /**
+       Returns the pxForw parameter
+    */
+    const int pxForw(void) const {
+      return _pxForw;
+    }
+
+    /**
+       Returns the muForw parameter
+    */
+    const long muForw(void) const {
+      return _muForw;
+    }
+
+    /**
+       Returns the p0Back parameter
+    */
+    const int p0Back(void) const {
+      return _p0Back;
+    }
+
+    /**
+       Returns the p1Back parameter
+    */
+    const int p1Back(void) const {
+      return _p1Back;
+    }
+
+    /**
+       Returns the pxBack parameter
+    */
+    const int pxBack(void) const {
+      return _pxBack;
+    }
+
+    /**
+       Returns the muBack parameter
+    */
+    const long muBack(void) const {
+      return _muBack;
+    }
+
+    /**
+       Returns the ax parameter
+    */
+    const int ax(void) const {
+      return _ax;
+    }
+
+
+    /**
+       Returns the ax parameter
+    */
+    const int alpha(void) const {
+      return _alpha;
     }
 
   private:
@@ -191,16 +291,21 @@ class MotorCtrl {
     const uint8_t _backPin;
     boolean       _automatic;
     MotorSensor&  _sensor;
-    unsigned long _prevTimestamp;
-    int _ax;
-    int _speed;
-    int _power;
     int _p0Forw;
     int _p1Forw;
-    int _muForw;
+    int _pxForw;
+    long _muForw;
     int _p0Back;
     int _p1Back;
-    int _muBack;
+    int _pxBack;
+    long _muBack;
+    int _alpha;
+    int _ax;
+    unsigned long _prevTimestamp;
+    int _speed;
+    int _power;
+
+    const long asr(const long dp, const long dt) const;
 };
 
 #endif

@@ -227,10 +227,12 @@ void Wheelly::handleMpuData() {
   _yaw = roundf(_mpu.yaw() * 180 / PI);
   _mpuTimeout = millis() + MPU_INTERVAL;
   _motionCtrl.angle(_yaw);
-
-  if (_lastYaw != _yaw) {
-    sendStatus();
-  }
+  /*
+    if (_lastYaw != _yaw) {
+      _lastYaw = _yaw;
+      //    sendStatus();
+    }
+  */
 }
 
 /*
@@ -348,9 +350,8 @@ void Wheelly::sendStatus() {
   _display.supply(level);
 
   char bfr[256];
-  _lastYaw = _yaw;
   // st time x y yaw servo distance lpps rpps frontSig rearSig volt canF canB err halt dir speed nextScan
-  sprintf(bfr, "st %ld %.1f %.1f %d %d %ld %.1f %.1f %d %d %d %d %d %d %d %d %d %d",
+  sprintf(bfr, "st %ld %.1f %.1f %d %d %ld %.1f %.1f %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
           millis(),
           (double)_motionCtrl.xPulses(),
           (double)_motionCtrl.yPulses(),
@@ -368,7 +369,12 @@ void Wheelly::sendStatus() {
           _motionCtrl.isHalt() ? 1 : 0,
           _motionCtrl.direction(),
           _motionCtrl.speed(),
-          (90 - _nextScan));
+          (90 - _nextScan),
+          _motionCtrl.leftMotor().speed(),
+          _motionCtrl.rightMotor().speed(),
+          _motionCtrl.leftMotor().power(),
+          _motionCtrl.rightMotor().power()
+         );
   sendReply(bfr);
   _sendTimer.restart();
 }

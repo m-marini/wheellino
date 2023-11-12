@@ -15,7 +15,7 @@
 #define DEG_ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK * 180 / PI)
 #define DEFAULT_TAU 300ul
 
-#define MOTOR_SAFE_INTERVAL 1000ul
+#define MOTOR_SAFE_INTERVAL 2000ul
 #define MOTOR_CHECK_INTERVAL 100ul
 
 #define MIN_ROT_RANGE 3
@@ -46,7 +46,7 @@ MotionCtrlClass::MotionCtrlClass(byte leftForwPin, byte leftBackPin, byte rightF
 
   _stopTimer.interval(MOTOR_SAFE_INTERVAL);
   _stopTimer.onNext([](void *ctx, unsigned long) {
-    DEBUG_PRINTLN("// Motor timer triggered");
+    DEBUG_PRINTLN("// Stop motor timer triggered");
     ((MotionCtrlClass*)ctx)->halt();
   }, this);
 
@@ -340,4 +340,11 @@ void MotionSensor::update(const unsigned long clockTime) {
 void MotionSensor::setOnChange(void (*callback)(void*, const unsigned long, MotionSensor&), void* context) {
   _onChange = callback;
   _context = context;
+}
+
+/*
+
+*/
+const unsigned long MotionSensor::tau(void) const {
+  return (_leftSensor.tau() + _rightSensor.tau()) / 2;
 }
