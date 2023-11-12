@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue #78: Add friction test
 - Issue #84: Add battery level icons
 - Issue #86: Add proxy sensor noise filter
+- Issue #88: Fix status send frequence on move (TCS review)
 
 ### Changed
 

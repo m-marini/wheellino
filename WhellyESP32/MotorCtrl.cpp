@@ -15,15 +15,23 @@
 #include "num.h"
 #include "pins.h"
 
-#define MIN_INTERVAL  100ul
-#define MAX_POWER     255
-#define SCALE 10000l
 
-#define DEFAULT_P0  27
-#define DEFAULT_P1  73
-#define DEFAULT_MU  64
-#define DEFAULT_AX  1270
-#define DEFAULT_TAU 300ul
+#define DEFAULT_P0    59
+#define DEFAULT_P1    73
+#define DEFAULT_PX    255
+//#define DEFAULT_MU    0
+#define DEFAULT_MU    20000
+//#define DEFAULT_MU    10000
+#define DEFAULT_AX    200
+#define DEFAULT_ALPHA 25
+#define DEFAULT_TAU   300ul
+
+static unsigned long MIN_INTERVAL = 100ul;
+static int MAX_POWER = 255;
+static int MAX_SPEED = 120;
+static long ASR_SCALE = 1000;
+static long ALPHA_SCALE = 100;
+static long FEEDBACK_SCALE = 1000000;
 
 /*
    Creates the motor controller
@@ -34,11 +42,14 @@ MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& 
   _sensor(sensor),
   _automatic(true),
   _ax(DEFAULT_AX),
+  _alpha(DEFAULT_ALPHA),
   _p0Forw(DEFAULT_P0),
   _p1Forw(DEFAULT_P1),
+  _pxForw(DEFAULT_PX),
   _muForw(DEFAULT_MU),
   _p0Back(-DEFAULT_P0),
   _p1Back(-DEFAULT_P1),
+  _pxBack(-DEFAULT_PX),
   _muBack(DEFAULT_MU) {
 }
 
@@ -51,22 +62,60 @@ void MotorCtrl::begin() {
   _sensor.begin();
 }
 
-/*
-   Sets the configuration parameters
+/**
+   Sets the tcs parameters
    [
-         muForw, muBack, ax
-         p0Forw, p1Forw,
-         p0Back, p1Back,
+     p0Forw, p1Forw, pxForw
+     p0Back, p1Back, pxBack
+     ax, alpha
    ]
+   p0Forw, p0Back: power for dynamic friction (min power for moving motor)
+   p1Forw, p1Back: power for static friction (min power for stopped motor)
+   pxForw, pxBack: max theoretical power to run max speed
+   ax: asr acceleration value
+   alpha: alpha mix value
 */
-void MotorCtrl::config(const int* parms) {
+void MotorCtrl::tcsConfig(const int* parms) {
+  _p0Forw = parms[0];
+  _p1Forw = parms[1];
+  _pxForw = parms[2];
+  _p0Back = parms[3];
+  _p1Back = parms[4];
+  _pxBack = parms[5];
+  _ax = parms[6];
+  _alpha = parms[7];
+}
+
+/**
+   Sets the feedback parameters
+   [
+     muForw, muBack
+   ]
+  muForw, muBack: delta power by delta speed by dt (power correction for speed difference)
+*/
+void MotorCtrl::muConfig(const long* parms) {
   _muForw = parms[0];
   _muBack = parms[1];
-  _ax = parms[2];
-  _p0Forw = parms[3];
-  _p1Forw = parms[4];
-  _p0Back = parms[5];
-  _p1Back = parms[6];
+}
+
+/**
+   ASR function
+*/
+const long MotorCtrl::asr(const long dPower, const long dt) const {
+  const long px = _ax * dt / ASR_SCALE;
+  return clip(dPower, -px, px);
+}
+
+/*
+   Sets the motor speed
+*/
+void MotorCtrl::speed(const int value) {
+  if (value == 0
+      || _speed < 0 && value > 0
+      || _speed > 0 && value < 0) {
+    power(0);
+  }
+  _speed = value;
 }
 
 /*
@@ -81,53 +130,74 @@ void MotorCtrl::polling(const unsigned long timestamp) {
     // Computes the power
     const int realSpeed = round(_sensor.pps());
 
-    DEBUG_PRINT("//   _speed: ");
-    DEBUG_PRINT(_speed);
-    DEBUG_PRINT(", dt: ");
+    DEBUG_PRINT("// MotorCtrl::polling 0x");
+    DEBUG_PRINTF((unsigned long)this, HEX);
+    DEBUG_PRINTLN();
+    DEBUG_PRINT("//   dt: ");
     DEBUG_PRINT(dt);
+    DEBUG_PRINT(", _speed: ");
+    DEBUG_PRINT(_speed);
     DEBUG_PRINT(", realSpeed: ");
     DEBUG_PRINT(realSpeed);
+    DEBUG_PRINT(", _power: ");
+    DEBUG_PRINT(_power);
     DEBUG_PRINTLN();
     int pwr = 0;
-    if (_speed == 0) {
-      // Halt the motor
-      pwr = 0;
-    } else if (_speed > 0) {
+    if (_speed > 0) {
       // Move forward
-      const int dP = clip((long)_muForw * (_speed - realSpeed), (long) - _ax, (long)_ax) * dt / SCALE;
-      const int requiredPwr = _power + dP;
       const int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
-      pwr = clip(requiredPwr, pth, MAX_POWER);
-
-      DEBUG_PRINT(F("//   _power: "));
-      DEBUG_PRINT(_power);
-      DEBUG_PRINT(F(", _mu: "));
-      DEBUG_PRINT(_muForw);
-      DEBUG_PRINT(F(", req: "));
-      DEBUG_PRINT(requiredPwr);
-      DEBUG_PRINT(F(", pth: "));
-      DEBUG_PRINT(pth);
+      const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
+      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
+      DEBUG_PRINT("//   fx: ");
+      DEBUG_PRINT(fx);
+      DEBUG_PRINT(", dpt: ");
+      DEBUG_PRINT(dpt);
       DEBUG_PRINTLN();
 
-    } else  {
+      const long dpf = _muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
+      DEBUG_PRINT("//   dpf: ");
+      DEBUG_PRINT(dpf);
+      DEBUG_PRINTLN();
+
+      const int dp = asr(dpt + dpf, dt);
+      pwr = clip(_power + dp, pth, MAX_POWER);
+
+      DEBUG_PRINT("//   dp: ");
+      DEBUG_PRINT(dp);
+      DEBUG_PRINT(", pth: ");
+      DEBUG_PRINT(pth);
+      DEBUG_PRINT(", pwr: ");
+      DEBUG_PRINT(pwr);
+      DEBUG_PRINTLN();
+
+    } else if (_speed < 0) {
       // Move backward
-      const int dP = clip((long)_muBack * (_speed - realSpeed), (long) - _ax, (long)_ax) * dt / SCALE;
-      const int requiredPwr = _power + dP;
       const int pth = realSpeed == 0 ? _p1Back : _p0Back;
-      pwr = clip(requiredPwr, -MAX_POWER, pth);
-
-      DEBUG_PRINT(F("//   _power: "));
-      DEBUG_PRINT(_power);
-      DEBUG_PRINT(F(", _mu: "));
-      DEBUG_PRINT(_muBack);
-      DEBUG_PRINT(F(", req: "));
-      DEBUG_PRINT(requiredPwr);
-      DEBUG_PRINT(F(", pth: "));
-      DEBUG_PRINT(pth);
+      const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
+      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
+      DEBUG_PRINT("//   fx: ");
+      DEBUG_PRINT(fx);
+      DEBUG_PRINT(", dpt: ");
+      DEBUG_PRINT(dpt);
       DEBUG_PRINTLN();
 
+      const long dpf = _muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
+      DEBUG_PRINT("//   dpf: ");
+      DEBUG_PRINT(dpf);
+      DEBUG_PRINTLN();
+
+      const int dp = asr(dpt + dpf, dt);
+      pwr = clip(_power + dp, -MAX_POWER, pth);
+
+      DEBUG_PRINT("//   dp: ");
+      DEBUG_PRINT(dp);
+      DEBUG_PRINT(", pth: ");
+      DEBUG_PRINT(pth);
+      DEBUG_PRINT(", pwr: ");
+      DEBUG_PRINT(pwr);
+      DEBUG_PRINTLN();
     }
-    DEBUG_PRINT("//   post _power: ");
+    DEBUG_PRINT("//   pwr: ");
     DEBUG_PRINT(pwr);
     DEBUG_PRINTLN();
     power(pwr);

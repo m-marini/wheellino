@@ -43,11 +43,11 @@ void setup() {
   if (!testMotorPower(++n, "Test right motor power", rightMotor, MAX_POWER / 2, MOTOR_TEST_DURATION)) {
     err++;
   }
-
+  
   if (!testSpeed(++n, "Test left forward", TEST_SPEED, 0)) {
     err++;
   }
-
+  
   if (!testSpeed(++n, "Test left backward", -TEST_SPEED, 0)) {
     err++;
   }

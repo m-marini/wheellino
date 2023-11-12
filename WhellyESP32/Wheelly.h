@@ -100,7 +100,6 @@ class Wheelly {
       _motionCtrl.configController(params);
     }
 
-
     /*
        Configures motor sensors
        @param tau the decay value of motor sensors
@@ -110,21 +109,22 @@ class Wheelly {
     }
 
     /*
-       Configures left motor controller
-       @param p the left motor controller parameters
+       Configures feedback motor controller
+       @param p the feedback motor controller parameters
+       @param left true for left motor controller
     */
-    void configLeftMotorController(const int *p) {
-      _motionCtrl.leftMotor().config(p);
+    void configFeedbackMotorController(const long *p, const boolean left) {
+      (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).muConfig(p);
     }
 
-    /**
-       Configures right motor controller
-       @param p the right motor controller parameters
+    /*
+       Configures tcs motor controller
+       @param p the tcs motor controller parameters
+       @param left true for left motor controller
     */
-    void configRightMotorController(const int *p) {
-      _motionCtrl.rightMotor().config(p);
+    void configTcsMotorController(const int *p, const boolean left) {
+      (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).tcsConfig(p);
     }
-
     /**
        Configures intervals [send interval, scan interval]
        @param p the right motor controller parameters
@@ -143,6 +143,13 @@ class Wheelly {
        @param data the data reply
     */
     void sendReply(const char* data);
+
+    /**
+       Returns the motion controller
+    */
+    MotionCtrlClass& motionCtrl(void) {
+      return _motionCtrl;
+    }
 
   private:
     DisplayClass _display;
@@ -177,8 +184,6 @@ class Wheelly {
 
     void (*_onReply)(void*, const char*);
     void* _context;
-
-    int _lastYaw;
 
     const boolean canMoveForward(void) const;
     const boolean canMoveBackward(void) const;

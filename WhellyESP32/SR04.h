@@ -32,6 +32,9 @@ class SR04Class {
   private:
     uint8_t _triggerPin;
     uint8_t _echoPin;
+    int _validSamplesNum;
+    int _falseSamplesNum;
+    int _samplesNum;
     void (*_onSample)(void*, const unsigned long);
 
     boolean _armed;

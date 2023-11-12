@@ -144,6 +144,8 @@ class MotionSensor {
       return _rightSensor;
     }
 
+    const unsigned long tau(void) const;
+
   private:
     MotorSensor _leftSensor;
     MotorSensor _rightSensor;
@@ -302,6 +304,34 @@ class MotionCtrlClass {
     */
     MotorCtrl& rightMotor(void) {
       return _rightMotor;
+    }
+
+    /**
+       Returns the minRotRange parameter
+    */
+    const int minRotRange(void) const {
+      return _minRotRange;
+    }
+
+    /**
+       Returns the maxRotRange parameter
+    */
+    const int maxRotRange(void) const {
+      return _maxRotRange;
+    }
+
+    /**
+       Returns the maxRotPps parameter
+    */
+    const int maxRotPps(void) const {
+      return _maxRotPps;
+    }
+
+    /**
+       Returns the motion sensors
+    */
+    MotionSensor& sensors() {
+      return _sensors;
     }
 
   private:

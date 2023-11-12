@@ -12,21 +12,21 @@ void Timer::start(unsigned long timeout) {
 /*
 
 */
-void Timer::start() {
+void Timer::start(void) {
   start(millis() + _interval);
 }
 
 /*
 
 */
-void Timer::stop() {
+void Timer::stop(void) {
   _running = false;
 }
 
 /*
 
 */
-void Timer::restart() {
+void Timer::restart(void) {
   if (_running) {
     _next = millis() + _interval;
   }
