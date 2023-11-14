@@ -3,8 +3,6 @@
 
 #include "Arduino.h"
 
-#define MAX_INTERVALS 4
-
 /*
    ASynchronous timer
 */
@@ -12,7 +10,7 @@ class Timer {
   public:
     Timer() {};
 
-    // Sets a single interval
+    // Sets interval
     void interval(const unsigned long interval) {
       _interval = interval;
     }
