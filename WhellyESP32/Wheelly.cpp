@@ -13,7 +13,8 @@ static const unsigned long MPU_INTERVAL = 1000ul;
 /*
    Status led
 */
-static const unsigned long LED_INTERVAL = 200;
+static const unsigned long FAST_LED_INTERVAL = 100;
+static const unsigned long SLOW_LED_INTERVAL = 300;
 
 /*
    Send Interval
@@ -73,7 +74,7 @@ boolean Wheelly::begin(void) {
   _ledTimer.onNext([](void *context, const unsigned long n) {
     ((Wheelly*)context)->handleLed(n);
   }, this);
-  _ledTimer.interval(LED_INTERVAL);
+  _ledTimer.interval(SLOW_LED_INTERVAL);
   _ledTimer.continuous(true);
   _ledTimer.start();
 
@@ -169,7 +170,10 @@ void Wheelly::polling(const unsigned long t0) {
     DEBUG_PRINTLN("!! mpu timeout");
   }
 
-  _ledActive = _mpuError != 0 || (!canMoveForward() && !canMoveBackward());
+  _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward();
+  _ledTimer.interval(
+    _mpuError != 0 || (!canMoveForward() && !canMoveBackward())
+    ? FAST_LED_INTERVAL : SLOW_LED_INTERVAL);
   _ledTimer.polling(t0);
 
   _motionCtrl.polling(t0);
@@ -318,7 +322,8 @@ void Wheelly::handleStats() {
   Handles timeout event from led timer
 */
 void Wheelly::handleLed(const unsigned long n) {
-  digitalWrite(STATUS_LED_PIN, _ledActive && (n % 2) == 0);
+  boolean ledStatus = _ledActive && (n % 2) == 0;
+  digitalWrite(STATUS_LED_PIN, ledStatus);
 }
 
 /*
