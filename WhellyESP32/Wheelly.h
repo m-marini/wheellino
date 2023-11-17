@@ -85,6 +85,14 @@ class Wheelly {
     }
 
     /**
+       Sets on line status
+       @param onLine true if wifi module online
+    */
+    void onLine(const boolean onLine) {
+      _onLine = onLine;
+    }
+
+    /**
        Set connected state
        @param state true if connected
     */
@@ -157,6 +165,7 @@ class Wheelly {
     MotionCtrlClass _motionCtrl;
 
     MPU6050Class _mpu;
+    boolean _onLine;
     int _yaw;
     unsigned long _mpuTimeout;
     uint8_t _mpuError;

@@ -71,6 +71,7 @@ boolean Wheelly::begin(void) {
 
   // Setup error led
   pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, true);
   _ledTimer.onNext([](void *context, const unsigned long n) {
     ((Wheelly*)context)->handleLed(n);
   }, this);
@@ -146,6 +147,7 @@ boolean Wheelly::begin(void) {
 
   _display.clear();
 
+  digitalWrite(STATUS_LED_PIN, false);
   return true;
 }
 
@@ -170,9 +172,9 @@ void Wheelly::polling(const unsigned long t0) {
     DEBUG_PRINTLN("!! mpu timeout");
   }
 
-  _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward();
+  _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward() || !_onLine;
   _ledTimer.interval(
-    _mpuError != 0 || (!canMoveForward() && !canMoveBackward())
+    _mpuError != 0 || (!canMoveForward() && !canMoveBackward()) || !_onLine
     ? FAST_LED_INTERVAL : SLOW_LED_INTERVAL);
   _ledTimer.polling(t0);
 
