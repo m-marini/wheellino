@@ -2,6 +2,7 @@
 
 #include "MotionCtrl.h"
 
+//#define MONITOR_ON
 //#define DEBUG
 #include "debug.h"
 #include "num.h"
@@ -184,6 +185,22 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
 
   int rotLeft =  turn1 < 0 ? -_maxRotPps : _maxRotPps;
   int rotRight =  turn1 < 0 ? _maxRotPps : -_maxRotPps;
+
+#ifdef MONITOR_ON
+  char bfr[256];
+  sprintf(bfr, "// MT %3d %4d %4d %4.0f %4.0d %4d %4.0f %4.0d %4d",
+          _speed,
+          _direction,
+          dir1,
+          leftPps(),
+          leftMotor().speed(),
+          leftMotor().power(),
+          rightPps(),
+          rightMotor().speed(),
+          rightMotor().power()
+         );
+  Serial.println(bfr);
+#endif
 
   Defuzzier fuzzy;
 

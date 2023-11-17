@@ -7,7 +7,7 @@
 #include "debug.h"
 
 static const int MAX_SPEED = 40;
-static const char version[] = "0.7.0";
+static const char version[] = "0.7.1";
 
 /*
    Returns true if wrong number of arguments

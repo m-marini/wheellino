@@ -114,7 +114,8 @@ static void pollSerialPort(const unsigned long time) {
 */
 static void handleOnChange(void *, WiFiModuleClass & module) {
   char bfr[256];
-  if (module.connected()) {
+  boolean connected = module.connected();
+  if (connected) {
     ApiServer.begin();
     telnetServer.begin();
     strcpy(bfr, wiFiModule.ssid());
@@ -126,6 +127,7 @@ static void handleOnChange(void *, WiFiModuleClass & module) {
   } else {
     strcpy(bfr, "Disconnected");
   }
+  wheelly.onLine(connected);
   wheelly.display(bfr);
 }
 
