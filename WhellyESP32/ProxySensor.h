@@ -68,6 +68,12 @@ class ProxySensor {
       return _echoDelay;
     }
 
+    /**
+       Returns the sensor direction target
+    */
+    const int direction(void) const {
+      return _direction;
+    }
   private:
     const uint8_t _servoPin;
     const uint8_t _triggerPin;

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue #91: Change LED status flashing
 - Issue #93: Switch on LED utill start
 
+### Fixed
+
+- Issue #95: Unexpetcted restart on servo movement
+
 ## [0.7.0] 2023-11-12
 
 ### Added

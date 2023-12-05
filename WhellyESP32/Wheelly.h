@@ -3,12 +3,11 @@
 
 #include "Arduino.h"
 
-#include "SR04.h"
-#include "AsyncServo.h"
 #include "Contacts.h"
 #include "mpu6050mm.h"
 #include "MotionCtrl.h"
 #include "Display.h"
+#include "ProxySensor.h"
 
 /*
    Wheelly controller.
@@ -182,14 +181,8 @@ class Wheelly {
     unsigned long _counter;
     unsigned long _statsTime;
 
-    Timer _scanTimer;
-    unsigned long _scanInterval;
-    SR04Class _sr04;
+    ProxySensor _proxySensor;
     unsigned long _distanceTime;
-    int _nextScan;
-
-    AsyncServoClass _proxyServo;
-    unsigned long _resetTime;
 
     void (*_onReply)(void*, const char*);
     void* _context;
@@ -198,9 +191,7 @@ class Wheelly {
     const boolean canMoveBackward(void) const;
     const int forwardBlockDistanceTime() const;
 
-    void handleServoReached(void);
-    void handleAutoScan(void);
-    void handleEchoSample(const unsigned long);
+    void handleProxyData(void);
     void handleStats(void);
     void handleLed(const unsigned long n);
     void handleMpuData(void);
