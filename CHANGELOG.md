@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.7.1] 2023-12-08
+
 ### Changed
 
 - Issue #91: Change LED status flashing
