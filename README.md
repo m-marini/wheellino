@@ -9,12 +9,12 @@ The robot consits of
 - Step down DC-DC 12V-5V converter
 - Power supply module 3.3V
 - MPU6050 gyroscope module
-- ESP8266 Wifi module
+- ESP32 Vroom main controller board
 - SG90 Microservo
 - SR04 Ultrasonic proximity sensor
-- 8 x microswitch contact sensors
-- Arduino UNO main controller board
+- 6 x microswitch contact sensors
+- LCD Display
 
-The Ardunio controller is driving all the units to allow the robot to collect the sensor data, compute the position relative the initial state, drive the proxcimity sensor direction, drive the robot for a specific direction and speed by feeding back from gyroscpe and speed sensors and comunicate with remote server via wifi sending status and receiving commands.
+The ESP32 controller is driving all the units to allow the robot to collect the sensor data, compute the position relative the initial state, drive the proxcimity sensor direction, drive the robot for a specific direction and speed by feeding back from gyroscpe and speed sensors and comunicate with remote server via wifi sending status and receiving commands.
 
 Documentation in [Wiki](https://github.com/m-marini/wheellino/wiki)
