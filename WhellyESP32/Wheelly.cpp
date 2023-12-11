@@ -206,12 +206,11 @@ Wheelly::Wheelly() :
   0L, 2000000L);
 
   /* ck command */
-  _commandInterpreter.addLongCommand("ck", [](void* ctx, const unsigned long t0, const char* cmd, const long * argv) {
+  _commandInterpreter.addStrCommand("ck", [](void* ctx, const unsigned long t0, const char* cmd) {
     char bfr[256];
     sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
     ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 1,
-  0L, 2147483647L);
+  }, (void*) this);
 }
 /*
    Initializes wheelly controller

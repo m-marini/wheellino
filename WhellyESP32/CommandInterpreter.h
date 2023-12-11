@@ -60,6 +60,18 @@ class CommandInterpreter {
                         void* context,
                         const int argc, ...);
 
+    /**
+      Adds command with long arguments
+      @param cmd the command
+      @param callback the command execution callback
+      @param argc the number of arguments
+      @param varargs the pair of min max long values
+      @param context the context
+    */
+    void addStrCommand(const char *cmd,
+                        void(*callback)(void*, const unsigned long, const char *),
+                        void* context);
+
     /*
       Parse and execute a command.
       Returns true if command executed
@@ -72,6 +84,7 @@ class CommandInterpreter {
     int _voidCommandCount;
     int _intCommandCount;
     int _longCommandCount;
+    int _strCommandCount;
     void (*_onError)(void*, const char *);
     void *_context;
     
@@ -98,6 +111,12 @@ class CommandInterpreter {
       long min[MAX_ARGUMENTS];
       long max[MAX_ARGUMENTS];
     } _longCommands[MAX_COMMANDS];
+
+    struct {
+      char command[8];
+      void (*execute)(void*, const unsigned long, const char *);
+      void *context;
+    } _strCommands[MAX_COMMANDS];
 
     const boolean validateIntArg(const int value, const int minValue, const int maxValue, const char* cmd, const int arg);
     const boolean validateLongArg(const long value, const long minValue, const long maxValue, const char* cmd, const int arg);
