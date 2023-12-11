@@ -23,11 +23,11 @@ static ProxySensor sensor(SERVO_PIN, TRIGGER_PIN, ECHO_PIN);
 void setup() {
   Serial.begin(SERIAL_BPS);
   Serial.println("");
+  delay(500);
   sensor.onDataReady(handleDataReady);
-  sensor.begin();
   sensor.interval(0);
   sensor.offset(-5);
-  delay(500);
+  sensor.begin();
   Serial.println("Start.");
   timeout = millis() + TEST_DURATION;
 }

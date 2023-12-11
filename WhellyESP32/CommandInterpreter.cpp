@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "CommandInterpreter.h"
 #include "MotionCtrl.h"
 
@@ -6,14 +8,11 @@
 //#define DEBUG
 #include "debug.h"
 
-static const int MAX_SPEED = 40;
-static const char version[] = "0.7.1";
-
 /*
    Returns true if wrong number of arguments
 */
 const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const int from, const int argc, long *argv) {
-  DEBUG_PRINT("parseCmdArgs[");
+  DEBUG_PRINT("// CommandInterpreter::parseCmdLongArgs[");
   DEBUG_PRINT(command);
   DEBUG_PRINT("]");
   DEBUG_PRINTLN();
@@ -23,7 +22,6 @@ const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const in
   char parm[100];
   for (int i = 0; i < argc - 1; i++) {
     s1 = strchr(s0, ' ');
-    DEBUG_PRINT("parseCmdLongArgs");
     if (!s1 || s1 == s0) {
       // Missing argument
       char error[256];
@@ -33,9 +31,10 @@ const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const in
               command);
 
       Serial.println(error);
-      _wheelly.sendReply(error);
+      sendError(error);
       return false;
     }
+    DEBUG_PRINT("// CommandInterpreter::parseCmdLongArgs");
     DEBUG_PRINT("s0=[");
     DEBUG_PRINT(s0);
     DEBUG_PRINT("], s1=[");
@@ -63,7 +62,7 @@ const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const in
 }
 
 const boolean CommandInterpreter::parseCmdIntArgs(const char* command, const int from, const int argc, int *argv) {
-  DEBUG_PRINT("parseCmdIntArgs[");
+  DEBUG_PRINT("// CommandInterpreter::parseCmdIntArgs[");
   DEBUG_PRINT(command);
   DEBUG_PRINT("]");
   DEBUG_PRINTLN();
@@ -73,7 +72,6 @@ const boolean CommandInterpreter::parseCmdIntArgs(const char* command, const int
   char parm[100];
   for (int i = 0; i < argc - 1; i++) {
     s1 = strchr(s0, ' ');
-    DEBUG_PRINT("parseCmdArgs");
     if (!s1 || s1 == s0) {
       // Missing argument
       char error[256];
@@ -83,10 +81,11 @@ const boolean CommandInterpreter::parseCmdIntArgs(const char* command, const int
               command);
 
       Serial.println(error);
-      _wheelly.sendReply(error);
+      sendError(error);
       return false;
     }
-    DEBUG_PRINT("s0=[");
+    DEBUG_PRINT("// CommandInterpreter::parseCmdIntArgs ");
+    DEBUG_PRINT(" s0=[");
     DEBUG_PRINT(s0);
     DEBUG_PRINT("], s1=[");
     DEBUG_PRINT(s1);
@@ -125,7 +124,7 @@ const boolean CommandInterpreter::validateIntArg(const int value, const int minV
             maxValue,
             cmd);
     Serial.println(error);
-    _wheelly.sendReply(error);
+    sendError(error);
     return false;
   }
   return true;
@@ -145,10 +144,102 @@ const boolean CommandInterpreter::validateLongArg(const long value, const long m
             maxValue,
             cmd);
     Serial.println(error);
-    _wheelly.sendReply(error);
+    sendError(error);
     return false;
   }
   return true;
+}
+
+/**
+  Adds command without arguments
+  @param cmd the command
+  @param context the context
+  @param callback the command execution callback
+*/
+void CommandInterpreter::addCommand(const char *cmd,
+                                    void(*callback)(void *, const unsigned long, const char *),
+                                    void *context) {
+  if (_voidCommandCount >= MAX_COMMANDS) {
+    sendError("!! CommandInterpreter::addCommand: Too void command");
+    return;
+  }
+  strcpy(_voidCommands[_voidCommandCount].command, cmd);
+  _voidCommands[_voidCommandCount].execute = callback;
+  _voidCommands[_voidCommandCount].context = context;
+  _voidCommandCount++;
+}
+
+/**
+  Adds command with integer arguments
+  @param cmd the command
+  @param context the context
+  @param callback the command execution callback
+  @param argc the number of arguments
+  @param varargs the pair of min max values
+*/
+void CommandInterpreter::addIntCommand(const char *cmd,
+                                       void(*callback)(void *, const unsigned long, const char *, const int*),
+                                       void *context,
+                                       const int argc, ...) {
+  va_list ap;
+  va_start(ap, argc);
+  if (_intCommandCount >= MAX_COMMANDS) {
+    sendError("!! CommandInterpreter::addIntCommand: Too commands");
+    return;
+  }
+  if (argc > MAX_ARGUMENTS) {
+    sendError("!! CommandInterpreter::addIntCommand: Too arguments");
+    return;
+  }
+  strcpy(_intCommands[_intCommandCount].command, cmd);
+  strcat(_intCommands[_intCommandCount].command, " ");
+
+  _intCommands[_intCommandCount].execute = callback;
+  _intCommands[_intCommandCount].context = context;
+  _intCommands[_intCommandCount].argc = argc;
+  for (int i = 0; i < argc; i++) {
+    _intCommands[_intCommandCount].min[i] = va_arg(ap, int);
+    _intCommands[_intCommandCount].max[i] = va_arg(ap, int);
+  }
+  va_end(ap);
+  _intCommandCount++;
+}
+
+
+/**
+  Adds command with long arguments
+  @param cmd the command
+  @param context the context
+  @param callback the command execution callback
+  @param argc the number of arguments
+  @param varargs the pair of min max long values
+*/
+void CommandInterpreter::addLongCommand(const char *cmd,
+                                        void(*callback)(void *, const unsigned long, const char *, const long*),
+                                        void *context,
+                                        const int argc, ...) {
+  va_list ap;
+  va_start(ap, argc);
+  if (_longCommandCount >= MAX_COMMANDS) {
+    sendError("!! CommandInterpreter::addLongCommand: Too commands");
+    return;
+  }
+  if (argc > MAX_ARGUMENTS) {
+    sendError("!! CommandInterpreter::addLongCommand: Too arguments");
+    return;
+  }
+  strcpy(_longCommands[_longCommandCount].command, cmd);
+  strcat(_longCommands[_longCommandCount].command, " ");
+
+  _longCommands[_longCommandCount].execute = callback;
+  _longCommands[_longCommandCount].context = context;
+  _longCommands[_longCommandCount].argc = argc;
+  for (int i = 0; i < argc; i++) {
+    _longCommands[_longCommandCount].min[i] = va_arg(ap, long);
+    _longCommands[_longCommandCount].max[i] = va_arg(ap, long);
+  }
+  va_end(ap);
+  _longCommandCount++;
 }
 
 /*
@@ -157,7 +248,7 @@ const boolean CommandInterpreter::validateLongArg(const long value, const long m
   @param time the current time stamp
   @param command the command
 */
-const boolean CommandInterpreter::execute(const unsigned long time, const char* command) {
+const boolean CommandInterpreter::execute(const unsigned long t0, const char* command) {
   char cmd[256];
   // Left trim
   while (isspace(*command)) {
@@ -170,305 +261,114 @@ const boolean CommandInterpreter::execute(const unsigned long time, const char* 
     cmd[i] = 0;
   }
 
-  DEBUG_PRINT("// processCommand: ");
+  DEBUG_PRINT("// CommandInterpreter::execute: ");
   DEBUG_PRINTLN(cmd);
-  if (strcmp(cmd, "ha") == 0) {
-    // ha command
-    _wheelly.halt();
-    return true;
-  } else if (strcmp(cmd, "qc") == 0) {
-    // qc command
-    return handleQcCommand(cmd);
-  } else if (strncmp(cmd, "sc ", 3) == 0) {
-    // sc command
-    return handleScCommand(cmd);
-  } else if (strncmp(cmd, "mv ", 3) == 0) {
-    // mv command
-    return handleMvCommand(cmd);
-  } else if (strcmp(cmd, "rs") == 0) {
-    // rs command
-    _wheelly.reset();
-    return true;
-  } else if (strncmp(cmd, "ck ", 3) == 0) {
-    // ck command
-    char bfr[256];
-    sprintf(bfr, "%s %ld %ld", cmd, time, millis());
-    _wheelly.sendReply(bfr);
-    return true;
-  } else if (strncmp(cmd, "fl ", 3) == 0) {
-    // fl command
-    return handleFeedbackCommand(cmd, 1);
-  } else if (strncmp(cmd, "fr ", 3) == 0) {
-    // fr command
-    return handleFeedbackCommand(cmd, 0);
-  } else if (strncmp(cmd, "tcsr ", 5) == 0) {
-    // tcsr command
-    return handleTcsCommand(cmd, 0);
-  } else if (strncmp(cmd, "tcsl ", 5) == 0) {
-    // tcsl command
-    return handleTcsCommand(cmd, 1);
-  } else if (strncmp(cmd, "cc ", 3) == 0) {
-    // cc command
-    return handleCcCommand(cmd);
-  } else if (strncmp(cmd, "cs ", 3) == 0) {
-    // cs command
-    return handleCsCommand(cmd);
-  } else if (strncmp(cmd, "ci ", 3) == 0) {
-    // cr command
-    return handleCiCommand(cmd);
-  } else if (strcmp(cmd, "vr") == 0) {
-    // vr command
-    char bfr[256];
-    strcpy(bfr, "// vr ");
-    strcat(bfr, version);
-    _wheelly.sendReply(bfr);
-    return true;
-  } else if (strncmp(cmd, "//", 2) == 0
-             || strncmp(cmd, "!!", 2) == 0
-             || cmd[0] == 0) {
-    // Ignore comments, errors, empty line
-    return true;
-  } else {
-    char msg[256];
-    strcpy(msg, "!! Wrong command: ");
-    strcat(msg, cmd);
-    Serial.println(msg);
-    _wheelly.sendReply(msg);
-    return false;
-  }
-}
 
-/*
-  Handles sc command
-*/
-const boolean CommandInterpreter::handleScCommand(const char* cmd) {
-  int angle;
-  if (!parseCmdIntArgs(cmd, 3, 1, &angle)) {
-    return false;
+  /* Ignore comments, errors, empty line */
+  if (strncmp(cmd, "//", 2) == 0
+      || strncmp(cmd, "!!", 2) == 0
+      || cmd[0] == 0) {
+    return true;
   }
-  if (!validateIntArg(angle, -90, 90, cmd, 0)) {
-    return false;
-  }
-  _wheelly.scan(angle);
-  DEBUG_PRINT("// handleScCommand: next scan=");
-  DEBUG_PRINT(angle);
-  return true;
-}
 
-/*
-  Handles mv command
-*/
-const boolean CommandInterpreter::handleMvCommand(const char* cmd) {
-  int params[2];
-  if (!parseCmdIntArgs(cmd, 3, 2, params)) {
-    return false;
+  /* Looks for void command */
+  int cmdIdx = -1;
+  int cmdType = 0;
+  for (int i = 0; i < _voidCommandCount; i++) {
+    if (strcmp(cmd, _voidCommands[i].command) == 0) {
+      cmdIdx = i;
+      break;
+    }
   }
-  // Validate direction
-  if (!validateIntArg(params[0], -180, 179, cmd, 0)) {
-    return false;
+
+  /* Looks for int command */
+  if (cmdIdx < 0) {
+    for (int i = 0; i < _intCommandCount; i++) {
+      if (strncmp(cmd, _intCommands[i].command, strlen(_intCommands[i].command)) == 0) {
+        cmdIdx = i;
+        cmdType = 1;
+        break;
+      }
+    }
   }
-  // Validate speed
-  if (!validateIntArg(params[1], -MAX_SPEED, MAX_SPEED, cmd, 1)) {
+
+  /* Looks for long command */
+  if (cmdIdx < 0) {
+    for (int i = 0; i < _longCommandCount; i++) {
+      if (strncmp(cmd, _longCommands[i].command, strlen(_longCommands[i].command)) == 0) {
+        cmdIdx = i;
+        cmdType = 2;
+        break;
+      }
+    }
+  }
+
+  /* Checks for command not found */
+  if (cmdIdx < 0) {
+    char error[256];
+    strcpy(error, "!! Wrong command: ");
+    strcat(error, cmd);
+    Serial.println(error);
+    sendError(error);
     return false;
   }
 
-  DEBUG_PRINT(F("     params="));
-  DEBUG_PRINT(params[0]);
-  DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(params[1]);
+  DEBUG_PRINT("// CommandInterpreter::execute cmdIdx: ");
+  DEBUG_PRINT(cmdIdx);
+  DEBUG_PRINT(", cmdType");
+  DEBUG_PRINT(cmdType);
   DEBUG_PRINTLN();
-  _wheelly.move(params[0], params[1]);
-  return true;
-}
 
-/*
-   Handles cc command (configure controller)
-   [ minRotRange, maxRotRange, maxRotPps ]
-*/
-const boolean CommandInterpreter::handleCcCommand(const char* cmd) {
-  int params[3];
-  if (!parseCmdIntArgs(cmd, 3, 3, params)) {
-    return false;
-  }
-  // Validates
-  for (int i = 0; i < 2; i++) {
-    if (!validateIntArg(params[i], 0, 180, cmd, i)) {
+  if (cmdType == 0) {
+    _voidCommands[cmdIdx].execute(_voidCommands[cmdIdx].context, t0, cmd);
+  } else if (cmdType == 1) {
+    /* Parse for integer arguments */
+    const int argc = _intCommands[cmdIdx].argc;
+    DEBUG_PRINT("// CommandInterpreter::execute argc =");
+    DEBUG_PRINT(argc);
+    DEBUG_PRINTLN();
+
+    int args[MAX_ARGUMENTS];
+    if (!parseCmdIntArgs(cmd, strlen(_intCommands[cmdIdx].command), argc, args)) {
       return false;
     }
-  }
-  if (!validateIntArg(params[2], 0, 20, cmd, 2)) {
-    return false;
-  }
+    DEBUG_PRINT("// CommandInterpreter::execute validate");
+    DEBUG_PRINTLN();
+    // Validate arguments
+    for (int i = 0; i < argc; i++) {
+      if (!validateIntArg(args[i],
+                          _intCommands[cmdIdx].min[i],
+                          _intCommands[cmdIdx].max[i],
+                          cmd, i)) {
+        return false;
+      }
+    }
+    _intCommands[cmdIdx].execute(_intCommands[cmdIdx].context, t0, cmd, args);
+  } else if (cmdType == 2) {
+    /* Parse for long arguments */
+    const int argc = _longCommands[cmdIdx].argc;
+    DEBUG_PRINT("// CommandInterpreter::execute argc =");
+    DEBUG_PRINT(argc);
+    DEBUG_PRINTLN();
 
-  _wheelly.configMotionController(params);
-  char bfr[256];
-  strcpy(bfr, "// ");
-  strcat(bfr, cmd);
-  _wheelly.sendReply(bfr);
-  return true;
-}
-
-/*
-    Handles cs command (configure decay time of motion controller)
-*/
-const boolean CommandInterpreter::handleCsCommand(const char* cmd) {
-  int tau;
-  if (!parseCmdIntArgs(cmd, 3, 1, &tau)) {
-    return false;
-  }
-  if (!validateIntArg(tau, 1, 10000, cmd, 0)) {
-    return false;
-  }
-  _wheelly.configMotorSensors(tau);
-  char bfr[256];
-  strcpy(bfr, "// ");
-  strcat(bfr, cmd);
-  _wheelly.sendReply(bfr);
-  return true;
-}
-
-
-/*
-    Handles ci command (configure intervals)
-*/
-const boolean CommandInterpreter::handleCiCommand(const char* cmd) {
-  int intervals[2];
-  if (!parseCmdIntArgs(cmd, 3, 2, intervals)) {
-    return false;
-  }
-  for (int i = 0; i < 2; i++) {
-    if (!validateIntArg(intervals[i], 1, 60000, cmd, i)) {
+    long args[MAX_ARGUMENTS];
+    if (!parseCmdLongArgs(cmd, strlen(_longCommands[cmdIdx].command), argc, args)) {
       return false;
     }
-  }
-  _wheelly.configIntervals(intervals);
-  char bfr[256];
-  strcpy(bfr, "// ");
-  strcat(bfr, cmd);
-  _wheelly.sendReply(bfr);
-  return true;
-}
-
-/*
-   Handles tcs commands (configure motor controllers)
-       [
-         p0Forw, p1Forw, pxForw
-         p0Back, p1Back, pxBack
-         ax, alpha
-       ]
-*/
-const boolean CommandInterpreter::handleTcsCommand(const char* cmd, const boolean left) {
-  int params[8];
-  if (!parseCmdIntArgs(cmd, 5, 8, params)) {
-    return false;
-  }
-  // Validates 3 friction forward parms
-  for (int i = 0; i < 3; i++) {
-    if (!validateIntArg(params[i], 0, 1000, cmd, i)) {
-      return false;
+    DEBUG_PRINT("// CommandInterpreter::execute validate");
+    DEBUG_PRINTLN();
+    // Validate arguments
+    for (int i = 0; i < argc; i++) {
+      if (!validateLongArg(args[i],
+                           _longCommands[cmdIdx].min[i],
+                           _longCommands[cmdIdx].max[i],
+                           cmd, i)) {
+        return false;
+      }
     }
-  }
-  // Validates 3 friction backward parms
-  for (int i = 3; i < 6; i++) {
-    if (!validateIntArg(params[i], -1000, 0, cmd, i)) {
-      return false;
-    }
-  }
-  // ax
-  if (!validateIntArg(params[6], 0, 16383, cmd, 6)) {
+    _longCommands[cmdIdx].execute(_longCommands[cmdIdx].context, t0, cmd, args);
+  } else {
     return false;
   }
-  // Alpha
-  if (!validateIntArg(params[7], 0, 100, cmd, 7)) {
-    return false;
-  }
-  _wheelly.configTcsMotorController(params, left);
-  char bfr[256];
-  strcpy(bfr, "// ");
-  strcat(bfr, cmd);
-  _wheelly.sendReply(bfr);
-  return true;
-}
-
-/*
-   Handles feedback commands (configure motor controllers)
-       [
-         muForw, muBack
-       ]
-*/
-const boolean CommandInterpreter::handleFeedbackCommand(const char* cmd, const boolean left) {
-  long params[2];
-  if (!parseCmdLongArgs(cmd, 3, 2, params)) {
-    return false;
-  }
-  // Validates mu parms
-  for (int i = 0; i < 2; i++) {
-    if (!validateLongArg(params[i], 0, 2000000, cmd, i)) {
-      return false;
-    }
-  }
-  _wheelly.configFeedbackMotorController(params, left);
-  char bfr[256];
-  strcpy(bfr, "// ");
-  strcat(bfr, cmd);
-  _wheelly.sendReply(bfr);
-  return true;
-}
-
-/**
-   Handles qc command
-*/
-const boolean CommandInterpreter::handleQcCommand(const char* cmd) {
-  char bfr[256];
-  MotionCtrlClass& motionCtrl = _wheelly.motionCtrl();
-
-  MotorCtrl& leftMotor = motionCtrl.leftMotor();
-  sprintf(bfr, "// tcsl %d %d %d %d %d %d %d %d",
-          leftMotor.p0Forw(),
-          leftMotor.p1Forw(),
-          leftMotor.pxForw(),
-          leftMotor.p0Back(),
-          leftMotor.p1Back(),
-          leftMotor.pxBack(),
-          leftMotor.ax(),
-          leftMotor.alpha()
-         );
-  _wheelly.sendReply(bfr);
-  sprintf(bfr, "// fl %ld %ld",
-          leftMotor.muForw(),
-          leftMotor.muBack()
-         );
-  _wheelly.sendReply(bfr);
-
-  MotorCtrl& rightMotor = motionCtrl.rightMotor();
-  sprintf(bfr, "// tcsr %d %d %d %d %d %d %d %d",
-          rightMotor.p0Forw(),
-          rightMotor.p1Forw(),
-          rightMotor.pxForw(),
-          rightMotor.p0Back(),
-          rightMotor.p1Back(),
-          rightMotor.pxBack(),
-          rightMotor.ax(),
-          rightMotor.alpha()
-         );
-  _wheelly.sendReply(bfr);
-  sprintf(bfr, "// fr %ld %ld",
-          rightMotor.muForw(),
-          rightMotor.muBack()
-         );
-  _wheelly.sendReply(bfr);
-
-  sprintf(bfr, "// cc %d %d %d",
-          motionCtrl.minRotRange(),
-          motionCtrl.maxRotRange(),
-          motionCtrl.maxRotPps()
-         );
-  _wheelly.sendReply(bfr);
-
-  sprintf(bfr, "// cs %lu",
-          motionCtrl.sensors().tau()
-         );
-  _wheelly.sendReply(bfr);
-  // ci not implemented
   return true;
 }

@@ -5,6 +5,11 @@
 #include "debug.h"
 
 /*
+   Current version
+*/
+static const char version[] = "0.8.0";
+
+/*
    The gyroscope
 */
 static const uint8_t MPU_TIMEOUT_ERROR = 8;
@@ -42,13 +47,19 @@ static const unsigned long DEFAULT_SCAN_INTERVAL = 1000ul;
 static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
 static const int SERVO_OFFSET = -4;
-static const int FRONT_DIRECTION = 90;
 
 /*
    Voltage levels
 */
+static const unsigned long SUPPLY_INTERVAL = 5000;
+static const int VOLTAGE_SAMPLES = 10;
 static const int MIN_VOLTAGE_VALUE = 1896;
 static const int MAX_VOLTAGE_VALUE = 2621;
+
+/*
+   Motion
+*/
+static const int MAX_SPEED = 60;
 
 /*
    Creates wheelly controller
@@ -58,8 +69,150 @@ Wheelly::Wheelly() :
   _sendInterval(DEFAULT_SEND_INTERVAL),
   _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN),
   _proxySensor(SERVO_PIN, TRIGGER_PIN, ECHO_PIN) {
-}
 
+  _commandInterpreter.onError([](void*ctx, const char* msg) {
+    ((Wheelly*)ctx)->sendReply(msg);
+  }, (void*)this);
+
+  /* ha command */
+  _commandInterpreter.addCommand("ha", [](void*ctx, const unsigned long, const char* msg) {
+    ((Wheelly*)ctx)->halt();
+  }, (void*)this);
+
+  /* qs command */
+  _commandInterpreter.addCommand("qs", [](void*ctx, const unsigned long, const char* msg) {
+    ((Wheelly*)ctx)->queryStatus();
+  }, (void*)this);
+
+  /* rs command */
+  _commandInterpreter.addCommand("rs", [](void*ctx, const unsigned long, const char* msg) {
+    ((Wheelly*)ctx)->reset();
+  }, (void*)this);
+
+  /* qc command */
+  _commandInterpreter.addCommand("qc", [](void*ctx, const unsigned long, const char* msg) {
+    ((Wheelly*)ctx)->queryConfig();
+  }, (void*)this);
+
+  /* vr command */
+  _commandInterpreter.addCommand("vr", [](void* ctx, const unsigned long, const char* msg) {
+    // vr command
+    char bfr[256];
+    strcpy(bfr, "// vr ");
+    strcat(bfr, version);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this);
+
+  /* sc command */
+  _commandInterpreter.addIntCommand("sc", [](void* ctx, const unsigned long, const char*, const int* argv) {
+    ((Wheelly*)ctx)->scan(argv[0]);
+  }, (void*) this, 1,
+  -90, 90);
+
+  /* mv command */
+  _commandInterpreter.addIntCommand("mv", [](void* ctx, const unsigned long, const char*, const int* argv) {
+    ((Wheelly*)ctx)->move(argv[0], argv[1]);
+  }, (void*) this, 2,
+  -180, 179,
+  -MAX_SPEED, MAX_SPEED);
+
+  /* cc command */
+  _commandInterpreter.addIntCommand("cc", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+    ((Wheelly*)ctx)->configMotionController(argv);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 3,
+  0, 180,
+  0, 180,
+  0, 20);
+
+  /* cs command */
+  _commandInterpreter.addIntCommand("cs", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+    ((Wheelly*)ctx)->configMotorSensors(argv[0]);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 1,
+  1, 10000);
+
+  /* ci command */
+  _commandInterpreter.addIntCommand("ci", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+    ((Wheelly*)ctx)->configIntervals(argv);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 2,
+  1, 60000,
+  1, 60000);
+
+  /* tcsl command */
+  _commandInterpreter.addIntCommand("tcsl", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+    ((Wheelly*)ctx)->configTcsMotorController(argv, true);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 8,
+  0, 1000,
+  0, 1000,
+  0, 1000,
+  -1000, 0,
+  -1000, 0,
+  -1000, 0,
+  0, 16383,
+  0, 100);
+
+  /* tcsr command */
+  _commandInterpreter.addIntCommand("tcsr", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+    ((Wheelly*)ctx)->configTcsMotorController(argv, false);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 8,
+  0, 1000,
+  0, 1000,
+  0, 1000,
+  -1000, 0,
+  -1000, 0,
+  -1000, 0,
+  0, 16383,
+  0, 100);
+
+  /* fl command */
+  _commandInterpreter.addLongCommand("fl", [](void* ctx, const unsigned long, const char* cmd, const long * argv) {
+    ((Wheelly*)ctx)->configFeedbackMotorController(argv, true);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 2,
+  0L, 2000000L,
+  0L, 2000000L);
+
+  /* fr command */
+  _commandInterpreter.addLongCommand("fr", [](void* ctx, const unsigned long, const char* cmd, const long * argv) {
+    ((Wheelly*)ctx)->configFeedbackMotorController(argv, false);
+    char bfr[256];
+    strcpy(bfr, "// ");
+    strcat(bfr, cmd);
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 2,
+  0L, 2000000L,
+  0L, 2000000L);
+
+  /* ck command */
+  _commandInterpreter.addLongCommand("ck", [](void* ctx, const unsigned long t0, const char* cmd, const long * argv) {
+    char bfr[256];
+    sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
+    ((Wheelly*)ctx)->sendReply(bfr);
+  }, (void*) this, 1,
+  0L, 2147483647L);
+}
 /*
    Initializes wheelly controller
    Returns true if successfully initialized
@@ -93,6 +246,7 @@ boolean Wheelly::begin(void) {
   /* Setup send timer */
   _sendTimer.onNext([](void *context, const unsigned long) {
     ((Wheelly*)context)->sendStatus();
+    ((Wheelly*)context)->sendMotion();
   }, this);
   _sendTimer.interval(_sendInterval);
   _sendTimer.continuous(true);
@@ -146,10 +300,7 @@ void Wheelly::polling(const unsigned long t0) {
   /* Increments cps counter */
   _counter++;
 
-  _proxySensor.polling(t0);
   _statsTimer.polling(t0);
-
-  _contactSensors.polling(t0);
 
   _mpu.polling(t0);
   _mpuError = _mpu.rc();
@@ -158,13 +309,22 @@ void Wheelly::polling(const unsigned long t0) {
     DEBUG_PRINTLN("!! mpu timeout");
   }
 
+  _proxySensor.polling(t0);
+  _contactSensors.polling(t0);
+  _motionCtrl.polling(t0);
+
   _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward() || !_onLine;
   _ledTimer.interval(
     _mpuError != 0 || (!canMoveForward() && !canMoveBackward()) || !_onLine
     ? FAST_LED_INTERVAL : SLOW_LED_INTERVAL);
   _ledTimer.polling(t0);
 
-  _motionCtrl.polling(t0);
+  if (t0 >= _supplyTimeout) {
+    sampleSupply();
+    sendSupply();
+    _supplyTimeout = t0 + SUPPLY_INTERVAL;
+  }
+
   _sendTimer.polling(t0);
 
   _display.error(_mpuError);
@@ -177,6 +337,20 @@ void Wheelly::polling(const unsigned long t0) {
                  ? FORWARD_BLOCK
                  : FULL_BLOCK);
   _display.polling(t0);
+}
+
+
+/**
+   Queries and sends the status
+*/
+void Wheelly::queryStatus(void) {
+  sendStatus();
+  /*
+  sendMotion();
+  sendProxy();
+  sendContacts();
+  sendSupply();
+  */
 }
 
 /*
@@ -225,27 +399,44 @@ void Wheelly::handleMpuData() {
 void Wheelly::handleChangedContacts(void) {
   DEBUG_PRINTLN("//Wheelly::handleChangedContacts");
   sendStatus();
+  sendContacts();
 }
 
 /*
    Handles sample event from distance sensor
 */
-void Wheelly::handleProxyData() {
-  const unsigned long echoTime = _proxySensor.echoDelay();
-  _distanceTime = echoTime > MIN_ECHO_TIME ? echoTime : 0;
+void Wheelly::handleProxyData(void) {
+  /* Reads proxy data */
+  boolean prevCanMove = canMoveForward();
+  const unsigned long echoDelay = _proxySensor.echoDelay();
+  _echoDelay = echoDelay > MIN_ECHO_TIME ? echoDelay : 0;
+  _echoDirection = _proxySensor.echoDirection();
+  _echoTime = _proxySensor.echoTime();
+  _echoYaw = _yaw;
+  _echoXPulses = _motionCtrl.xPulses();
+  _echoYPulses = _motionCtrl.yPulses();
   DEBUG_PRINT("//Wheelly::handleEchoSample ");
-  DEBUG_PRINTLN(echoTime);
+  DEBUG_PRINTLN(echoDelay);
+
+  /* Checks for obstacles */
   if (_motionCtrl.isForward() && !canMoveForward()
       || _motionCtrl.isBackward() && !canMoveBackward()) {
     /* Halt robot if cannot move */
     _motionCtrl.halt();
   }
+  /* Sends sensor data */
   sendStatus();
+  sendProxy();
+  if (canMoveForward() != prevCanMove) {
+    sendContacts();
+  }
 
-  if (_distanceTime == 0) {
+  /* Displays sensor data */
+  if (_echoTime == 0) {
     _display.distance(-1);
   } else {
-    int distance = (int)(echoTime * 100 / 5887);
+    // Converts delay (us) to distance (cm)
+    int distance = (int)(_echoDelay * 100 / 5887);
     distance = (2 * distance + DISTANCE_TICK) / DISTANCE_TICK / 2;
     distance *= DISTANCE_TICK;
     _display.distance(distance);
@@ -264,7 +455,7 @@ void Wheelly::scan(const int angle, const unsigned long t0) {
 /*
   Handles timeout event from statistics timer
 */
-void Wheelly::handleStats() {
+void Wheelly::handleStats(void) {
   const unsigned long t0 = millis();
   const unsigned long dt = (t0 - _statsTime);
   const unsigned long tps = _counter * 1000 / dt;
@@ -295,21 +486,7 @@ void Wheelly::sendReply(const char* data) {
 /*
    Sends the status of wheelly
 */
-void Wheelly::sendStatus() {
-  const int voltageValue = analogRead(VOLTAGE_PIN);
-  const int v = voltageValue;
-  const int hLevel = min(max(
-                           (int)map(v, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
-                           0), 9);
-  const int level = (hLevel + 1) / 2;
-  DEBUG_PRINT("// Wheelly::sendStatus v=");
-  DEBUG_PRINT(v);
-  DEBUG_PRINT(" , hlevel=");
-  DEBUG_PRINT(hLevel);
-  DEBUG_PRINT(" , level=");
-  DEBUG_PRINT(level);
-  DEBUG_PRINTLN();
-  _display.supply(level);
+void Wheelly::sendStatus(void) {
 
   char bfr[256];
   /* st time x y yaw servo distance lpps rpps frontSig rearSig volt canF canB err halt dir speed nextScan */
@@ -318,20 +495,20 @@ void Wheelly::sendStatus() {
           (double)_motionCtrl.xPulses(),
           (double)_motionCtrl.yPulses(),
           _yaw,
-          _proxySensor.echoDirection(),
-          _distanceTime,
+          _echoDirection,
+          _echoDelay,
           (double)_motionCtrl.leftPps(),
           (double)_motionCtrl.rightPps(),
           _contactSensors.frontClear(),
           _contactSensors.rearClear(),
-          voltageValue,
+          _supplyVoltage,
           canMoveForward(),
           canMoveBackward(),
           (const unsigned short)_mpuError,
           _motionCtrl.isHalt() ? 1 : 0,
           _motionCtrl.direction(),
           _motionCtrl.speed(),
-          _proxySensor.direction(),
+          _echoDirection,
           _motionCtrl.leftMotor().speed(),
           _motionCtrl.rightMotor().speed(),
           _motionCtrl.leftMotor().power(),
@@ -339,6 +516,108 @@ void Wheelly::sendStatus() {
          );
   sendReply(bfr);
   _sendTimer.restart();
+}
+
+/**
+   Samples the supply voltage
+*/
+void Wheelly::sampleSupply(void) {
+  /* Samples the supply voltage */
+  long voltageValue = 0;
+  for (int i = 0; i < VOLTAGE_SAMPLES; i++) {
+    voltageValue += analogRead(VOLTAGE_PIN);
+  }
+  /* Averages the measures */
+  _supplyTime = millis();
+  _supplyVoltage = (int)(voltageValue / VOLTAGE_SAMPLES);
+
+  /* Computes the charging level */
+  const int hLevel = min(max(
+                           (int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
+                           0), 9);
+  const int level = (hLevel + 1) / 2;
+
+  DEBUG_PRINT("// Wheelly::sendSupply v=");
+  DEBUG_PRINT(v);
+  DEBUG_PRINT(" , hlevel=");
+  DEBUG_PRINT(hLevel);
+  DEBUG_PRINT(" , level=");
+  DEBUG_PRINT(level);
+  DEBUG_PRINTLN();
+
+  /* Display the charging level */
+  _display.supply(level);
+}
+/*
+   Sends the status of supply
+*/
+void Wheelly::sendSupply(void) {
+  char bfr[256];
+  /* sv time volt */
+  sprintf(bfr, "sv %ld %d",
+          _supplyTime,
+          _supplyVoltage
+         );
+  //sendReply(bfr);
+}
+
+/*
+   Sends the motion of wheelly
+*/
+void Wheelly::sendMotion(void) {
+  char bfr[256];
+  /* st time x y yaw lpps rpps err halt dir speed lspeed rspeed lpwr rpw */
+  sprintf(bfr, "mt %ld %.1f %.1f %d %.1f %.1f %d %d %d %d %d %d %d %d",
+          millis(),
+          (double)_motionCtrl.xPulses(),
+          (double)_motionCtrl.yPulses(),
+          _yaw,
+          (double)_motionCtrl.leftPps(),
+          (double)_motionCtrl.rightPps(),
+          (const unsigned short)_mpuError,
+          _motionCtrl.isHalt() ? 1 : 0,
+          _motionCtrl.direction(),
+          _motionCtrl.speed(),
+          _motionCtrl.leftMotor().speed(),
+          _motionCtrl.rightMotor().speed(),
+          _motionCtrl.leftMotor().power(),
+          _motionCtrl.rightMotor().power()
+         );
+  //sendReply(bfr);
+}
+
+/*
+   Sends the status of contacts
+*/
+void Wheelly::sendContacts(void) {
+
+  char bfr[256];
+  /* ct time frontSig rearSig canF canB */
+  sprintf(bfr, "ct %ld %d %d %d %d",
+          millis(),
+          _contactSensors.frontClear(),
+          _contactSensors.rearClear(),
+          canMoveForward(),
+          canMoveBackward()
+         );
+  //sendReply(bfr);
+}
+
+/*
+   Sends the status of proxy sensor
+*/
+void Wheelly::sendProxy(void) {
+  char bfr[256];
+  /* px time direction delay x y yaw */
+  sprintf(bfr, "px %ld %d %ld %.1f %.1f %d",
+          _echoTime,
+          _echoDirection,
+          _echoDelay,
+          _echoXPulses,
+          _echoYPulses,
+          _echoYaw
+         );
+  //sendReply(bfr);
 }
 
 /*
@@ -359,5 +638,60 @@ const boolean Wheelly::canMoveBackward() const {
    Returns the block echo time
 */
 const int Wheelly::forwardBlockDistanceTime() const {
-  return (_distanceTime > 0 && _distanceTime <= MAX_ECHO_TIME) ? _distanceTime : MAX_ECHO_TIME;
+  return (_echoDelay > 0 && _echoDelay <= MAX_ECHO_TIME) ? _echoDelay : MAX_ECHO_TIME;
+}
+
+/**
+   Replies the configuration
+*/
+void Wheelly::queryConfig(void) {
+  char bfr[256];
+
+  MotorCtrl& leftMotor = _motionCtrl.leftMotor();
+  sprintf(bfr, "// tcsl %d %d %d %d %d %d %d %d",
+          leftMotor.p0Forw(),
+          leftMotor.p1Forw(),
+          leftMotor.pxForw(),
+          leftMotor.p0Back(),
+          leftMotor.p1Back(),
+          leftMotor.pxBack(),
+          leftMotor.ax(),
+          leftMotor.alpha()
+         );
+  sendReply(bfr);
+  sprintf(bfr, "// fl %ld %ld",
+          leftMotor.muForw(),
+          leftMotor.muBack()
+         );
+  sendReply(bfr);
+
+  MotorCtrl& rightMotor = _motionCtrl.leftMotor();
+  sprintf(bfr, "// tcsr %d %d %d %d %d %d %d %d",
+          rightMotor.p0Forw(),
+          rightMotor.p1Forw(),
+          rightMotor.pxForw(),
+          rightMotor.p0Back(),
+          rightMotor.p1Back(),
+          rightMotor.pxBack(),
+          rightMotor.ax(),
+          rightMotor.alpha()
+         );
+  sendReply(bfr);
+  sprintf(bfr, "// fr %ld %ld",
+          rightMotor.muForw(),
+          rightMotor.muBack()
+         );
+  sendReply(bfr);
+
+  sprintf(bfr, "// cc %d %d %d",
+          _motionCtrl.minRotRange(),
+          _motionCtrl.maxRotRange(),
+          _motionCtrl.maxRotPps()
+         );
+  sendReply(bfr);
+
+  sprintf(bfr, "// cs %lu",
+          _motionCtrl.sensors().tau()
+         );
+  sendReply(bfr);
 }

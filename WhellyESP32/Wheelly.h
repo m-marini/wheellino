@@ -8,6 +8,7 @@
 #include "MotionCtrl.h"
 #include "Display.h"
 #include "ProxySensor.h"
+#include "CommandInterpreter.h"
 
 /*
    Wheelly controller.
@@ -46,7 +47,17 @@ class Wheelly {
     */
     void polling(const unsigned long t0 = millis());
 
-    /*
+    /**
+       Execute a command
+       Returns true if command ok
+       @param t0 the current time
+       @param command the command
+    */
+    const boolean execute(const unsigned long t0, const char* command) {
+      return _commandInterpreter.execute(t0, command);
+    }
+
+    /**
        Scans proximity to the direction
 
        @param angle the angle (DEG)
@@ -99,6 +110,11 @@ class Wheelly {
       _display.connected(state);
     }
 
+    /**
+       Queries and sends the status
+    */
+    void queryStatus(void);
+
     /*
        Configures motion controller
        @param params the motion controller parameters
@@ -132,6 +148,7 @@ class Wheelly {
     void configTcsMotorController(const int *p, const boolean left) {
       (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).tcsConfig(p);
     }
+
     /**
        Configures intervals [send interval, scan interval]
        @param p the right motor controller parameters
@@ -182,7 +199,18 @@ class Wheelly {
     unsigned long _statsTime;
 
     ProxySensor _proxySensor;
-    unsigned long _distanceTime;
+    unsigned long _echoTime;
+    unsigned long _echoDelay;
+    int _echoDirection;
+    int _echoYaw;
+    float _echoXPulses;
+    float _echoYPulses;
+
+    unsigned long _supplyTimeout;
+    unsigned long _supplyTime;
+    int _supplyVoltage;
+
+    CommandInterpreter _commandInterpreter;
 
     void (*_onReply)(void*, const char*);
     void* _context;
@@ -197,7 +225,15 @@ class Wheelly {
     void handleMpuData(void);
     void handleChangedContacts(void);
 
+    void queryConfig(void);
+
     void sendStatus(void);
+    void sendProxy(void);
+    void sendContacts(void);
+    void sendSupply(void);
+    void sendMotion(void);
+    void sampleSupply(void);
+
 };
 
 #endif

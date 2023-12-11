@@ -9,7 +9,6 @@
 #include "WiFiModule.h"
 #include "TelnetServer.h"
 #include "ApiServer.h"
-#include "CommandInterpreter.h"
 
 static const unsigned WIRE_CLOCK = 400000;
 
@@ -33,11 +32,6 @@ static TelnetServerClass telnetServer;
    Wheelly controller
 */
 static Wheelly wheelly;
-
-/*
-   Command interpreter
-*/
-static CommandInterpreter commandInterpreter(wheelly);
 
 /*
    Initial setup
@@ -96,6 +90,7 @@ static void handleOnClient(void*, TelnetServerClass& telnet) {
                 ? "// Client connected"
                 : "// Client disconnected");
   wheelly.connected(hasClient);
+  wheelly.queryStatus();
 }
 
 /*
@@ -105,7 +100,7 @@ static void pollSerialPort(const unsigned long time) {
   if (Serial.available()) {
     const size_t n = Serial.readBytesUntil('\n', line, sizeof(line) - 1);
     line[n] = 0;
-    commandInterpreter.execute(time, line);
+    wheelly.execute(time, line);
   }
 }
 
@@ -136,5 +131,5 @@ static void handleOnChange(void *, WiFiModuleClass & module) {
    @param line the line
 */
 static void handleLineReady(void *, const char* line) {
-  commandInterpreter.execute(millis(), line);
+  wheelly.execute(millis(), line);
 }
