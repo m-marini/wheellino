@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Issue #95: Unexpetcted restart on servo movement
+- Issue #99: Sync timeout on reconnection
 
 ## [0.7.0] 2023-11-12
 
