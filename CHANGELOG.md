@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue #91: Change LED status flashing
 - Issue #93: Switch on LED utill start
+- Issue #100: Smooth proxy sensor movement
 
 ### Fixed
 
