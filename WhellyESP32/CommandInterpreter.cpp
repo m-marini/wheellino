@@ -170,6 +170,26 @@ void CommandInterpreter::addCommand(const char *cmd,
 }
 
 /**
+  Adds command without arguments
+  @param cmd the command
+  @param context the context
+  @param callback the command execution callback
+*/
+void CommandInterpreter::addStrCommand(const char *cmd,
+                                       void(*callback)(void *, const unsigned long, const char *),
+                                       void *context) {
+  if (_strCommandCount >= MAX_COMMANDS) {
+    sendError("!! CommandInterpreter::addStrCommand: Too string command");
+    return;
+  }
+  strcpy(_strCommands[_strCommandCount].command, cmd);
+  strcat(_strCommands[_strCommandCount].command, " ");
+  _strCommands[_strCommandCount].execute = callback;
+  _strCommands[_strCommandCount].context = context;
+  _strCommandCount++;
+}
+
+/**
   Adds command with integer arguments
   @param cmd the command
   @param context the context
@@ -281,6 +301,7 @@ const boolean CommandInterpreter::execute(const unsigned long t0, const char* co
     }
   }
 
+
   /* Looks for int command */
   if (cmdIdx < 0) {
     for (int i = 0; i < _intCommandCount; i++) {
@@ -298,6 +319,17 @@ const boolean CommandInterpreter::execute(const unsigned long t0, const char* co
       if (strncmp(cmd, _longCommands[i].command, strlen(_longCommands[i].command)) == 0) {
         cmdIdx = i;
         cmdType = 2;
+        break;
+      }
+    }
+  }
+
+  /* Looks for string command */
+  if (cmdIdx < 0) {
+    for (int i = 0; i < _strCommandCount; i++) {
+      if (strncmp(cmd, _strCommands[i].command, strlen(_strCommands[i].command)) == 0) {
+        cmdIdx = i;
+        cmdType = 3;
         break;
       }
     }
@@ -367,6 +399,8 @@ const boolean CommandInterpreter::execute(const unsigned long t0, const char* co
       }
     }
     _longCommands[cmdIdx].execute(_longCommands[cmdIdx].context, t0, cmd, args);
+  } else if (cmdType == 3) {
+    _strCommands[cmdIdx].execute(_strCommands[cmdIdx].context, t0, cmd);
   } else {
     return false;
   }
