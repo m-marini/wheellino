@@ -189,7 +189,7 @@ class Wheelly {
     ContactSensors _contactSensors;
 
     unsigned long _sendInterval;
-    Timer _sendTimer;
+    unsigned long _lastSend;
 
     Timer _ledTimer;
     boolean _ledActive;
@@ -227,11 +227,19 @@ class Wheelly {
 
     void queryConfig(void);
 
-    void sendStatus(void);
+
+    /*
+       Sends the status of wheelly
+    */
+    //void sendStatus(const unsigned long t0);
+
+    /*
+       Sends the status of wheelly
+    */
+    void sendMotion(const unsigned long t0);
     void sendProxy(void);
     void sendContacts(void);
     void sendSupply(void);
-    void sendMotion(void);
     void sampleSupply(void);
 
 };
