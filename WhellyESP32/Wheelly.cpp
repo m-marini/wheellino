@@ -210,6 +210,7 @@ Wheelly::Wheelly() :
     char bfr[256];
     sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
     ((Wheelly*)ctx)->sendReply(bfr);
+    Serial.println(bfr);
   }, (void*) this);
 }
 /*
@@ -241,15 +242,6 @@ boolean Wheelly::begin(void) {
   _statsTimer.continuous(true);
   _statsTimer.start();
   _statsTime = millis();
-
-  /* Setup send timer */
-  _sendTimer.onNext([](void *context, const unsigned long) {
-    ((Wheelly*)context)->sendStatus();
-    ((Wheelly*)context)->sendMotion();
-  }, this);
-  _sendTimer.interval(_sendInterval);
-  _sendTimer.continuous(true);
-  _sendTimer.start();
 
   /* Setup proxy sensor */
   _proxySensor.onDataReady([](void *context, ProxySensor & sensor) {
@@ -301,6 +293,7 @@ void Wheelly::polling(const unsigned long t0) {
 
   _statsTimer.polling(t0);
 
+  /* Polls MPU */
   _mpu.polling(t0);
   _mpuError = _mpu.rc();
   if (t0 >= _mpuTimeout) {
@@ -308,10 +301,14 @@ void Wheelly::polling(const unsigned long t0) {
     DEBUG_PRINTLN("!! mpu timeout");
   }
 
+  /* Polls sensors */
   _proxySensor.polling(t0);
   _contactSensors.polling(t0);
+
+  /* Polls motion controller */
   _motionCtrl.polling(t0);
 
+  /* Polls led */
   _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward() || !_onLine;
   _ledTimer.interval(
     _mpuError != 0 || (!canMoveForward() && !canMoveBackward()) || !_onLine
@@ -319,13 +316,19 @@ void Wheelly::polling(const unsigned long t0) {
   _ledTimer.polling(t0);
 
   if (t0 >= _supplyTimeout) {
+    /* Polls for supplier sensor */
     sampleSupply();
     sendSupply();
     _supplyTimeout = t0 + SUPPLY_INTERVAL;
   }
 
-  _sendTimer.polling(t0);
+  if (t0 - _lastSend >= _sendInterval) {
+    /* Polls for send motion */
+    //sendStatus(t0);
+    sendMotion(t0);
+  }
 
+  /* Refreshes LCD */
   _display.error(_mpuError);
   _display.move(!_motionCtrl.isHalt());
   _display.block(canMoveForward()
@@ -343,13 +346,11 @@ void Wheelly::polling(const unsigned long t0) {
    Queries and sends the status
 */
 void Wheelly::queryStatus(void) {
-  sendStatus();
-  /*
-  sendMotion();
+  //sendStatus(millis());
+  sendMotion(millis());
   sendProxy();
   sendContacts();
   sendSupply();
-  */
 }
 
 /*
@@ -371,7 +372,7 @@ void Wheelly::move(const int direction, const int speed) {
    @param p the intervals
 */
 void Wheelly::configIntervals(const int *intervals) {
-  _sendTimer.interval(intervals[0]);
+  _sendInterval = intervals[0];
   _proxySensor.interval(intervals[1]);
 }
 
@@ -396,8 +397,8 @@ void Wheelly::handleMpuData() {
    Handles changed contacts
 */
 void Wheelly::handleChangedContacts(void) {
-  DEBUG_PRINTLN("//Wheelly::handleChangedContacts");
-  sendStatus();
+  DEBUG_PRINTLN("// Wheelly::handleChangedContacts");
+  //sendStatus(millis());
   sendContacts();
 }
 
@@ -424,7 +425,7 @@ void Wheelly::handleProxyData(void) {
     _motionCtrl.halt();
   }
   /* Sends sensor data */
-  sendStatus();
+  //sendStatus(millis());
   sendProxy();
   if (canMoveForward() != prevCanMove) {
     sendContacts();
@@ -482,41 +483,6 @@ void Wheelly::sendReply(const char* data) {
   }
 }
 
-/*
-   Sends the status of wheelly
-*/
-void Wheelly::sendStatus(void) {
-
-  char bfr[256];
-  /* st time x y yaw servo distance lpps rpps frontSig rearSig volt canF canB err halt dir speed nextScan */
-  sprintf(bfr, "st %ld %.1f %.1f %d %d %ld %.1f %.1f %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
-          millis(),
-          (double)_motionCtrl.xPulses(),
-          (double)_motionCtrl.yPulses(),
-          _yaw,
-          _echoDirection,
-          _echoDelay,
-          (double)_motionCtrl.leftPps(),
-          (double)_motionCtrl.rightPps(),
-          _contactSensors.frontClear(),
-          _contactSensors.rearClear(),
-          _supplyVoltage,
-          canMoveForward(),
-          canMoveBackward(),
-          (const unsigned short)_mpuError,
-          _motionCtrl.isHalt() ? 1 : 0,
-          _motionCtrl.direction(),
-          _motionCtrl.speed(),
-          _echoDirection,
-          _motionCtrl.leftMotor().speed(),
-          _motionCtrl.rightMotor().speed(),
-          _motionCtrl.leftMotor().power(),
-          _motionCtrl.rightMotor().power()
-         );
-  sendReply(bfr);
-  _sendTimer.restart();
-}
-
 /**
    Samples the supply voltage
 */
@@ -557,13 +523,13 @@ void Wheelly::sendSupply(void) {
           _supplyTime,
           _supplyVoltage
          );
-  //sendReply(bfr);
+  sendReply(bfr);
 }
 
 /*
    Sends the motion of wheelly
 */
-void Wheelly::sendMotion(void) {
+void Wheelly::sendMotion(const unsigned long t0) {
   char bfr[256];
   /* st time x y yaw lpps rpps err halt dir speed lspeed rspeed lpwr rpw */
   sprintf(bfr, "mt %ld %.1f %.1f %d %.1f %.1f %d %d %d %d %d %d %d %d",
@@ -582,7 +548,8 @@ void Wheelly::sendMotion(void) {
           _motionCtrl.leftMotor().power(),
           _motionCtrl.rightMotor().power()
          );
-  //sendReply(bfr);
+  sendReply(bfr);
+  _lastSend = t0;
 }
 
 /*
@@ -599,7 +566,7 @@ void Wheelly::sendContacts(void) {
           canMoveForward(),
           canMoveBackward()
          );
-  //sendReply(bfr);
+  sendReply(bfr);
 }
 
 /*
@@ -616,7 +583,7 @@ void Wheelly::sendProxy(void) {
           _echoYPulses,
           _echoYaw
          );
-  //sendReply(bfr);
+  sendReply(bfr);
 }
 
 /*

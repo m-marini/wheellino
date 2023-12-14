@@ -7,7 +7,7 @@ static const unsigned long RESET_INTERVAL = 3000ul;
 static const unsigned long INACTIVITY = 50ul;
 static const unsigned long INACTIVITY_MICROS = INACTIVITY * 1000;
 static const int NO_SAMPLES = 3;
-static const float DEG_PER_MILLIS = 0.18; // Max 0.333
+static const float DEG_PER_MILLIS = 0.315; // Max 0.333
 
 /**
    Computes the spline coefficents
