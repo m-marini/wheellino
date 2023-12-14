@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Issue #98: Add asyncronous status messages
+- Issue #100: Smooth proxy sensor movement
+
+### Fixed
+
+- Issue #98: Sync timeout on reconnection
 
 ## [0.7.1] 2023-12-08
 
@@ -19,7 +24,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue #91: Change LED status flashing
 - Issue #93: Switch on LED until start
-- Issue #100: Smooth proxy sensor movement
 
 ### Fixed
 
