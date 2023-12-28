@@ -23,18 +23,18 @@
 */
 class Wheelly {
   public:
-    /*
+    /**
        Creates wheelly controller
     */
     Wheelly();
 
-    /*
+    /**
        Initializes wheelly controller
        Return true if successfully initialized
     */
     boolean begin(void);
 
-    /*
+    /**
        Sets on reply call back
     */
     void onReply(void(* callback)(void*, const char* cmd), void* context = NULL) {
@@ -42,7 +42,7 @@ class Wheelly {
       _context = context;
     }
 
-    /*
+    /**
        Pools wheelly controller
     */
     void polling(const unsigned long t0 = millis());
@@ -65,8 +65,7 @@ class Wheelly {
     */
     void scan(const int angle, const unsigned long t0 = millis());
 
-
-    /*
+    /**
        Moves the robot to the direction at speed
 
        @param direction the direction (DEG)
@@ -74,19 +73,19 @@ class Wheelly {
     */
     void move(const int direction, const int speed);
 
-    /*
+    /**
        Moves the robot to the direction at speed
     */
     void halt(void) {
       _motionCtrl.halt();
     }
 
-    /*
+    /**
        Resets wheelly
     */
     void reset(void);
 
-    /*
+    /**
        Displays the message
        @param message the message
     */
@@ -115,7 +114,7 @@ class Wheelly {
     */
     void queryStatus(void);
 
-    /*
+    /**
        Configures motion controller
        @param params the motion controller parameters
     */
@@ -123,7 +122,7 @@ class Wheelly {
       _motionCtrl.configController(params);
     }
 
-    /*
+    /**
        Configures motor sensors
        @param tau the decay value of motor sensors
     */
@@ -131,7 +130,7 @@ class Wheelly {
       _motionCtrl.tau(tau);
     }
 
-    /*
+    /**
        Configures feedback motor controller
        @param p the feedback motor controller parameters
        @param left true for left motor controller
@@ -140,7 +139,7 @@ class Wheelly {
       (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).muConfig(p);
     }
 
-    /*
+    /**
        Configures tcs motor controller
        @param p the tcs motor controller parameters
        @param left true for left motor controller
@@ -155,7 +154,7 @@ class Wheelly {
     */
     void configIntervals(const int *p);
 
-    /*
+    /**
        Sets activity
     */
     void activity(const unsigned long t0 = millis()) {
@@ -207,8 +206,11 @@ class Wheelly {
     float _echoYPulses;
 
     unsigned long _supplyTimeout;
+    unsigned long _supplySampleTimeout;
     unsigned long _supplyTime;
     int _supplyVoltage;
+    long _supplyTotal;
+    int _supplySamples;
 
     CommandInterpreter _commandInterpreter;
 
@@ -227,12 +229,6 @@ class Wheelly {
 
     void queryConfig(void);
 
-
-    /*
-       Sends the status of wheelly
-    */
-    //void sendStatus(const unsigned long t0);
-
     /*
        Sends the status of wheelly
     */
@@ -241,7 +237,10 @@ class Wheelly {
     void sendContacts(void);
     void sendSupply(void);
     void sampleSupply(void);
-
+    /**
+       Averages the supply measures
+    */
+    void averageSupply(void);
 };
 
 #endif
