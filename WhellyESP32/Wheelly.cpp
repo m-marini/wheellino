@@ -7,7 +7,7 @@
 /*
    Current version
 */
-static const char version[] = "0.8.0";
+static const char version[] = "0.8.1";
 
 /*
    The gyroscope
@@ -51,8 +51,9 @@ static const int SERVO_OFFSET = -4;
 /*
    Voltage levels
 */
+static const unsigned long SUPPLY_SAMPLE_INTERVAL = 100;
 static const unsigned long SUPPLY_INTERVAL = 5000;
-static const int VOLTAGE_SAMPLES = 10;
+static const int SAMPLE_BATCH      = 5;
 static const int MIN_VOLTAGE_VALUE = 1896;
 static const int MAX_VOLTAGE_VALUE = 2621;
 
@@ -210,7 +211,7 @@ Wheelly::Wheelly() :
     char bfr[256];
     sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
     ((Wheelly*)ctx)->sendReply(bfr);
-    Serial.println(bfr);
+    DEBUG_PRINTLN(bfr);
   }, (void*) this);
 }
 /*
@@ -315,16 +316,21 @@ void Wheelly::polling(const unsigned long t0) {
     ? FAST_LED_INTERVAL : SLOW_LED_INTERVAL);
   _ledTimer.polling(t0);
 
+  if (t0 >= _supplySampleTimeout) {
+    /* Polls for supplier sensor sample */
+    sampleSupply();
+    _supplySampleTimeout = t0 + SUPPLY_SAMPLE_INTERVAL;
+  }
+
   if (t0 >= _supplyTimeout) {
     /* Polls for supplier sensor */
-    sampleSupply();
+    averageSupply();
     sendSupply();
     _supplyTimeout = t0 + SUPPLY_INTERVAL;
   }
 
   if (t0 - _lastSend >= _sendInterval) {
     /* Polls for send motion */
-    //sendStatus(t0);
     sendMotion(t0);
   }
 
@@ -488,31 +494,50 @@ void Wheelly::sendReply(const char* data) {
 */
 void Wheelly::sampleSupply(void) {
   /* Samples the supply voltage */
-  long voltageValue = 0;
-  for (int i = 0; i < VOLTAGE_SAMPLES; i++) {
-    voltageValue += analogRead(VOLTAGE_PIN);
+  for (int i = 0; i < SAMPLE_BATCH; i++) {
+    int sample = analogRead(VOLTAGE_PIN);
+    _supplyTotal += sample;
+    _supplySamples++;
   }
-  /* Averages the measures */
-  _supplyTime = millis();
-  _supplyVoltage = (int)(voltageValue / VOLTAGE_SAMPLES);
-
-  /* Computes the charging level */
-  const int hLevel = min(max(
-                           (int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
-                           0), 9);
-  const int level = (hLevel + 1) / 2;
-
-  DEBUG_PRINT("// Wheelly::sendSupply v=");
-  DEBUG_PRINT(v);
-  DEBUG_PRINT(" , hlevel=");
-  DEBUG_PRINT(hLevel);
-  DEBUG_PRINT(" , level=");
-  DEBUG_PRINT(level);
-  DEBUG_PRINTLN();
-
-  /* Display the charging level */
-  _display.supply(level);
 }
+
+/*
+   Averages the supply measures
+*/
+void Wheelly::averageSupply(void) {
+  if (_supplySamples > 0) {
+    /* Averages the measures */
+    _supplyTime = millis();
+    _supplyVoltage = (int)(_supplyTotal / _supplySamples);
+
+    DEBUG_PRINT("// Wheelly::averageSupply : supply=");
+    DEBUG_PRINT(_supplyVoltage);
+    DEBUG_PRINT(", samples=");
+    DEBUG_PRINT(_supplySamples);
+    DEBUG_PRINTLN();
+
+    _supplySamples = 0;
+    _supplyTotal = 0;
+
+    /* Computes the charging level */
+    const int hLevel = min(max(
+                             (int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
+                             0), 9);
+    const int level = (hLevel + 1) / 2;
+
+    DEBUG_PRINT("// Wheelly::sendSupply v=");
+    DEBUG_PRINT(v);
+    DEBUG_PRINT(" , hlevel=");
+    DEBUG_PRINT(hLevel);
+    DEBUG_PRINT(" , level=");
+    DEBUG_PRINT(level);
+    DEBUG_PRINTLN();
+
+    /* Display the charging level */
+    _display.supply(level);
+  }
+}
+
 /*
    Sends the status of supply
 */

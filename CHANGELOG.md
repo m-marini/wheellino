@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Issue #104: Averaging supply measures
+
 ## [0.8.0] 2023-12-14
 
 ### Changed
