@@ -34,9 +34,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 3.2,
-          "height": 3.2,
-          "width": 3.2
+          "drill": 0.762,
+          "height": 1.524,
+          "width": 1.524
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -405,7 +405,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "wheellino-esp32.kicad_pro",
+    "filename": "webcam.kicad_pro",
     "version": 1
   },
   "net_settings": {
@@ -482,7 +482,7 @@
   },
   "sheets": [
     [
-      "0480ca6e-13d8-4737-bbb5-7e508575e39e",
+      "23e84795-239a-421e-a3bd-7a62458c210c",
       ""
     ]
   ],
