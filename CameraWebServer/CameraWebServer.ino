@@ -41,11 +41,24 @@ const char* password = "50n08u8uL0r54cch10770";
 
 void startCameraServer();
 void setupLedFlash(int pin);
+void enable_led(bool en);
+extern int led_duty;
+
+void flashLed(const int count = 1, const int on = 20, const int off = 80) {
+  for (int i = 0; i < count; i++) {
+    enable_led(true);
+    delay(on);
+    enable_led(false);
+    delay(off);
+  }
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+  delay(500);
+  Serial.println("Init...");
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -128,17 +141,29 @@ void setup() {
   s->set_vflip(s, 1);
 #endif
 
-// Setup LED FLash if LED pin is defined in camera_pins.h
+  // Setup LED FLash if LED pin is defined in camera_pins.h
 #if defined(LED_GPIO_NUM)
   setupLedFlash(LED_GPIO_NUM);
 #endif
 
+  // Flashing startup
+  led_duty = 255;
+  flashLed(5);
+
+  Serial.println("Connecting WiFi...");
+
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
 
+  int ct = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    if ((ct++) > 20) {
+      flashLed(2);
+      ct = 0;
+      Serial.println();
+    }
   }
   Serial.println("");
   Serial.println("WiFi connected");
@@ -148,6 +173,9 @@ void setup() {
   Serial.print("Camera Ready! Use 'http://");
   Serial.print(WiFi.localIP());
   Serial.println("' to connect");
+
+  flashLed(5);
+  led_duty = 0;
 }
 
 void loop() {

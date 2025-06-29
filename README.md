@@ -18,3 +18,6 @@ The robot consits of
 The ESP32 controller is driving all the units to allow the robot to collect the sensor data, compute the position relative the initial state, drive the proxcimity sensor direction, drive the robot for a specific direction and speed by feeding back from gyroscpe and speed sensors and comunicate with remote server via wifi sending status and receiving commands.
 
 Documentation in [Wiki](https://github.com/m-marini/wheellino/wiki)
+
+
+qr 1725366947643 A 320 240 63.6 88.9 182.5 100.6 179.3 226.0 58.0 237.0
