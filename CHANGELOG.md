@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Issue #104: Averaging supply measures
+- Issue #107: Add Web Camera
 
 ## [0.8.0] 2023-12-14
 
