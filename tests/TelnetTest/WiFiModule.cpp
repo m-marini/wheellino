@@ -2,6 +2,10 @@
  * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
  *
  * Permission is hereby granted, free of charge, to any person
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use,
@@ -29,7 +33,7 @@
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 
-//#define DEBUG
+#define DEBUG
 #include "debug.h"
 
 #include "WiFiModule.h"
@@ -198,10 +202,9 @@ void WiFiModuleClass::polling(const unsigned long clockTime) {
           break;
         case WL_DISCONNECTED:
         case WL_IDLE_STATUS:
-        case WL_NO_SSID_AVAIL:
           break;
         default:
-          Serial.print("!! Wifi failed with status: ");
+          Serial.print("!! Failed with status: ");
           Serial.println(status);
       }
       if (_onChange) {

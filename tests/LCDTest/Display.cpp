@@ -1,3 +1,4 @@
+
 #include "Display.h"
 
 //#define DEBUG
@@ -21,15 +22,16 @@ static const char* BLANK4_STRING = "    ";
 
 static const int STOP_DISTANCE = 20;
 
-static uint8_t errorChar[] = { 0b01110,
-                               0b10001,
-                               0b10101,
-                               0b10101,
-                               0b10001,
-                               0b10101,
-                               0b10001,
-                               0b01110,
-                             };
+static uint8_t errorChar[] = {
+  0b01110,
+  0b10001,
+  0b10101,
+  0b10101,
+  0b10001,
+  0b10101,
+  0b10001,
+  0b01110,
+};
 
 static uint8_t fullBlockChar[] = { 0b01110,
                                    0b10001,
@@ -38,28 +40,29 @@ static uint8_t fullBlockChar[] = { 0b01110,
                                    0b10101,
                                    0b11011,
                                    0b10001,
-                                   0b11111
-                                 };
+                                   0b11111 };
 
-static uint8_t forwardBlockChar[] = { 0b01010,
-                                      0b00100,
-                                      0b01010,
-                                      0b00000,
-                                      0b01110,
-                                      0b10001,
-                                      0b10001,
-                                      0b11111,
-                                    };
+static uint8_t forwardBlockChar[] = {
+  0b01010,
+  0b00100,
+  0b01010,
+  0b00000,
+  0b01110,
+  0b10001,
+  0b10001,
+  0b11111,
+};
 
-static uint8_t backwardBlockChar[] = {0b01110,
-                                      0b10001,
-                                      0b10001,
-                                      0b11111,
-                                      0b00000,
-                                      0b11011,
-                                      0b00100,
-                                      0b11011,
-                                     };
+static uint8_t backwardBlockChar[] = {
+  0b01110,
+  0b10001,
+  0b10001,
+  0b11111,
+  0b00000,
+  0b11011,
+  0b00100,
+  0b11011,
+};
 
 static uint8_t connectedChar[] = { 0b00000,
                                    0b00000,
@@ -68,18 +71,18 @@ static uint8_t connectedChar[] = { 0b00000,
                                    0b00010,
                                    0b11001,
                                    0b00101,
-                                   0b10101
-                                 };
+                                   0b10101 };
 
-static uint8_t uparrowChar[] = { 0b00100,
-                                 0b01010,
-                                 0b11011,
-                                 0b01010,
-                                 0b01010,
-                                 0b01010,
-                                 0b01010,
-                                 0b01110,
-                               };
+static uint8_t uparrowChar[] = {
+  0b00100,
+  0b01010,
+  0b11011,
+  0b01010,
+  0b01010,
+  0b01010,
+  0b01010,
+  0b01110,
+};
 
 static uint8_t terminalChar[] = { 0b01110,
                                   0b10001,
@@ -88,8 +91,7 @@ static uint8_t terminalChar[] = { 0b01110,
                                   0b10001,
                                   0b10101,
                                   0b10001,
-                                  0b01110
-                                };
+                                  0b01110 };
 
 static uint8_t activityChar[] = { 0b01110,
                                   0b10001,
@@ -98,8 +100,7 @@ static uint8_t activityChar[] = { 0b01110,
                                   0b00100,
                                   0b00100,
                                   0b01010,
-                                  0b10001
-                                };
+                                  0b10001 };
 
 static uint8_t supplyCharSet[][8] = {
   { // Supply chars
@@ -110,61 +111,55 @@ static uint8_t supplyCharSet[][8] = {
     0b10001,
     0b10001,
     0b10001,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b10001,
     0b10001,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b10001,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }
+    0b11111 }
 };
 
 /*
    Handles scrolling timer
 */
 void DisplayClass::handleTimer(void* context, const unsigned long n) {
-  ((DisplayClass *)context)->scroll(n);
-  ((DisplayClass *)context)->blink(n);
+  ((DisplayClass*)context)->scroll(n);
+  ((DisplayClass*)context)->blink(n);
 }
 
 /*
@@ -340,7 +335,7 @@ void DisplayClass::showInfo() {
 
   // BL
   _lcd.setCursor(4, 1);
-  _lcd.print(_blink || _block == NO_BLOCK ?  BLANK2_STRING : BLOCK_STRING);
+  _lcd.print(_blink || _block == NO_BLOCK ? BLANK2_STRING : BLOCK_STRING);
 
   // Distance
   char distance[10];

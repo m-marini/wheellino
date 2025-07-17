@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "Arduino.h"
 
 #include "MotionCtrl.h"
@@ -9,9 +37,9 @@
 #include "pins.h"
 
 #define SCALE 10000l
-#define SPEED_THRESHOLD   0.5f
+#define SPEED_THRESHOLD 0.5f
 
-#define TRACK               0.136f
+#define TRACK 0.136f
 
 #define DEG_ANGLE_PER_PULSE (DISTANCE_PER_PULSE / TRACK * 180 / PI)
 #define DEFAULT_TAU 300ul
@@ -23,11 +51,11 @@
 #define MAX_ROT_RANGE 30
 #define MAX_ANGULAR_VALUE 10
 
-#define DEFAULT_P0      27
-#define DEFAULT_P1      73
-#define DEFAULT_MU      64
-#define DEFAULT_AX      1270
-#define DEFAULT_H       DEFAULT_MU
+#define DEFAULT_P0 27
+#define DEFAULT_P1 73
+#define DEFAULT_MU 64
+#define DEFAULT_AX 1270
+#define DEFAULT_H DEFAULT_MU
 
 /*
   Creates the motion controller
@@ -40,22 +68,25 @@ MotionCtrlClass::MotionCtrlClass(byte leftForwPin, byte leftBackPin, byte rightF
     _maxRotRange(MAX_ROT_RANGE),
     _maxRotPps(MAX_ANGULAR_VALUE) {
 
-  _sensors.setOnChange([](void*context, unsigned long clockTime, MotionSensor&) {
+  _sensors.setOnChange([](void* context, unsigned long clockTime, MotionSensor&) {
     DEBUG_PRINTLN("// Motor sensors triggered");
-    ((MotionCtrlClass *)context)-> handleMotion(clockTime);
-  }, this);
+    ((MotionCtrlClass*)context)->handleMotion(clockTime);
+  },
+                       this);
 
   _stopTimer.interval(MOTOR_SAFE_INTERVAL);
-  _stopTimer.onNext([](void *ctx, unsigned long) {
+  _stopTimer.onNext([](void* ctx, unsigned long) {
     DEBUG_PRINTLN("// Stop motor timer triggered");
     ((MotionCtrlClass*)ctx)->halt();
-  }, this);
+  },
+                    this);
 
   _checkTimer.interval(MOTOR_CHECK_INTERVAL);
   _checkTimer.continuous(true);
-  _checkTimer.onNext([](void *ctx, unsigned long) {
+  _checkTimer.onNext([](void* ctx, unsigned long) {
     ((MotionCtrlClass*)ctx)->handleMotion(millis());
-  }, this);
+  },
+                     this);
 }
 
 /*
@@ -144,7 +175,7 @@ void MotionCtrlClass::polling(unsigned long clockTime) {
 */
 const boolean MotionCtrlClass::isForward() const {
   return _leftMotor.speed() > 0 || _rightMotor.speed() > 0
-         || _sensors.leftPps() > SPEED_THRESHOLD || _sensors.rightPps() > SPEED_THRESHOLD ;
+         || _sensors.leftPps() > SPEED_THRESHOLD || _sensors.rightPps() > SPEED_THRESHOLD;
 }
 
 /*
@@ -183,8 +214,8 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
   float isRot = fuzzyGreater(abs(turn1), _minRotRange, _maxRotRange);
   float isLin = 1 - isRot;
 
-  int rotLeft =  turn1 < 0 ? -_maxRotPps : _maxRotPps;
-  int rotRight =  turn1 < 0 ? _maxRotPps : -_maxRotPps;
+  int rotLeft = turn1 < 0 ? -_maxRotPps : _maxRotPps;
+  int rotRight = turn1 < 0 ? _maxRotPps : -_maxRotPps;
 
 #ifdef MONITOR_ON
   char bfr[256];
@@ -197,8 +228,7 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
           leftMotor().power(),
           rightPps(),
           rightMotor().speed(),
-          rightMotor().power()
-         );
+          rightMotor().power());
   Serial.println(bfr);
 #endif
 
@@ -245,7 +275,7 @@ static void handleLeftSensor(void* context, int dPulse, unsigned long, MotorSens
   DEBUG_PRINT("// MotionSensor::handleLeftSensor ");
   DEBUG_PRINT(dPulse);
   DEBUG_PRINTLN();
-  ((MotionSensor*) context)->setLeftPulses(dPulse);
+  ((MotionSensor*)context)->setLeftPulses(dPulse);
 }
 
 /*
@@ -255,15 +285,15 @@ static void handleRightSensor(void* context, int dPulse, unsigned long, MotorSen
   DEBUG_PRINT("// MotionSensor::handleRightSensor ");
   DEBUG_PRINT(dPulse);
   DEBUG_PRINTLN();
-  ((MotionSensor*) context)->setRightPulses(dPulse);
+  ((MotionSensor*)context)->setRightPulses(dPulse);
 }
 
 /*
 
 */
-MotionSensor::MotionSensor(byte leftPin, byte rightPin) :
-  _leftSensor(leftPin), _rightSensor(rightPin),
-  _updateAngle(false) {
+MotionSensor::MotionSensor(byte leftPin, byte rightPin)
+  : _leftSensor(leftPin), _rightSensor(rightPin),
+    _updateAngle(false) {
   _leftSensor.onSample(handleLeftSensor, this);
   _rightSensor.onSample(handleRightSensor, this);
 }

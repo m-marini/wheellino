@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "Wheelly.h"
 #include "pins.h"
 
@@ -35,9 +63,9 @@ static const unsigned long STATS_INTERVAL = 10000ul;
    Proximity sensor
    Proximity distance scanner
 */
-static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100); // 20 cm
-static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100); // 400 cm
-static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100); // 3 cm
+static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100);  // 20 cm
+static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100);  // 400 cm
+static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100);    // 3 cm
 static const int DISTANCE_TICK = 5;
 
 /*
@@ -53,7 +81,7 @@ static const int SERVO_OFFSET = -4;
 */
 static const unsigned long SUPPLY_SAMPLE_INTERVAL = 100;
 static const unsigned long SUPPLY_INTERVAL = 5000;
-static const int SAMPLE_BATCH      = 5;
+static const int SAMPLE_BATCH = 5;
 static const int MIN_VOLTAGE_VALUE = 1896;
 static const int MAX_VOLTAGE_VALUE = 2621;
 
@@ -65,154 +93,156 @@ static const int MAX_SPEED = 60;
 /*
    Creates wheelly controller
 */
-Wheelly::Wheelly() :
-  _motionCtrl(LEFT_FORW_PIN, LEFT_BACK_PIN, RIGHT_FORW_PIN, RIGHT_BACK_PIN, LEFT_PIN, RIGHT_PIN),
-  _sendInterval(DEFAULT_SEND_INTERVAL),
-  _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN),
-  _proxySensor(SERVO_PIN, TRIGGER_PIN, ECHO_PIN) {
+Wheelly::Wheelly()
+  : _motionCtrl(LEFT_FORW_PIN, LEFT_BACK_PIN, RIGHT_FORW_PIN, RIGHT_BACK_PIN, LEFT_PIN, RIGHT_PIN),
+    _sendInterval(DEFAULT_SEND_INTERVAL),
+    _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN),
+    _proxySensor(SERVO_PIN, TRIGGER_PIN, ECHO_PIN) {
 
-  _commandInterpreter.onError([](void*ctx, const char* msg) {
+  _commandInterpreter.onError([](void* ctx, const char* msg) {
     ((Wheelly*)ctx)->sendReply(msg);
-  }, (void*)this);
+  },
+                              (void*)this);
 
   /* ha command */
-  _commandInterpreter.addCommand("ha", [](void*ctx, const unsigned long, const char* msg) {
-    ((Wheelly*)ctx)->halt();
-  }, (void*)this);
+  _commandInterpreter.addCommand(
+    "ha", [](void* ctx, const unsigned long, const char* msg) {
+      ((Wheelly*)ctx)->halt();
+    },
+    (void*)this);
 
   /* qs command */
-  _commandInterpreter.addCommand("qs", [](void*ctx, const unsigned long, const char* msg) {
-    ((Wheelly*)ctx)->queryStatus();
-  }, (void*)this);
+  _commandInterpreter.addCommand(
+    "qs", [](void* ctx, const unsigned long, const char* msg) {
+      ((Wheelly*)ctx)->queryStatus();
+    },
+    (void*)this);
 
   /* rs command */
-  _commandInterpreter.addCommand("rs", [](void*ctx, const unsigned long, const char* msg) {
-    ((Wheelly*)ctx)->reset();
-  }, (void*)this);
+  _commandInterpreter.addCommand(
+    "rs", [](void* ctx, const unsigned long, const char* msg) {
+      ((Wheelly*)ctx)->reset();
+    },
+    (void*)this);
 
   /* qc command */
-  _commandInterpreter.addCommand("qc", [](void*ctx, const unsigned long, const char* msg) {
-    ((Wheelly*)ctx)->queryConfig();
-  }, (void*)this);
+  _commandInterpreter.addCommand(
+    "qc", [](void* ctx, const unsigned long, const char* msg) {
+      ((Wheelly*)ctx)->queryConfig();
+    },
+    (void*)this);
 
   /* vr command */
-  _commandInterpreter.addCommand("vr", [](void* ctx, const unsigned long, const char* msg) {
-    // vr command
-    char bfr[256];
-    strcpy(bfr, "// vr ");
-    strcat(bfr, version);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this);
+  _commandInterpreter.addCommand(
+    "vr", [](void* ctx, const unsigned long, const char* msg) {
+      // vr command
+      char bfr[256];
+      strcpy(bfr, "// vr ");
+      strcat(bfr, version);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this);
 
   /* sc command */
-  _commandInterpreter.addIntCommand("sc", [](void* ctx, const unsigned long, const char*, const int* argv) {
-    ((Wheelly*)ctx)->scan(argv[0]);
-  }, (void*) this, 1,
-  -90, 90);
+  _commandInterpreter.addIntCommand(
+    "sc", [](void* ctx, const unsigned long, const char*, const int* argv) {
+      ((Wheelly*)ctx)->scan(argv[0]);
+    },
+    (void*)this, 1, -90, 90);
 
   /* mv command */
-  _commandInterpreter.addIntCommand("mv", [](void* ctx, const unsigned long, const char*, const int* argv) {
-    ((Wheelly*)ctx)->move(argv[0], argv[1]);
-  }, (void*) this, 2,
-  -180, 179,
-  -MAX_SPEED, MAX_SPEED);
+  _commandInterpreter.addIntCommand(
+    "mv", [](void* ctx, const unsigned long, const char*, const int* argv) {
+      ((Wheelly*)ctx)->move(argv[0], argv[1]);
+    },
+    (void*)this, 2, -180, 179, -MAX_SPEED, MAX_SPEED);
 
   /* cc command */
-  _commandInterpreter.addIntCommand("cc", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-    ((Wheelly*)ctx)->configMotionController(argv);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 3,
-  0, 180,
-  0, 180,
-  0, 20);
+  _commandInterpreter.addIntCommand(
+    "cc", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+      ((Wheelly*)ctx)->configMotionController(argv);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 3, 0, 180, 0, 180, 0, 20);
 
   /* cs command */
-  _commandInterpreter.addIntCommand("cs", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-    ((Wheelly*)ctx)->configMotorSensors(argv[0]);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 1,
-  1, 10000);
+  _commandInterpreter.addIntCommand(
+    "cs", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+      ((Wheelly*)ctx)->configMotorSensors(argv[0]);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 1, 1, 10000);
 
   /* ci command */
-  _commandInterpreter.addIntCommand("ci", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-    ((Wheelly*)ctx)->configIntervals(argv);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 2,
-  1, 60000,
-  1, 60000);
+  _commandInterpreter.addIntCommand(
+    "ci", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+      ((Wheelly*)ctx)->configIntervals(argv);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 2, 1, 60000, 1, 60000);
 
   /* tcsl command */
-  _commandInterpreter.addIntCommand("tcsl", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-    ((Wheelly*)ctx)->configTcsMotorController(argv, true);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 8,
-  0, 1000,
-  0, 1000,
-  0, 1000,
-  -1000, 0,
-  -1000, 0,
-  -1000, 0,
-  0, 16383,
-  0, 100);
+  _commandInterpreter.addIntCommand(
+    "tcsl", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+      ((Wheelly*)ctx)->configTcsMotorController(argv, true);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 8, 0, 1000, 0, 1000, 0, 1000, -1000, 0, -1000, 0, -1000, 0, 0, 16383, 0, 100);
 
   /* tcsr command */
-  _commandInterpreter.addIntCommand("tcsr", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-    ((Wheelly*)ctx)->configTcsMotorController(argv, false);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 8,
-  0, 1000,
-  0, 1000,
-  0, 1000,
-  -1000, 0,
-  -1000, 0,
-  -1000, 0,
-  0, 16383,
-  0, 100);
+  _commandInterpreter.addIntCommand(
+    "tcsr", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
+      ((Wheelly*)ctx)->configTcsMotorController(argv, false);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 8, 0, 1000, 0, 1000, 0, 1000, -1000, 0, -1000, 0, -1000, 0, 0, 16383, 0, 100);
 
   /* fl command */
-  _commandInterpreter.addLongCommand("fl", [](void* ctx, const unsigned long, const char* cmd, const long * argv) {
-    ((Wheelly*)ctx)->configFeedbackMotorController(argv, true);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 2,
-  0L, 2000000L,
-  0L, 2000000L);
+  _commandInterpreter.addLongCommand(
+    "fl", [](void* ctx, const unsigned long, const char* cmd, const long* argv) {
+      ((Wheelly*)ctx)->configFeedbackMotorController(argv, true);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 2, 0L, 2000000L, 0L, 2000000L);
 
   /* fr command */
-  _commandInterpreter.addLongCommand("fr", [](void* ctx, const unsigned long, const char* cmd, const long * argv) {
-    ((Wheelly*)ctx)->configFeedbackMotorController(argv, false);
-    char bfr[256];
-    strcpy(bfr, "// ");
-    strcat(bfr, cmd);
-    ((Wheelly*)ctx)->sendReply(bfr);
-  }, (void*) this, 2,
-  0L, 2000000L,
-  0L, 2000000L);
+  _commandInterpreter.addLongCommand(
+    "fr", [](void* ctx, const unsigned long, const char* cmd, const long* argv) {
+      ((Wheelly*)ctx)->configFeedbackMotorController(argv, false);
+      char bfr[256];
+      strcpy(bfr, "// ");
+      strcat(bfr, cmd);
+      ((Wheelly*)ctx)->sendReply(bfr);
+    },
+    (void*)this, 2, 0L, 2000000L, 0L, 2000000L);
 
   /* ck command */
-  _commandInterpreter.addStrCommand("ck", [](void* ctx, const unsigned long t0, const char* cmd) {
-    char bfr[256];
-    sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
-    ((Wheelly*)ctx)->sendReply(bfr);
-    DEBUG_PRINTLN(bfr);
-  }, (void*) this);
+  _commandInterpreter.addStrCommand(
+    "ck", [](void* ctx, const unsigned long t0, const char* cmd) {
+      char bfr[256];
+      sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
+      ((Wheelly*)ctx)->sendReply(bfr);
+      DEBUG_PRINTLN(bfr);
+    },
+    (void*)this);
 }
 /*
    Initializes wheelly controller
@@ -225,9 +255,10 @@ boolean Wheelly::begin(void) {
   /* Setup error led */
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, true);
-  _ledTimer.onNext([](void *context, const unsigned long n) {
+  _ledTimer.onNext([](void* context, const unsigned long n) {
     ((Wheelly*)context)->handleLed(n);
-  }, this);
+  },
+                   this);
   _ledTimer.interval(SLOW_LED_INTERVAL);
   _ledTimer.continuous(true);
   _ledTimer.start();
@@ -236,26 +267,29 @@ boolean Wheelly::begin(void) {
   pinMode(VOLTAGE_PIN, INPUT);
 
   /* Setup statistic timer */
-  _statsTimer.onNext([](void *context, const unsigned long) {
+  _statsTimer.onNext([](void* context, const unsigned long) {
     ((Wheelly*)context)->handleStats();
-  }, this);
+  },
+                     this);
   _statsTimer.interval(STATS_INTERVAL);
   _statsTimer.continuous(true);
   _statsTimer.start();
   _statsTime = millis();
 
   /* Setup proxy sensor */
-  _proxySensor.onDataReady([](void *context, ProxySensor & sensor) {
+  _proxySensor.onDataReady([](void* context, ProxySensor& sensor) {
     ((Wheelly*)context)->handleProxyData();
-  }, this);
+  },
+                           this);
   _proxySensor.interval(_sendInterval);
   _proxySensor.offset(SERVO_OFFSET);
   _proxySensor.begin();
 
   /* Setup contact sensors */
-  _contactSensors.onChanged([](void *context, ContactSensors & sensors) {
+  _contactSensors.onChanged([](void* context, ContactSensors& sensors) {
     ((Wheelly*)context)->handleChangedContacts();
-  }, this);
+  },
+                            this);
   _contactSensors.begin();
 
   /* Setup mpu */
@@ -266,12 +300,14 @@ boolean Wheelly::begin(void) {
   _motionCtrl.begin();
 
   /* Setup mpu */
-  _mpu.onData([](void *context) {
+  _mpu.onData([](void* context) {
     ((Wheelly*)context)->handleMpuData();
-  }, this);
-  _mpu.onError([](void *context, const char* error) {
+  },
+              this);
+  _mpu.onError([](void* context, const char* error) {
     ((Wheelly*)context)->sendReply(error);
-  }, this);
+  },
+               this);
 
   _mpu.begin();
   _display.clear();
@@ -313,7 +349,8 @@ void Wheelly::polling(const unsigned long t0) {
   _ledActive = _mpuError != 0 || !canMoveForward() || !canMoveBackward() || !_onLine;
   _ledTimer.interval(
     _mpuError != 0 || (!canMoveForward() && !canMoveBackward()) || !_onLine
-    ? FAST_LED_INTERVAL : SLOW_LED_INTERVAL);
+      ? FAST_LED_INTERVAL
+      : SLOW_LED_INTERVAL);
   _ledTimer.polling(t0);
 
   if (t0 >= _supplySampleTimeout) {
@@ -338,12 +375,12 @@ void Wheelly::polling(const unsigned long t0) {
   _display.error(_mpuError);
   _display.move(!_motionCtrl.isHalt());
   _display.block(canMoveForward()
-                 ? canMoveBackward()
-                 ? NO_BLOCK
-                 : BACKWARD_BLOCK
+                   ? canMoveBackward()
+                       ? NO_BLOCK
+                       : BACKWARD_BLOCK
                  : canMoveBackward()
-                 ? FORWARD_BLOCK
-                 : FULL_BLOCK);
+                   ? FORWARD_BLOCK
+                   : FULL_BLOCK);
   _display.polling(t0);
 }
 
@@ -377,7 +414,7 @@ void Wheelly::move(const int direction, const int speed) {
    Configures intervals [send interval, scan interval]
    @param p the intervals
 */
-void Wheelly::configIntervals(const int *intervals) {
+void Wheelly::configIntervals(const int* intervals) {
   _sendInterval = intervals[0];
   _proxySensor.interval(intervals[1]);
 }
@@ -522,7 +559,8 @@ void Wheelly::averageSupply(void) {
     /* Computes the charging level */
     const int hLevel = min(max(
                              (int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
-                             0), 9);
+                             0),
+                           9);
     const int level = (hLevel + 1) / 2;
 
     DEBUG_PRINT("// Wheelly::sendSupply v=");
@@ -546,8 +584,7 @@ void Wheelly::sendSupply(void) {
   /* sv time volt */
   sprintf(bfr, "sv %ld %d",
           _supplyTime,
-          _supplyVoltage
-         );
+          _supplyVoltage);
   sendReply(bfr);
 }
 
@@ -571,8 +608,7 @@ void Wheelly::sendMotion(const unsigned long t0) {
           _motionCtrl.leftMotor().speed(),
           _motionCtrl.rightMotor().speed(),
           _motionCtrl.leftMotor().power(),
-          _motionCtrl.rightMotor().power()
-         );
+          _motionCtrl.rightMotor().power());
   sendReply(bfr);
   _lastSend = t0;
 }
@@ -589,8 +625,7 @@ void Wheelly::sendContacts(void) {
           _contactSensors.frontClear(),
           _contactSensors.rearClear(),
           canMoveForward(),
-          canMoveBackward()
-         );
+          canMoveBackward());
   sendReply(bfr);
 }
 
@@ -606,8 +641,7 @@ void Wheelly::sendProxy(void) {
           _echoDelay,
           _echoXPulses,
           _echoYPulses,
-          _echoYaw
-         );
+          _echoYaw);
   sendReply(bfr);
 }
 
@@ -647,13 +681,11 @@ void Wheelly::queryConfig(void) {
           leftMotor.p1Back(),
           leftMotor.pxBack(),
           leftMotor.ax(),
-          leftMotor.alpha()
-         );
+          leftMotor.alpha());
   sendReply(bfr);
   sprintf(bfr, "// fl %ld %ld",
           leftMotor.muForw(),
-          leftMotor.muBack()
-         );
+          leftMotor.muBack());
   sendReply(bfr);
 
   MotorCtrl& rightMotor = _motionCtrl.leftMotor();
@@ -665,24 +697,20 @@ void Wheelly::queryConfig(void) {
           rightMotor.p1Back(),
           rightMotor.pxBack(),
           rightMotor.ax(),
-          rightMotor.alpha()
-         );
+          rightMotor.alpha());
   sendReply(bfr);
   sprintf(bfr, "// fr %ld %ld",
           rightMotor.muForw(),
-          rightMotor.muBack()
-         );
+          rightMotor.muBack());
   sendReply(bfr);
 
   sprintf(bfr, "// cc %d %d %d",
           _motionCtrl.minRotRange(),
           _motionCtrl.maxRotRange(),
-          _motionCtrl.maxRotPps()
-         );
+          _motionCtrl.maxRotPps());
   sendReply(bfr);
 
   sprintf(bfr, "// cs %lu",
-          _motionCtrl.sensors().tau()
-         );
+          _motionCtrl.sensors().tau());
   sendReply(bfr);
 }

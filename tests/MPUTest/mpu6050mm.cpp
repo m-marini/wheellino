@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include <Arduino.h>
 #include <Wire.h>
 #include "mpu6050mm.h"
@@ -92,9 +120,10 @@ static Vector3 fromBytes(const uint8_t *data, const float scale) {
    Creates the MPU controller
    @param address the I2C address
 */
-MPU6050Class::MPU6050Class(const uint8_t address) : _address(address),
-  _readPtr(_buffer),
-  _writePtr(_buffer) {
+MPU6050Class::MPU6050Class(const uint8_t address)
+  : _address(address),
+    _readPtr(_buffer),
+    _writePtr(_buffer) {
 }
 
 /*
@@ -223,7 +252,7 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   }
 
   _gyroOffset /= (float)numSamples;
-  acc /= (float) numAccSamples;
+  acc /= (float)numAccSamples;
   Vector3 accVersus = acc.unit();
   float angle = acosf(accVersus * Vector3(0, 0, 1));
   Vector3 axis = Vector3(0, 0, 1).cross(accVersus);
@@ -289,7 +318,7 @@ void MPU6050Class::startMonitoring() {
    Applies the gyroscope vector read from MPU
   @param gyro the gyroscope vector
 */
-void MPU6050Class::applyData(Vector3 & gyro) {
+void MPU6050Class::applyData(Vector3 &gyro) {
   if (_normalizationCountdown == 0) {
     _quat = _quat.unit();
     _normalizationCountdown = REVALIDATION_SAMPLE_COUNT;
@@ -328,7 +357,7 @@ const uint16_t MPU6050Class::readFifoCount() {
   if (mpuRegRead(FIFO_COUNT_REG, bfr, sizeof(bfr)) != 0) {
     return 0;
   }
-  return ((uint16_t) (bfr[0]) << 8) | bfr[1];
+  return ((uint16_t)(bfr[0]) << 8) | bfr[1];
 }
 
 /*
@@ -361,9 +390,9 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t reg, const uint8_t value) 
   if (_rc != 0) {
     char msg[256];
     sprintf(msg, "!! Error writing register 0x%02hx @0x%02hx: rc=%hu",
-            (const unsigned short) reg,
-            (const unsigned short) _address,
-            (const unsigned short) _rc);
+            (const unsigned short)reg,
+            (const unsigned short)_address,
+            (const unsigned short)_rc);
     DEBUG_PRINTLN(msg);
     throwError(msg);
     return _rc;
@@ -406,7 +435,7 @@ const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const ui
     throwError(msg);
     return _rc;
   }
-  uint8_t* ptr = bfr;
+  uint8_t *ptr = bfr;
   for (uint8_t i = 0; i < n; ++i) {
     *ptr++ = Wire.read();
   }
@@ -440,7 +469,7 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t *data, const size_t len) {
    Reads the acceleration data from MPU
    @param acc the result acceleration vector
 */
-const uint8_t MPU6050Class::readAcc(Vector3 & acc) {
+const uint8_t MPU6050Class::readAcc(Vector3 &acc) {
   uint8_t block[6];
   if (mpuRegRead(ACCEL_REG, block, sizeof(block)) == 0) {
     acc = fromBytes(block, _accScale);
@@ -455,7 +484,7 @@ const uint8_t MPU6050Class::readAcc(Vector3 & acc) {
    Returns true if data available
    @param gyro the output data
 */
-const boolean MPU6050Class::getGyro(Vector3& gyro) {
+const boolean MPU6050Class::getGyro(Vector3 &gyro) {
   if (_available < MPU_BLOCK_SIZE) {
     // If no data available fill buffer from fifo
     fillBuffer();
@@ -488,8 +517,8 @@ void MPU6050Class::fillBuffer(void) {
   while (len > 0 && _available < MPU_BUFFER_SIZE) {
     // Computes write buffer block size
     size_t writeSize = _writePtr >= _readPtr
-                       ? _buffer - _writePtr + MPU_BUFFER_SIZE
-                       : _readPtr - _writePtr;
+                         ? _buffer - _writePtr + MPU_BUFFER_SIZE
+                         : _readPtr - _writePtr;
     if (writeSize > len) {
       writeSize = len;
     }
