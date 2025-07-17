@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "Arduino.h"
 
 #include "MotorCtrl.h"
@@ -15,16 +43,15 @@
 #include "num.h"
 #include "pins.h"
 
-
-#define DEFAULT_P0    59
-#define DEFAULT_P1    73
-#define DEFAULT_PX    255
+#define DEFAULT_P0 59
+#define DEFAULT_P1 73
+#define DEFAULT_PX 255
 //#define DEFAULT_MU    0
-#define DEFAULT_MU    20000
+#define DEFAULT_MU 20000
 //#define DEFAULT_MU    10000
-#define DEFAULT_AX    200
+#define DEFAULT_AX 200
 #define DEFAULT_ALPHA 25
-#define DEFAULT_TAU   300ul
+#define DEFAULT_TAU 300ul
 
 static unsigned long MIN_INTERVAL = 100ul;
 static int MAX_POWER = 255;
@@ -36,21 +63,21 @@ static long FEEDBACK_SCALE = 1000000;
 /*
    Creates the motor controller
 */
-MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& sensor) :
-  _forwPin(forwPin),
-  _backPin(backPin),
-  _sensor(sensor),
-  _automatic(true),
-  _ax(DEFAULT_AX),
-  _alpha(DEFAULT_ALPHA),
-  _p0Forw(DEFAULT_P0),
-  _p1Forw(DEFAULT_P1),
-  _pxForw(DEFAULT_PX),
-  _muForw(DEFAULT_MU),
-  _p0Back(-DEFAULT_P0),
-  _p1Back(-DEFAULT_P1),
-  _pxBack(-DEFAULT_PX),
-  _muBack(DEFAULT_MU) {
+MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& sensor)
+  : _forwPin(forwPin),
+    _backPin(backPin),
+    _sensor(sensor),
+    _automatic(true),
+    _ax(DEFAULT_AX),
+    _alpha(DEFAULT_ALPHA),
+    _p0Forw(DEFAULT_P0),
+    _p1Forw(DEFAULT_P1),
+    _pxForw(DEFAULT_PX),
+    _muForw(DEFAULT_MU),
+    _p0Back(-DEFAULT_P0),
+    _p1Back(-DEFAULT_P1),
+    _pxBack(-DEFAULT_PX),
+    _muBack(DEFAULT_MU) {
 }
 
 /*
@@ -235,9 +262,9 @@ static void ARDUINO_ISR_ATTR speedSensorChanged(void* arg) {
 /*
   Creates the motor sensor
 */
-MotorSensor::MotorSensor(const uint8_t sensorPin) :
-  _sensorPin(sensorPin),
-  _direction(0) {
+MotorSensor::MotorSensor(const uint8_t sensorPin)
+  : _sensorPin(sensorPin),
+    _direction(0) {
 }
 
 /*
@@ -323,7 +350,8 @@ void MotorSensor::update(const int dPulses, const unsigned long clockTime) {
 /*
    Creates the speedometer
 */
-Speedometer::Speedometer(): _tau(DEFAULT_TAU) {
+Speedometer::Speedometer()
+  : _tau(DEFAULT_TAU) {
 }
 
 /*

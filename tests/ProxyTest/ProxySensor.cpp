@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "ProxySensor.h"
 
 //#define DEBUG
@@ -7,15 +35,15 @@ static const unsigned long RESET_INTERVAL = 3000ul;
 static const unsigned long INACTIVITY = 50ul;
 static const unsigned long INACTIVITY_MICROS = INACTIVITY * 1000;
 static const int NO_SAMPLES = 3;
-static const float DEG_PER_MILLIS = 0.315; // Max 0.333
+static const float DEG_PER_MILLIS = 0.315;  // Max 0.333
 
 /**
    Computes the spline coefficents
 */
-static void spline(float&a, float&b, unsigned long& time, const int from, const int to) {
+static void spline(float& a, float& b, unsigned long& time, const int from, const int to) {
   float v = to >= from ? DEG_PER_MILLIS : -DEG_PER_MILLIS;
   int dy = to - from;
-  time = (unsigned long) round(1.5 * dy / v);
+  time = (unsigned long)round(1.5 * dy / v);
   a = -16 * v * v * v / 27 / dy / dy;
   b = -4 * v * v / 3 / dy;
   DEBUG_PRINT("// ProxySensor::spline from=");
@@ -60,7 +88,7 @@ void ProxySensor::begin(void) {
   pinMode(_triggerPin, OUTPUT);
   /* Computes the time to position and scan */
   unsigned long t0 = millis();
-  _pingTime = t0 + (unsigned long) round(90 / DEG_PER_MILLIS);
+  _pingTime = t0 + (unsigned long)round(90 / DEG_PER_MILLIS);
   _positionTime = _lastPoll = t0;
 }
 
@@ -165,7 +193,7 @@ const int ProxySensor::direction(const unsigned long dt) {
   DEBUG_PRINT(", dir=");
   DEBUG_PRINTF(dir, 3);
   DEBUG_PRINTLN();
-  return (int) round(dir);
+  return (int)round(dir);
 }
 
 /*

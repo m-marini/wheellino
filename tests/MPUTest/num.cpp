@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
 #include <Arduino.h>
 #include <stdio.h>
 #import "num.h"
@@ -80,7 +107,7 @@ const Vector3 Quaternion::euler() const {
   float phi = atan2f(t0, t1);
 
   float t2 = 2 * (_w * _j - _k * _i);
-  t2 = min(max(t2, (float) (-1)), (float)1);
+  t2 = min(max(t2, (float)(-1)), (float)1);
   float theta = asinf(t2);
 
   float t3 = 2 * (_w * _k + _i * _j);
@@ -101,7 +128,7 @@ const Vector3 Quaternion::operator*(const Vector3& v) const {
    Returns the yaw angle of quaternion (RAD)
 */
 const float Quaternion::yaw() const {
-  return -atan2f(2 * (_i * _j + _w * _k),  _w * _w + _i * _i - _j * _j - _k * _k);
+  return -atan2f(2 * (_i * _j + _w * _k), _w * _w + _i * _i - _j * _j - _k * _k);
 }
 
 /*
@@ -190,10 +217,10 @@ const Quaternion Quaternion::fromEuler(const Vector3& euler) {
   float s1 = sinf(euler[1] / 2);
   float s2 = sinf(euler[2] / 2);
   return Quaternion(
-           c0 * c1 * c2 + s0 * s1 * s2,
-           s0 * c1 * c2 - c0 * s1 * s2,
-           c0 * s1 * c2 + s0 * c1 * s2,
-           c0 * c1 * s2 - s0 * s1 * c2);
+    c0 * c1 * c2 + s0 * s1 * s2,
+    s0 * c1 * c2 - c0 * s1 * s2,
+    c0 * s1 * c2 + s0 * c1 * s2,
+    c0 * c1 * s2 - s0 * s1 * c2);
 }
 
 /*
@@ -306,9 +333,9 @@ const Vector3 Vector3::unit() const {
 */
 const Vector3 Vector3::cross(const Vector3& v) const {
   return Vector3(
-           _x[1] * v._x[2] - _x[2] * v._x[1],
-           _x[2] * v._x[0] - _x[0] * v._x[2],
-           _x[0] * v._x[1] - _x[1] * v._x[0]);
+    _x[1] * v._x[2] - _x[2] * v._x[1],
+    _x[2] * v._x[0] - _x[0] * v._x[2],
+    _x[0] * v._x[1] - _x[1] * v._x[0]);
 }
 
 /*
@@ -317,6 +344,6 @@ const Vector3 Vector3::cross(const Vector3& v) const {
 const String Vector3::toString(const int prec) const {
   char msg[64];
   sprintf(msg, "(%*f, %*f, %*f)",
-          prec, (double) _x[0], prec, (double)_x[1], prec, (double)_x[2]);
+          prec, (double)_x[0], prec, (double)_x[1], prec, (double)_x[2]);
   return String(msg);
 }

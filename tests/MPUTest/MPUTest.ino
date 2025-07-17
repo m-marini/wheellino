@@ -1,24 +1,52 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "Arduino.h"
 #include <Wire.h>
 
 #include "mpu6050mm.h"
 #include "num.h"
 
-#define SERIAL_BPS  115200
-#define WIRE_CLOCK  400000
+#define SERIAL_BPS 115200
+#define WIRE_CLOCK 400000
 
 #define GYRO_TEST_DURATION_MS 5000
 
-#define EXPECTED_FREQUENCE  125.0
+#define EXPECTED_FREQUENCE 125.0
 #define FREQUENCE_THRESHOLD 10.0
-#define MAX_SAMPLES_COUNT   1024
-#define GYRO_THRESHOLD      4.0
-#define ACC_THRESHOLD_G     0.1
-#define YAW_THRESHOLD_DEG   (1.0 / 10000 * GYRO_TEST_DURATION_MS)
+#define MAX_SAMPLES_COUNT 1024
+#define GYRO_THRESHOLD 4.0
+#define ACC_THRESHOLD_G 0.1
+#define YAW_THRESHOLD_DEG (1.0 / 10000 * GYRO_TEST_DURATION_MS)
 #define SIGMA_THRESHOLD_DEG 0.5
 
-#define READ_ACC_TIMEOUT_US   10000
-#define READ_FIFO_TIMEOUT_US  10000
+#define READ_ACC_TIMEOUT_US 10000
+#define READ_FIFO_TIMEOUT_US 10000
 
 static int sampleCounter;
 static float yawData[MAX_SAMPLES_COUNT];
@@ -219,7 +247,7 @@ static const boolean testGyro(const int n) {
 
   // Accumulates data on buffer
   sampleCounter = 0;
-  Mpu.onData([](void *ctx) {
+  Mpu.onData([](void* ctx) {
     yawData[sampleCounter++] = Mpu.yaw();
   });
   do {
@@ -482,7 +510,7 @@ static const boolean testRead(const int n, const char* regName, const uint8_t re
 }
 
 
-static const boolean testWrite(const int n, const char*regName, const uint8_t reg, const uint8_t value) {
+static const boolean testWrite(const int n, const char* regName, const uint8_t reg, const uint8_t value) {
   char name[128];
   sprintf(name, "Test mpu write registry %s (0x%hx) value 0x%hx", regName, reg, value);
   // Write divider

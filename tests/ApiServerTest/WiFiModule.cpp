@@ -1,7 +1,39 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 
-//#define DEBUG
+#define DEBUG
 #include "debug.h"
 
 #include "WiFiModule.h"
@@ -12,11 +44,11 @@ static const char* DEFAULT_SSID = "Wheelly";
 /*
    Creates the WiFiModuleClass
 */
-WiFiModuleClass::WiFiModuleClass(void) : _status(WL_DISCONNECTED) {
+WiFiModuleClass::WiFiModuleClass(void)
+  : _status(WL_DISCONNECTED) {
   _config.active = false;
   _config.ssid[0] = 0;
   _config.password[0] = 0;
-
 }
 
 /*
@@ -95,8 +127,8 @@ const boolean WiFiModuleClass::loadConfig(void) {
 
   wifiData.version = doc["version"];
   wifiData.active = doc["active"];
-  strncpy(wifiData.ssid, doc["ssid"].as<const char *>(), sizeof(wifiData.ssid));
-  strncpy(wifiData.password, doc["password"].as<const char *>(), sizeof(wifiData.password));
+  strncpy(wifiData.ssid, doc["ssid"].as<const char*>(), sizeof(wifiData.ssid));
+  strncpy(wifiData.password, doc["password"].as<const char*>(), sizeof(wifiData.password));
 
   DEBUG_PRINT("// version: ");
   DEBUG_PRINTLN(wifiData.version);
@@ -138,8 +170,8 @@ void WiFiModuleClass::startAccessPoint(void) {
 */
 const IPAddress WiFiModuleClass::ipAddress(void) {
   return accessPoint()
-         ? WiFi.softAPIP()
-         : WiFi.localIP();
+           ? WiFi.softAPIP()
+           : WiFi.localIP();
 }
 
 /**
@@ -147,8 +179,8 @@ const IPAddress WiFiModuleClass::ipAddress(void) {
 */
 const char* WiFiModuleClass::ssid(void) const {
   return accessPoint()
-         ? DEFAULT_SSID
-         : _config.ssid;
+           ? DEFAULT_SSID
+           : _config.ssid;
 }
 
 /*

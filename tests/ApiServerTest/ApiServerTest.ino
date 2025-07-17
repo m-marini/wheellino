@@ -26,42 +26,51 @@
  *
  */
 
-#include "num.h"
+#include "Arduino.h"
+#include "WiFiModule.h"
+#include "ApiServer.h"
 
-/*
-   Returns the clipped value
-   @param value the value
-   @param min the minimum value
-   @param max the maximum value
-*/
-const long clip(const long value, const long minValue, const long maxValue) {
-  return min(max(value, minValue), maxValue);
+#define DEBUG
+#include "debug.h"
+
+#define SERIAL_BPS 115200
+
+static WiFiModuleClass wiFiModule;
+
+void setup() {
+  Serial.begin(SERIAL_BPS);
+  Serial.println();
+
+  ApiServer.wiFiModule(&wiFiModule);
+  ApiServer.onActivity([](void*, ApiServerClass&) {
+    Serial.print("ApiServer activity");
+    Serial.println();
+  });
+
+  wiFiModule.onChange(handleOnChange);
+  wiFiModule.begin();
 }
 
-/*
-  Returns normalized radians angle (in range -PI, PI)
-*/
-const float normalRad(const float rad) {
-  float result = rad;
-  while (result < -PI) {
-    result += PI * 2;
-  }
-  while (result >= PI) {
-    result -= PI * 2;
-  }
-  return result;
+void loop() {
+  const unsigned long now = millis();
+  wiFiModule.polling(now);
+  ApiServer.polling(now);
 }
 
-/*
-  Returns normalized degrees angle (in range -180, 179)
-*/
-const int normalDeg(const int deg) {
-  int result = deg;
-  while (result < -180) {
-    result += 360;
+static void handleOnChange(void* context, WiFiModuleClass& module) {
+  char bfr[256];
+  if (module.connected()) {
+    DEBUG_PRINTLN("// ApiServer.begin()");
+    ApiServer.begin();
+    strcpy(bfr, module.ssid());
+    strcat(bfr, " - IP: ");
+    strcat(bfr, module.ipAddress().toString().c_str());
+  } else if (module.connecting()) {
+    strcpy(bfr, module.ssid());
+    strcat(bfr, " connecting...");
+  } else {
+    strcpy(bfr, "Disconnected");
   }
-  while (result >= 180) {
-    result -= 360;
-  }
-  return result;
+  Serial.print(bfr);
+  Serial.println();
 }

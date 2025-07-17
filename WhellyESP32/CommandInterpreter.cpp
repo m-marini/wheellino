@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include <stdarg.h>
 
 #include "CommandInterpreter.h"
@@ -11,14 +39,14 @@
 /*
    Returns true if wrong number of arguments
 */
-const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const int from, const int argc, long *argv) {
+const boolean CommandInterpreter::parseCmdLongArgs(const char *command, const int from, const int argc, long *argv) {
   DEBUG_PRINT("// CommandInterpreter::parseCmdLongArgs[");
   DEBUG_PRINT(command);
   DEBUG_PRINT("]");
   DEBUG_PRINTLN();
 
-  const char* s0 = command + from;
-  const char* s1 = s0;
+  const char *s0 = command + from;
+  const char *s1 = s0;
   char parm[100];
   for (int i = 0; i < argc - 1; i++) {
     s1 = strchr(s0, ' ');
@@ -61,14 +89,14 @@ const boolean CommandInterpreter::parseCmdLongArgs(const char* command, const in
   return true;
 }
 
-const boolean CommandInterpreter::parseCmdIntArgs(const char* command, const int from, const int argc, int *argv) {
+const boolean CommandInterpreter::parseCmdIntArgs(const char *command, const int from, const int argc, int *argv) {
   DEBUG_PRINT("// CommandInterpreter::parseCmdIntArgs[");
   DEBUG_PRINT(command);
   DEBUG_PRINT("]");
   DEBUG_PRINTLN();
 
-  const char* s0 = command + from;
-  const char* s1 = s0;
+  const char *s0 = command + from;
+  const char *s1 = s0;
   char parm[100];
   for (int i = 0; i < argc - 1; i++) {
     s1 = strchr(s0, ' ');
@@ -114,7 +142,7 @@ const boolean CommandInterpreter::parseCmdIntArgs(const char* command, const int
 /*
    Returns true if value is invalid
 */
-const boolean CommandInterpreter::validateIntArg(const int value, const int minValue, const int maxValue, const char* cmd, const int arg) {
+const boolean CommandInterpreter::validateIntArg(const int value, const int minValue, const int maxValue, const char *cmd, const int arg) {
   if (!inrange(value, minValue, maxValue)) {
     char error[256];
     sprintf(error, "!! Wrong arg[%d]: value %d must be between %d, %d range: %s",
@@ -134,7 +162,7 @@ const boolean CommandInterpreter::validateIntArg(const int value, const int minV
 /*
    Returns true if value is invalid
 */
-const boolean CommandInterpreter::validateLongArg(const long value, const long minValue, const long maxValue, const char* cmd, const int arg) {
+const boolean CommandInterpreter::validateLongArg(const long value, const long minValue, const long maxValue, const char *cmd, const int arg) {
   if (!inrange(value, minValue, maxValue)) {
     char error[256];
     sprintf(error, "!! Wrong arg[%d]: value %ld must be between %ld, %ld range: %s",
@@ -157,7 +185,7 @@ const boolean CommandInterpreter::validateLongArg(const long value, const long m
   @param callback the command execution callback
 */
 void CommandInterpreter::addCommand(const char *cmd,
-                                    void(*callback)(void *, const unsigned long, const char *),
+                                    void (*callback)(void *, const unsigned long, const char *),
                                     void *context) {
   if (_voidCommandCount >= MAX_COMMANDS) {
     sendError("!! CommandInterpreter::addCommand: Too void command");
@@ -176,7 +204,7 @@ void CommandInterpreter::addCommand(const char *cmd,
   @param callback the command execution callback
 */
 void CommandInterpreter::addStrCommand(const char *cmd,
-                                       void(*callback)(void *, const unsigned long, const char *),
+                                       void (*callback)(void *, const unsigned long, const char *),
                                        void *context) {
   if (_strCommandCount >= MAX_COMMANDS) {
     sendError("!! CommandInterpreter::addStrCommand: Too string command");
@@ -198,7 +226,7 @@ void CommandInterpreter::addStrCommand(const char *cmd,
   @param varargs the pair of min max values
 */
 void CommandInterpreter::addIntCommand(const char *cmd,
-                                       void(*callback)(void *, const unsigned long, const char *, const int*),
+                                       void (*callback)(void *, const unsigned long, const char *, const int *),
                                        void *context,
                                        const int argc, ...) {
   va_list ap;
@@ -235,7 +263,7 @@ void CommandInterpreter::addIntCommand(const char *cmd,
   @param varargs the pair of min max long values
 */
 void CommandInterpreter::addLongCommand(const char *cmd,
-                                        void(*callback)(void *, const unsigned long, const char *, const long*),
+                                        void (*callback)(void *, const unsigned long, const char *, const long *),
                                         void *context,
                                         const int argc, ...) {
   va_list ap;
@@ -268,7 +296,7 @@ void CommandInterpreter::addLongCommand(const char *cmd,
   @param time the current time stamp
   @param command the command
 */
-const boolean CommandInterpreter::execute(const unsigned long t0, const char* command) {
+const boolean CommandInterpreter::execute(const unsigned long t0, const char *command) {
   char cmd[256];
   // Left trim
   while (isspace(*command)) {
