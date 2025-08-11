@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.8.1] 2025-08-11
+
 ### Changed
 
 - Issue [#111](https://github.com/m-marini/wheellino/issues/111): ESP 32 board 3.2.1
