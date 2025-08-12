@@ -29,26 +29,31 @@
 #include "Arduino.h"
 #include "WiFiModule.h"
 #include "ApiServer.h"
+#include "ConfStore.h"
 
 #define DEBUG
 #include "debug.h"
 
 #define SERIAL_BPS 115200
 
+static ConfStore confStore;
 static WiFiModuleClass wiFiModule;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
   Serial.println();
 
-  ApiServer.wiFiModule(&wiFiModule);
+  confStore.begin();
+
+  ApiServer.begin(confStore);
   ApiServer.onActivity([](void*, ApiServerClass&) {
     Serial.print("ApiServer activity");
     Serial.println();
   });
 
+  wiFiModule.begin(confStore.config());
   wiFiModule.onChange(handleOnChange);
-  wiFiModule.begin();
+  wiFiModule.start();
 }
 
 void loop() {
@@ -61,12 +66,12 @@ static void handleOnChange(void* context, WiFiModuleClass& module) {
   char bfr[256];
   if (module.connected()) {
     DEBUG_PRINTLN("// ApiServer.begin()");
-    ApiServer.begin();
-    strcpy(bfr, module.ssid());
+    ApiServer.start();
+    strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " - IP: ");
     strcat(bfr, module.ipAddress().toString().c_str());
   } else if (module.connecting()) {
-    strcpy(bfr, module.ssid());
+    strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " connecting...");
   } else {
     strcpy(bfr, "Disconnected");

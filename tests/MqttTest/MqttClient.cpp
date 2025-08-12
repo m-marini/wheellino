@@ -21,7 +21,11 @@ MqttClient::MqttClient()
 void MqttClient::begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password,
                        const String& pubTopic, const String& subTopic, const unsigned long retryInterval) {
   // Initialises mqtt
-  Serial.println("Initializing mqtt client ...");
+  Serial.print("Initialized mqtt client ");
+  Serial.print(brokerHost.c_str());
+  Serial.print(":");
+  Serial.print(brokerPort);
+  Serial.println();
   _client.setServer(brokerHost.c_str(), brokerPort);
   _client.setCallback(callback);
   _clientId = clientId;
@@ -37,7 +41,11 @@ void MqttClient::polling(const unsigned long clockTime) {
     if (_client.connected()) {
       _client.loop();
     } else if (clockTime >= _retryTimeout) {
-      Serial.println("Connecting client broker");
+      Serial.print("Connecting client broker ");
+      Serial.print( _user.c_str());
+      Serial.print("@");
+      Serial.print(_clientId.c_str());
+      Serial.println();
       if (_client.connect(_clientId.c_str(), _user.c_str(), _password.c_str())) {
         Serial.println("Client broker connected");
         Serial.print("Subscribe to ");

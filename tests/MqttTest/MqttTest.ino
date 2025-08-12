@@ -36,8 +36,6 @@
 
 #define SERIAL_BPS 115200
 
-static const String MQTT_BROKER("192.168.1.145");
-static const int MQTT_PORT = 1883;
 static const String MQTT_CLIENT_ID("wheelly");
 static const String MQTT_USER("wheelly");
 static const String MQTT_PASSWORD("wheelly");
@@ -60,24 +58,20 @@ void setup() {
   Serial.begin(SERIAL_BPS);
   Serial.println();
 
-  wiFiModule.onChange(handleOnChange);
+  confStore.begin();
+  const ConfigRecord config=confStore.config();
 
   // Initialises wifi
   Serial.println("Initializing WiFi.");
-  wiFiModule.begin();
+  wiFiModule.begin(config);
+  wiFiModule.onChange(handleOnChange);
+  wiFiModule.start();
 
   // Initialises mqtt
   Serial.println("Initializing mqtt client");
-  mqttClient.begin(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_PUB_TOPIC, MQTT_SUB_TOPIC, RETRY_INTERVAL);
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_PUB_TOPIC, MQTT_SUB_TOPIC, RETRY_INTERVAL);
+  //mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, config.mqttUser, config.mqttPsw, MQTT_PUB_TOPIC, MQTT_SUB_TOPIC, RETRY_INTERVAL);
   mqttClient.onMessage(onMessage);
-
-  confStore.begin();
-  const ConfigRecord &configRecord = confStore.config();
-
-  StaticJsonDocument<200> result;
-  ConfStore::toJson(result, configRecord);
-  Serial.println("configRecord");
-  serializeJsonPretty(result, Serial);
 }
 
 void loop() {
@@ -94,11 +88,11 @@ static void handleOnChange(void* context, WiFiModuleClass& module) {
   char bfr[256];
   if (module.connected()) {
     mqttClient.connect();
-    strcpy(bfr, module.ssid());
+    strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " - IP: ");
     strcat(bfr, module.ipAddress().toString().c_str());
   } else if (module.connecting()) {
-    strcpy(bfr, module.ssid());
+    strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " connecting...");
   } else {
     strcpy(bfr, "Disconnected");

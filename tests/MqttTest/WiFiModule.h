@@ -32,31 +32,32 @@
 #include <WiFi.h>
 
 #include "Arduino.h"
-
-#define CURRENT_VERSION 0
-
-/*
-   Wifi data configuration
-*/
-struct WiFiConfig {
-  int version;
-  bool active;
-  char ssid[128];
-  char password[64];
-};
+#include "ConfStore.h"
 
 /*
   Handles the Wifi module by setting station or acces point module
 */
 class WiFiModuleClass {
+private:
+  wl_status_t _status;
+  unsigned long _connectingTime;
+  ConfigRecord _config;
+
+  void (*_onChange)(void*, WiFiModuleClass&);
+  void* _context;
+
+  void startAccessPoint(void);
+  void startStation(void);
 public:
   WiFiModuleClass(void);
 
   // Initializes serial wifi
-  void begin(void);
+  void begin(const ConfigRecord& config);
 
-  // Sets the configuration
-  void setConfig(const WiFiConfig& config);
+  /*
+  * Starts the wifi module
+  */
+  void start(void);
 
   // Sets the callback
   void onChange(void (*callback)(void* context, WiFiModuleClass& module), void* context = NULL) {
@@ -88,34 +89,11 @@ public:
     return station() && status() != WL_CONNECTED;
   }
 
-  // Returns the configuration
-  const WiFiConfig& config(void) const {
-    return _config;
-  }
-
   // Returns the ip address
   const IPAddress ipAddress(void);
 
   // Returns the ssid
-  const char* ssid(void) const;
-
-  /*
-       Applies the configuration
-    */
-  void applyConfig(void);
-
-private:
-  wl_status_t _status;
-  unsigned long _connectingTime;
-  WiFiConfig _config;
-
-  void (*_onChange)(void*, WiFiModuleClass&);
-  void* _context;
-
-  const boolean loadConfig(void);
-  const boolean saveConfig(void);
-  void startAccessPoint(void);
-  void startStation(void);
+  const String& ssid(void) const;
 };
 
 //extern WiFiModuleClass WiFiModule;
