@@ -31,14 +31,14 @@
 
 #include <WebServer.h>
 
-#include "WiFiModule.h"
+#include "ConfStore.h"
 
 /*
    Handles the api server used to manage wifi module configuration
 */
 class ApiServerClass {
 private:
-  WiFiModuleClass* _wiFiModule;
+  ConfStore* _confStore;
   void* _context;
   WebServer _server;
   void (*_onActivity)(void* context, ApiServerClass& server);
@@ -56,8 +56,8 @@ private:
   // Friend functions
   friend void handleNotFound(void);
   friend void handleGetNetworkList(void);
-  friend void handleGetWiFiConfig(void);
-  friend void handlePostWiFiConfig(void);
+  friend void handleGetConfig(void);
+  friend void handlePostConfig(void);
   friend void handlePostRestart(void);
   friend void sendError(const int httpCode, const String& msg);
 
@@ -72,14 +72,12 @@ public:
   /*
        Initializes api server
     */
-  void begin(void);
+  void begin(ConfStore& _confStore);
 
-  /*
-       Sets the WiFiModule
-    */
-  void wiFiModule(WiFiModuleClass* module) {
-    _wiFiModule = module;
-  }
+  /**
+  * Starts the api server (must be call after the wifi connection)
+  */
+  void start(void);
 
   /*
        Sets callback on activity

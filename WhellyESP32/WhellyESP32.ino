@@ -30,13 +30,13 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#define DEBUG
+//#define DEBUG
 #include "debug.h"
 
 #include "Wheelly.h"
 #include "WiFiModule.h"
-#include "TelnetServer.h"
 #include "ApiServer.h"
+#include "MqttClient.h"
 
 static const unsigned WIRE_CLOCK = 400000;
 
@@ -47,19 +47,25 @@ static const unsigned long SERIAL_TIMEOUT = 2000ul;
 static char line[100];
 
 /*
+  Mqqt retry interval
+*/
+static const unsigned long MQTT_RETRY_INTERVAL = 3000ul;
+static boolean mqttConnected;
+
+/*
    WiFi module
 */
 static WiFiModuleClass wiFiModule;
 
 /*
-   Telnet server
-*/
-static TelnetServerClass telnetServer;
-
-/*
    Wheelly controller
 */
 static Wheelly wheelly;
+
+/**
+* Configuration store
+*/
+static ConfStore confStore;
 
 /*
    Initial setup
@@ -68,32 +74,50 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(SERIAL_TIMEOUT);
   Serial.println();
+  Serial.println("// Startup sequence");
+
   Wire.begin();
   Wire.setClock(WIRE_CLOCK);  // 400kHz I2C clock. Comment this line if having compilation difficulties
+
+  // Initialises the configuration store (load the configuration)
+  Serial.println("// Initialise confStore");
+  confStore.begin();
 
   delay(100);
   Serial.println();
 
-  wheelly.begin();
-  wheelly.onReply([](void *, const char *data) {
-    // Handles reply to remote controller
-    DEBUG_PRINTLN(data);
-    telnetServer.println(data);
-  });
+  Serial.println("// Initialise wifi module");
+  const ConfigRecord &config = confStore.config();
+  wiFiModule.begin(config);
 
-  ApiServer.wiFiModule(&wiFiModule);
+  Serial.println("// Initialise api server");
+  ApiServer.begin(confStore);
   ApiServer.onActivity([](void *, ApiServerClass &) {
     wheelly.activity();
   });
 
-  wiFiModule.onChange(handleOnChange);
-  wiFiModule.begin();
+  Serial.println("// Initialise mqtt client");
+  String mqttPrefix = String("wheelly-") + WHEELLY_MINOR_VERSION;
+  String mqttSensorTopic = String("/") + mqttPrefix + "/sensors";
+  String mqttCommandTopic = String("/") + mqttPrefix + "/commands";
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, mqttPrefix, config.mqttUser, config.mqttPsw,
+                   mqttSensorTopic, mqttCommandTopic, MQTT_RETRY_INTERVAL);
+  mqttClient.onMessage(handleMqttMessage);
 
-  telnetServer.onLineReady(handleLineReady);
-  telnetServer.onClient(handleOnClient);
-  telnetServer.onActivity([](void *, TelnetServerClass &) {
-    wheelly.activity();
+  Serial.println("// Initialise whelly");
+  wheelly.begin();
+  wheelly.onReply([](void *, const char *data) {
+    // Handles reply to remote controller
+    if (mqttClient.connected()) {
+      mqttClient.send(data);
+      wheelly.activity();
+    }
   });
+
+  Serial.println("// Start wifi module");
+  wiFiModule.onChange(handleOnChange);
+  wiFiModule.start();
+  Serial.println("// Startup sequence completed");
 }
 
 /*
@@ -103,32 +127,12 @@ void loop() {
   const unsigned long now = millis();
 
   wiFiModule.polling(now);
-  telnetServer.polling(now);
   ApiServer.polling(now);
-  pollSerialPort(now);
   wheelly.polling(now);
-}
-
-/*
-  Handles the wifi client connection, disconnection
-*/
-static void handleOnClient(void *, TelnetServerClass &telnet) {
-  boolean hasClient = telnet.hasClient();
-  DEBUG_PRINTLN(hasClient
-                  ? "// Client connected"
-                  : "// Client disconnected");
-  wheelly.connected(hasClient);
-  wheelly.queryStatus();
-}
-
-/*
-   Polls the serial port for command
-*/
-static void pollSerialPort(const unsigned long time) {
-  if (Serial.available()) {
-    const size_t n = Serial.readBytesUntil('\n', line, sizeof(line) - 1);
-    line[n] = 0;
-    wheelly.execute(time, line);
+  mqttClient.polling(now);
+  if (mqttConnected != mqttClient.connected()) {
+    mqttConnected = mqttClient.connected();
+    wheelly.onLine(mqttConnected);
   }
 }
 
@@ -139,25 +143,21 @@ static void handleOnChange(void *, WiFiModuleClass &module) {
   char bfr[256];
   boolean connected = module.connected();
   if (connected) {
-    ApiServer.begin();
-    telnetServer.begin();
-    strcpy(bfr, wiFiModule.ssid());
+    ApiServer.start();
+    mqttClient.connect();
+    strcpy(bfr, wiFiModule.ssid().c_str());
     strcat(bfr, " - IP: ");
     strcat(bfr, wiFiModule.ipAddress().toString().c_str());
   } else if (module.connecting()) {
-    strcpy(bfr, wiFiModule.ssid());
+    strcpy(bfr, wiFiModule.ssid().c_str());
     strcat(bfr, " connecting...");
   } else {
     strcpy(bfr, "Disconnected");
   }
-  wheelly.onLine(connected);
+  wheelly.onLine(mqttClient.connected());
   wheelly.display(bfr);
 }
 
-/*
-   Handles line ready from wifi
-   @param line the line
-*/
-static void handleLineReady(void *, const char *line) {
-  wheelly.execute(millis(), line);
+static void handleMqttMessage(const String &message) {
+  wheelly.execute(millis(), message.c_str());
 }

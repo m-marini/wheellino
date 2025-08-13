@@ -35,7 +35,7 @@
 /*
    Current version
 */
-static const char version[] = "0.8.1";
+static const char version[] = WHEELLY_VERSION;
 
 /*
    The gyroscope

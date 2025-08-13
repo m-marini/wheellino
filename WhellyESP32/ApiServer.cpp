@@ -1,4 +1,4 @@
-/*
+  /*
  * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
  *
  * Permission is hereby granted, free of charge, to any person
@@ -29,8 +29,10 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <esp_system.h>
+#include <WiFi.h>
 
 #include "ApiServer.h"
+#include "ConfStore.h"
 
 //#define DEBUG
 #include "debug.h"
@@ -43,7 +45,6 @@ static const char *DEFAULT_SERVER_NAME = "wheelly";
 static const unsigned long MAX_SCAN_DURATION = 1000000;
 
 ApiServerClass ApiServer;
-
 
 /*
   Send error
@@ -80,6 +81,8 @@ void handleNotFound(void) {
   jsonDoc["method"] = methodName(ApiServer._server.method());
   String response;
   serializeJson(jsonDoc, response);
+  Serial.print("404 - ");
+  Serial.println(response);
   ApiServer._server.send(404, "application/json", response);
   ApiServer.setActivity();
 }
@@ -102,22 +105,12 @@ void handleGetNetworkList(void) {
 }
 
 /*
-   Handles the wifi configuration request
+   Handles the configuration request
 */
-void handleGetWiFiConfig(void) {
+void handleGetConfig(void) {
   DEBUG_PRINTLN("// handleGetWiFiConfig");
-  WiFiModuleClass *wiFiModule = ApiServer._wiFiModule;
-  if (!wiFiModule) {
-    sendError(404, "WiFi configuration not available");
-    return;
-  }
-  const WiFiConfig &wifiData = wiFiModule->config();
   StaticJsonDocument<256> jsonDoc;
-  jsonDoc.clear();
-  jsonDoc["version"] = CURRENT_VERSION;
-  jsonDoc["active"] = wifiData.active;
-  jsonDoc["ssid"] = wifiData.ssid;
-  jsonDoc["password"] = wifiData.password;
+  ConfStore::toJson(jsonDoc, ApiServer._confStore->config());
 
   String response;
   serializeJson(jsonDoc, response);
@@ -128,14 +121,8 @@ void handleGetWiFiConfig(void) {
 /*
    Handles the wifi configuration request
 */
-void handlePostWiFiConfig(void) {
+void handlePostConfig(void) {
   DEBUG_PRINTLN("// handlePostWiFiConfig");
-  WiFiModuleClass *wiFiModule = ApiServer._wiFiModule;
-  if (!wiFiModule) {
-    sendError(404, "WiFi configuration not available");
-    return;
-  }
-  const WiFiConfig &wifiData = wiFiModule->config();
   // Retrive body
   String body = ApiServer._server.arg("plain");
   DEBUG_PRINT("// Body=");
@@ -145,21 +132,24 @@ void handlePostWiFiConfig(void) {
     sendError(400, "Malformed JSON");
     return;
   }
-  if (!jsonDoc.containsKey("active")
-      || !jsonDoc.containsKey("ssid")
-      || !jsonDoc.containsKey("password")) {
-    sendError(400, "Missing parameters");
+  ConfigRecord config;
+  const ConfStoreRetCode rc = ConfStore::fromJson(config, jsonDoc);
+  if (rc != SUCCESS) {
+    String text = String("Bad configuration RC=") + rc;
+    sendError(400, text);
     return;
   }
-  WiFiConfig config;
-  config.version = CURRENT_VERSION;
-  config.active = jsonDoc["active"].as<bool>();
-  strncpy(config.ssid, jsonDoc["ssid"].as<const char *>(), sizeof(config.ssid) - 1);
-  strncpy(config.password, jsonDoc["password"].as<const char *>(), sizeof(config.password) - 1);
 
   String response;
   serializeJson(jsonDoc, response);
-  wiFiModule->setConfig(config);
+
+  const ConfStoreRetCode rc1 = ApiServer._confStore->store(config);
+  if (rc1 != SUCCESS) {
+    String text = String("Bad configuration RC=") + rc1;
+    sendError(400, text);
+    return;
+  }
+
   Serial.print("WiFi configuration: ");
   Serial.println(response);
   ApiServer._server.send(200, "application/json", response);
@@ -171,18 +161,8 @@ void handlePostWiFiConfig(void) {
 */
 void handlePostRestart(void) {
   DEBUG_PRINTLN("// handleRestart");
-  WiFiModuleClass *wiFiModule = ApiServer._wiFiModule;
-  if (!wiFiModule) {
-    sendError(404, "WiFi configuration not available");
-    return;
-  }
-  const WiFiConfig &wifiData = wiFiModule->config();
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
-  jsonDoc["version"] = CURRENT_VERSION;
-  jsonDoc["active"] = wifiData.active;
-  jsonDoc["ssid"] = wifiData.ssid;
-  jsonDoc["password"] = wifiData.password;
   jsonDoc["restart"] = true;
 
   String response;
@@ -192,7 +172,12 @@ void handlePostRestart(void) {
   ApiServer._restartInstant = millis() + RESTART_DELAY;
 }
 
-void ApiServerClass::begin(void) {
+void ApiServerClass::begin(ConfStore &confStore) {
+  _confStore = &confStore;
+}
+
+
+void ApiServerClass::start(void) {
   DEBUG_PRINTLN("// Starting api server ...");
 
   if (!MDNS.begin(DEFAULT_SERVER_NAME)) {
@@ -203,10 +188,10 @@ void ApiServerClass::begin(void) {
   DEBUG_PRINTLN("// _apiServer.begin()");
   _server.begin();
   DEBUG_PRINTLN("// _apiServer configuration");
-  _server.on("/api/v1/wheelly/restart", HTTP_METHOD_POST, handlePostRestart);
-  _server.on("/api/v1/wheelly/networks/network", HTTP_METHOD_GET, handleGetWiFiConfig);
-  _server.on("/api/v1/wheelly/networks/network", HTTP_METHOD_POST, handlePostWiFiConfig);
-  _server.on("/api/v1/wheelly/networks", HTTP_METHOD_GET, handleGetNetworkList);
+  _server.on("/api/v2/wheelly/restart", HTTP_METHOD_POST, handlePostRestart);
+  _server.on("/api/v2/wheelly/config", HTTP_METHOD_GET, handleGetConfig);
+  _server.on("/api/v2/wheelly/config", HTTP_METHOD_POST, handlePostConfig);
+  _server.on("/api/v2/wheelly/networks", HTTP_METHOD_GET, handleGetNetworkList);
   _server.onNotFound(handleNotFound);
   DEBUG_PRINTLN("// Started api server.");
 }

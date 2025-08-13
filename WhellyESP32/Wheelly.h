@@ -38,6 +38,9 @@
 #include "ProxySensor.h"
 #include "CommandInterpreter.h"
 
+#define WHEELLY_VERSION "0.9.0"
+#define WHEELLY_MINOR_VERSION "0.9"
+
 /*
    Wheelly controller.
    Handles all the behavior of wheelly robot:
@@ -50,6 +53,72 @@
    - operational timing processes
 */
 class Wheelly {
+private:
+  DisplayClass _display;
+  MotionCtrlClass _motionCtrl;
+  MPU6050Class _mpu;
+  ContactSensors _contactSensors;
+  ProxySensor _proxySensor;
+  CommandInterpreter _commandInterpreter;
+  
+  Timer _ledTimer;
+  Timer _statsTimer;
+
+  boolean _onLine;
+  int _yaw;
+  unsigned long _mpuTimeout;
+  uint8_t _mpuError;
+
+  unsigned long _sendInterval;
+  unsigned long _lastSend;
+
+  boolean _ledActive;
+
+  unsigned long _counter;
+  unsigned long _statsTime;
+
+  unsigned long _echoTime;
+  unsigned long _echoDelay;
+  int _echoDirection;
+  int _echoYaw;
+  float _echoXPulses;
+  float _echoYPulses;
+
+  unsigned long _supplyTimeout;
+  unsigned long _supplySampleTimeout;
+  unsigned long _supplyTime;
+  int _supplyVoltage;
+  long _supplyTotal;
+  int _supplySamples;
+
+
+  void (*_onReply)(void*, const char*);
+  void* _context;
+
+  const boolean canMoveForward(void) const;
+  const boolean canMoveBackward(void) const;
+  const int forwardBlockDistanceTime() const;
+
+  void handleProxyData(void);
+  void handleStats(void);
+  void handleLed(const unsigned long n);
+  void handleMpuData(void);
+  void handleChangedContacts(void);
+
+  void queryConfig(void);
+
+  /*
+       Sends the status of wheelly
+    */
+  void sendMotion(const unsigned long t0);
+  void sendProxy(void);
+  void sendContacts(void);
+  void sendSupply(void);
+  void sampleSupply(void);
+  /**
+       Averages the supply measures
+    */
+  void averageSupply(void);
 public:
   /**
        Creates wheelly controller
@@ -201,74 +270,6 @@ public:
   MotionCtrlClass& motionCtrl(void) {
     return _motionCtrl;
   }
-
-private:
-  DisplayClass _display;
-
-  MotionCtrlClass _motionCtrl;
-
-  MPU6050Class _mpu;
-  boolean _onLine;
-  int _yaw;
-  unsigned long _mpuTimeout;
-  uint8_t _mpuError;
-
-  ContactSensors _contactSensors;
-
-  unsigned long _sendInterval;
-  unsigned long _lastSend;
-
-  Timer _ledTimer;
-  boolean _ledActive;
-
-  Timer _statsTimer;
-  unsigned long _counter;
-  unsigned long _statsTime;
-
-  ProxySensor _proxySensor;
-  unsigned long _echoTime;
-  unsigned long _echoDelay;
-  int _echoDirection;
-  int _echoYaw;
-  float _echoXPulses;
-  float _echoYPulses;
-
-  unsigned long _supplyTimeout;
-  unsigned long _supplySampleTimeout;
-  unsigned long _supplyTime;
-  int _supplyVoltage;
-  long _supplyTotal;
-  int _supplySamples;
-
-  CommandInterpreter _commandInterpreter;
-
-  void (*_onReply)(void*, const char*);
-  void* _context;
-
-  const boolean canMoveForward(void) const;
-  const boolean canMoveBackward(void) const;
-  const int forwardBlockDistanceTime() const;
-
-  void handleProxyData(void);
-  void handleStats(void);
-  void handleLed(const unsigned long n);
-  void handleMpuData(void);
-  void handleChangedContacts(void);
-
-  void queryConfig(void);
-
-  /*
-       Sends the status of wheelly
-    */
-  void sendMotion(const unsigned long t0);
-  void sendProxy(void);
-  void sendContacts(void);
-  void sendSupply(void);
-  void sampleSupply(void);
-  /**
-       Averages the supply measures
-    */
-  void averageSupply(void);
 };
 
 #endif
