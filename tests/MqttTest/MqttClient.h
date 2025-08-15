@@ -47,12 +47,11 @@ private:
   String _clientId;
   String _user;
   String _password;
-  String _pubTopic;
-  String _subTopic;
+  String _subTopics;
   unsigned long _retryInterval;
   unsigned long _retryTimeout;
   bool _init;
-  void (*_onMessage)(const String& message);
+  void (*_onMessage)(const String& topic, const String& message);
 
 public:
   MqttClient();
@@ -60,8 +59,7 @@ public:
   /**
   * Initializes client
   */
-  void begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password,
-             const String& pubTopic, const String& subTopic, const unsigned long retryInterval);
+  void begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password, const String& supTopics, const unsigned long retryInterval);
 
   /**
   * Connects the client
@@ -83,21 +81,21 @@ public:
   /**
   * Sends a string to the outTopic
   */
-  void send(const String& data);
+  void send(const String& topic, const String& data);
 
   /**
   * Dispatches the message
   */
-  void dispatch(const String& message) {
+  void dispatch(const String& topic, const String& message) {
     if (_onMessage) {
-      _onMessage(message);
+      _onMessage(topic, message);
     }
   }
 
   /**
   * Sets the message callback
   */
-  void onMessage(void (*callback)(const String& message)) {
+  void onMessage(void (*callback)(const String& topic, const String& message)) {
     _onMessage = callback;
   }
 };

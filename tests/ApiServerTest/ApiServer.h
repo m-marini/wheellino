@@ -41,6 +41,7 @@ private:
   ConfStore* _confStore;
   void* _context;
   WebServer _server;
+  String _wheellyId;
   void (*_onActivity)(void* context, ApiServerClass& server);
   unsigned long _restartInstant;
 
@@ -57,6 +58,7 @@ private:
   friend void handleNotFound(void);
   friend void handleGetNetworkList(void);
   friend void handleGetConfig(void);
+  friend void handleGetWheellyId(void);
   friend void handlePostConfig(void);
   friend void handlePostRestart(void);
   friend void sendError(const int httpCode, const String& msg);
@@ -72,7 +74,7 @@ public:
   /*
        Initializes api server
     */
-  void begin(ConfStore& _confStore);
+  void begin(const String& wheellyId, ConfStore& confStore);
 
   /**
   * Starts the api server (must be call after the wifi connection)

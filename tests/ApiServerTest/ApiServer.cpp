@@ -119,6 +119,20 @@ void handleGetConfig(void) {
 }
 
 /*
+   Handles the configuration request
+*/
+void handleGetWheellyId(void) {
+  DEBUG_PRINTLN("// handleGetWheellyId");
+  JsonDocument jsonDoc;
+  jsonDoc["id"] = ApiServer._wheellyId;
+
+  String response;
+  serializeJson(jsonDoc, response);
+  ApiServer._server.send(200, "application/json", response);
+  ApiServer.setActivity();
+}
+
+/*
    Handles the wifi configuration request
 */
 void handlePostConfig(void) {
@@ -172,8 +186,9 @@ void handlePostRestart(void) {
   ApiServer._restartInstant = millis() + RESTART_DELAY;
 }
 
-void ApiServerClass::begin(ConfStore &confStore) {
+void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore ) {
   _confStore = &confStore;
+  _wheellyId = wheellyId;
 }
 
 
@@ -192,6 +207,7 @@ void ApiServerClass::start(void) {
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_GET, handleGetConfig);
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_POST, handlePostConfig);
   _server.on("/api/v2/wheelly/networks", HTTP_METHOD_GET, handleGetNetworkList);
+  _server.on("/api/v2/wheelly/id", HTTP_METHOD_GET,handleGetWheellyId);
   _server.onNotFound(handleNotFound);
   DEBUG_PRINTLN("// Started api server.");
 }

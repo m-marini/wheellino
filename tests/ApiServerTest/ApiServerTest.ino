@@ -45,7 +45,7 @@ void setup() {
 
   confStore.begin();
 
-  ApiServer.begin(confStore);
+  ApiServer.begin("0123456789ab", confStore);
   ApiServer.onActivity([](void*, ApiServerClass&) {
     Serial.print("ApiServer activity");
     Serial.println();

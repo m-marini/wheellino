@@ -39,7 +39,7 @@
 #include "CommandInterpreter.h"
 
 #define WHEELLY_VERSION "0.9.0"
-#define WHEELLY_MINOR_VERSION "0.9"
+#define WHEELLY_MESSAGES_VERSION "v0"
 
 /*
    Wheelly controller.
@@ -54,13 +54,17 @@
 */
 class Wheelly {
 private:
+  String _id;
   DisplayClass _display;
   MotionCtrlClass _motionCtrl;
   MPU6050Class _mpu;
   ContactSensors _contactSensors;
   ProxySensor _proxySensor;
   CommandInterpreter _commandInterpreter;
-  
+  String _pubSensorTopicPrefix;
+  String _pubCommandTopicPrefix;
+  String _subCommandTopics;
+
   Timer _ledTimer;
   Timer _statsTimer;
 
@@ -91,8 +95,7 @@ private:
   long _supplyTotal;
   int _supplySamples;
 
-
-  void (*_onReply)(void*, const char*);
+  void (*_onReply)(void* context, const String& topic, const String& data);
   void* _context;
 
   const boolean canMoveForward(void) const;
@@ -119,40 +122,20 @@ private:
        Averages the supply measures
     */
   void averageSupply(void);
-public:
-  /**
-       Creates wheelly controller
-    */
-  Wheelly();
 
   /**
-       Initializes wheelly controller
-       Return true if successfully initialized
+    * Sends the sensor data
+    * @param the suffixTopic
+    *  @param data the data reply
     */
-  boolean begin(void);
+  void sendSensorData(const String& topic, const String& data);
 
   /**
-       Sets on reply call back
+    * Sends the command data reply
+    * @param the suffixTopic
+    * @param data the data reply
     */
-  void onReply(void (*callback)(void*, const char* cmd), void* context = NULL) {
-    _onReply = callback;
-    _context = context;
-  }
-
-  /**
-       Pools wheelly controller
-    */
-  void polling(const unsigned long t0 = millis());
-
-  /**
-       Execute a command
-       Returns true if command ok
-       @param t0 the current time
-       @param command the command
-    */
-  const boolean execute(const unsigned long t0, const char* command) {
-    return _commandInterpreter.execute(t0, command);
-  }
+  void sendCommandReply(const String& topic, const String& data);
 
   /**
        Scans proximity to the direction
@@ -175,35 +158,6 @@ public:
     */
   void halt(void) {
     _motionCtrl.halt();
-  }
-
-  /**
-       Resets wheelly
-    */
-  void reset(void);
-
-  /**
-       Displays the message
-       @param message the message
-    */
-  void display(const char* message) {
-    _display.showWiFiInfo(message);
-  }
-
-  /**
-       Sets on line status
-       @param onLine true if wifi module online
-    */
-  void onLine(const boolean onLine) {
-    _onLine = onLine;
-  }
-
-  /**
-       Set connected state
-       @param state true if connected
-    */
-  void connected(const boolean state) {
-    _display.connected(state);
   }
 
   /**
@@ -252,23 +206,93 @@ public:
   void configIntervals(const int* p);
 
   /**
+       Returns the motion controller
+    */
+  MotionCtrlClass& motionCtrl(void) {
+    return _motionCtrl;
+  }
+
+  /**
+       Resets wheelly
+    */
+  void reset(void);
+
+public:
+  /**
+       Creates wheelly controller
+    */
+  Wheelly();
+
+  /**
+    * Returns the wheelly id (mac address)
+    */
+  const String& id(void) const {
+    return _id;
+  }
+
+  /**
+    * Returns the command subscription topics
+    */
+  const String& subCommandTopics(void) const {
+    return _subCommandTopics;
+  }
+
+  /**
+       Initializes wheelly controller
+       Return true if successfully initialized
+    */
+  boolean begin(void);
+
+  /**
+       Sets on reply call back
+    */
+  void onReply(void (*callback)(void* context, const String& topic, const String& data), void* context = NULL) {
+    _onReply = callback;
+    _context = context;
+  }
+
+  /**
+       Pools wheelly controller
+    */
+  void polling(const unsigned long t0 = millis());
+
+  /**
+       Execute a command
+       Returns true if command ok
+       @param t0 the current time
+       @param command the command
+    */
+  const boolean execute(const unsigned long t0, const String& topic, const String& command) {
+    return _commandInterpreter.execute(t0, command.c_str());
+  }
+
+  /**
+       Sets on line status
+       @param onLine true if mqtt clinet connected
+    */
+  void onLine(const boolean onLine);
+
+  /**
+       Set connected state
+       @param state true if connected
+    */
+  void connected(const boolean state) {
+    _display.connected(state);
+  }
+
+  /**
        Sets activity
     */
   void activity(const unsigned long t0 = millis()) {
     _display.activity(t0);
   }
 
-  /*
-       Sends the data reply
-       @param data the data reply
-    */
-  void sendReply(const char* data);
-
   /**
-       Returns the motion controller
+       Displays the message
+       @param message the message
     */
-  MotionCtrlClass& motionCtrl(void) {
-    return _motionCtrl;
+  void display(const char* message) {
+    _display.showWiFiInfo(message);
   }
 };
 

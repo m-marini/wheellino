@@ -47,7 +47,7 @@ static const unsigned long SERIAL_TIMEOUT = 2000ul;
 static char line[100];
 
 /*
-  Mqqt retry interval
+  Mqqt parameters
 */
 static const unsigned long MQTT_RETRY_INTERVAL = 3000ul;
 static boolean mqttConnected;
@@ -90,28 +90,25 @@ void setup() {
   const ConfigRecord &config = confStore.config();
   wiFiModule.begin(config);
 
-  Serial.println("// Initialise api server");
-  ApiServer.begin(confStore);
-  ApiServer.onActivity([](void *, ApiServerClass &) {
-    wheelly.activity();
-  });
-
   Serial.println("// Initialise mqtt client");
-  String mqttPrefix = String("wheelly-") + WHEELLY_MINOR_VERSION;
-  String mqttSensorTopic = String("/") + mqttPrefix + "/sensors";
-  String mqttCommandTopic = String("/") + mqttPrefix + "/commands";
-  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, mqttPrefix, config.mqttUser, config.mqttPsw,
-                   mqttSensorTopic, mqttCommandTopic, MQTT_RETRY_INTERVAL);
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, wheelly.id(), config.mqttUser, config.mqttPsw,
+                   wheelly.subCommandTopics(), MQTT_RETRY_INTERVAL);
   mqttClient.onMessage(handleMqttMessage);
 
   Serial.println("// Initialise whelly");
   wheelly.begin();
-  wheelly.onReply([](void *, const char *data) {
+  wheelly.onReply([](void *, const String &topic, const String &data) {
     // Handles reply to remote controller
     if (mqttClient.connected()) {
-      mqttClient.send(data);
+      mqttClient.send(topic, data);
       wheelly.activity();
     }
+  });
+
+  Serial.println("// Initialise api server");
+  ApiServer.begin(wheelly.id(), confStore);
+  ApiServer.onActivity([](void *, ApiServerClass &) {
+    wheelly.activity();
   });
 
   Serial.println("// Start wifi module");
@@ -154,10 +151,13 @@ static void handleOnChange(void *, WiFiModuleClass &module) {
   } else {
     strcpy(bfr, "Disconnected");
   }
-  wheelly.onLine(mqttClient.connected());
   wheelly.display(bfr);
 }
 
-static void handleMqttMessage(const String &message) {
-  wheelly.execute(millis(), message.c_str());
+static void handleMqttMessage(const String &topic, const String &message) {
+  wheelly.execute(millis(), topic, message);
+}
+
+static void handleMqttConnected(void) {
+  wheelly.onLine(true);
 }

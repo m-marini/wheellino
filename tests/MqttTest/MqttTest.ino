@@ -39,8 +39,8 @@
 static const String MQTT_CLIENT_ID("wheelly");
 static const String MQTT_USER("wheelly");
 static const String MQTT_PASSWORD("wheelly");
-static const String MQTT_PUB_TOPIC("/wheelly/sensors");
-static const String MQTT_SUB_TOPIC("/wheelly/commands");
+static const String MQTT_PUB_TOPIC("sens/test");
+static const String MQTT_SUB_TOPICS("cmd/test/#");
 static const unsigned long RETRY_INTERVAL = 3000;
 static const unsigned long SEND_INTERVAL = 500;
 
@@ -49,8 +49,9 @@ static unsigned long sendTimeout;
 
 static ConfStore confStore;
 
-static void onMessage(const String& message) {
-  Serial.print("Received ");
+static void onMessage(const String& topics, const String& message) {
+  Serial.print(topics);
+  Serial.print(" ");
   Serial.println(message);
 }
 
@@ -59,7 +60,7 @@ void setup() {
   Serial.println();
 
   confStore.begin();
-  const ConfigRecord config=confStore.config();
+  const ConfigRecord config = confStore.config();
 
   // Initialises wifi
   Serial.println("Initializing WiFi.");
@@ -69,8 +70,7 @@ void setup() {
 
   // Initialises mqtt
   Serial.println("Initializing mqtt client");
-  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_PUB_TOPIC, MQTT_SUB_TOPIC, RETRY_INTERVAL);
-  //mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, config.mqttUser, config.mqttPsw, MQTT_PUB_TOPIC, MQTT_SUB_TOPIC, RETRY_INTERVAL);
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPICS, RETRY_INTERVAL);
   mqttClient.onMessage(onMessage);
 }
 
@@ -79,7 +79,7 @@ void loop() {
   wiFiModule.polling(now);
   mqttClient.polling(now);
   if (now >= sendTimeout) {
-    mqttClient.send(String("time ") + String(now));
+    mqttClient.send(MQTT_PUB_TOPIC, String(now));
     sendTimeout = now + SEND_INTERVAL;
   }
 }

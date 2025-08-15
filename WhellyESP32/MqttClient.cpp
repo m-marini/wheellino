@@ -11,15 +11,14 @@ static void callback(char* topic, byte* payload, unsigned int length) {
     text[i] = payload[i];
   }
   text[length] = '\0';
-  String data(text);
-  mqttClient.dispatch(data);
+  mqttClient.dispatch(topic, text);
 }
 
 MqttClient::MqttClient()
   : _client(_wiFiClient) {}
 
 void MqttClient::begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password,
-                       const String& pubTopic, const String& subTopic, const unsigned long retryInterval) {
+                       const String& subTopics, const unsigned long retryInterval) {
   // Initialises mqtt
   Serial.print("Initialized mqtt client ");
   Serial.print(brokerHost.c_str());
@@ -31,8 +30,7 @@ void MqttClient::begin(const String& brokerHost, const int brokerPort, const Str
   _clientId = clientId;
   _user = user;
   _password = password;
-  _pubTopic = pubTopic;
-  _subTopic = subTopic;
+  _subTopics = subTopics;
   _retryInterval = retryInterval;
 }
 
@@ -49,9 +47,8 @@ void MqttClient::polling(const unsigned long clockTime) {
       if (_client.connect(_clientId.c_str(), _user.c_str(), _password.c_str())) {
         Serial.println("Client broker connected");
         Serial.print("Subscribe to ");
-        Serial.println(_subTopic);
-        _client.subscribe(_subTopic.c_str());
-        send("hi");
+        Serial.println(_subTopics);
+        _client.subscribe(_subTopics.c_str());
       } else {
         Serial.print("Client broker connection failed state=");
         Serial.println(_client.state());
@@ -65,8 +62,8 @@ void MqttClient::connect(void) {
   _init = true;
 }
 
-void MqttClient::send(const String& msg) {
+void MqttClient::send(const String& topic, const String& msg) {
   if (_client.connected()) {
-    _client.publish(_pubTopic.c_str(), msg.c_str());
+    _client.publish(topic.c_str(), msg.c_str());
   }
 }
