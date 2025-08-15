@@ -69,14 +69,14 @@ MotionCtrlClass::MotionCtrlClass(byte leftForwPin, byte leftBackPin, byte rightF
     _maxRotPps(MAX_ANGULAR_VALUE) {
 
   _sensors.setOnChange([](void* context, unsigned long clockTime, MotionSensor&) {
-    DEBUG_PRINTLN("// Motor sensors triggered");
+    DEBUG_PRINTLN("Motor sensors triggered");
     ((MotionCtrlClass*)context)->handleMotion(clockTime);
   },
                        this);
 
   _stopTimer.interval(MOTOR_SAFE_INTERVAL);
   _stopTimer.onNext([](void* ctx, unsigned long) {
-    DEBUG_PRINTLN("// Stop motor timer triggered");
+    DEBUG_PRINTLN("Stop motor timer triggered");
     ((MotionCtrlClass*)ctx)->halt();
   },
                     this);
@@ -97,7 +97,7 @@ void MotionCtrlClass::begin() {
   _rightMotor.begin();
   _sensors.begin();
 
-  DEBUG_PRINTLN("// Motion controller begin");
+  DEBUG_PRINTLN("Motion controller begin");
 
   halt();
 }
@@ -106,7 +106,7 @@ void MotionCtrlClass::begin() {
   Resets the controller
 */
 void MotionCtrlClass::reset(unsigned long timestamp) {
-  DEBUG_PRINTLN("// MotionCtrlClass::reset");
+  DEBUG_PRINTLN("MotionCtrlClass::reset");
   _sensors.reset(timestamp);
 }
 
@@ -114,7 +114,7 @@ void MotionCtrlClass::reset(unsigned long timestamp) {
 
 */
 void MotionCtrlClass::halt() {
-  DEBUG_PRINTLN("// MotionCtrlClass::halt");
+  DEBUG_PRINTLN("MotionCtrlClass::halt");
   _speed = 0;
   _halt = true;
   motorSpeed(0, 0);
@@ -130,7 +130,7 @@ void MotionCtrlClass::configController(const int* p) {
   _minRotRange = p[0];
   _maxRotRange = p[1];
   _maxRotPps = p[2];
-  DEBUG_PRINTLN("// MotionCtrlClass::setControllerConfig");
+  DEBUG_PRINTLN("MotionCtrlClass::setControllerConfig");
   DEBUG_PRINT(", _minRotRange: ");
   DEBUG_PRINT(_minRotRange);
   DEBUG_PRINT(", _maxRotRange ");
@@ -142,7 +142,7 @@ void MotionCtrlClass::configController(const int* p) {
   Sets the movement direction and speed
 */
 void MotionCtrlClass::move(int direction, int speed) {
-  DEBUG_PRINT("// MotionCtrlClass::move ");
+  DEBUG_PRINT("MotionCtrlClass::move ");
   DEBUG_PRINT(direction);
   DEBUG_PRINT(" ");
   DEBUG_PRINT(speed);
@@ -192,7 +192,7 @@ const boolean MotionCtrlClass::isBackward() const {
 void MotionCtrlClass::handleMotion(unsigned long clockTime) {
   unsigned long dt = clockTime - _prevTime;
   _prevTime = clockTime;
-  DEBUG_PRINT("// MotionCtrlClass::handleMotion ");
+  DEBUG_PRINT("MotionCtrlClass::handleMotion ");
   DEBUG_PRINT(clockTime);
   DEBUG_PRINTLN();
   if (_halt || dt <= 0) {
@@ -203,7 +203,7 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
   int toDir1 = _direction;
   int turn1 = normalDeg(toDir1 - dir1);
 
-  DEBUG_PRINT("//     dir: ");
+  DEBUG_PRINT("    dir: ");
   DEBUG_PRINT(dir1);
   DEBUG_PRINT(", to: ");
   DEBUG_PRINT(toDir1);
@@ -219,7 +219,7 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
 
 #ifdef MONITOR_ON
   char bfr[256];
-  sprintf(bfr, "// MT %3d %4d %4d %4.0f %4.0d %4d %4.0f %4.0d %4d",
+  sprintf(bfr, "MT %3d %4d %4d %4.0f %4.0d %4d %4.0f %4.0d %4d",
           _speed,
           _direction,
           dir1,
@@ -245,7 +245,7 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
   fuzzy.add(0, 1 - max(isRot, isLin));
   int right = round(fuzzy.defuzzy());
 
-  DEBUG_PRINT("//     motors: ");
+  DEBUG_PRINT("    motors: ");
   DEBUG_PRINT(left);
   DEBUG_PRINT(", ");
   DEBUG_PRINT(right);
@@ -258,7 +258,7 @@ void MotionCtrlClass::handleMotion(unsigned long clockTime) {
 */
 void MotionCtrlClass::motorSpeed(int left, int right) {
 
-  DEBUG_PRINT("// MotionCtrlClass::power ");
+  DEBUG_PRINT("MotionCtrlClass::power ");
   DEBUG_PRINT(left);
   DEBUG_PRINT(", ");
   DEBUG_PRINT(right);
@@ -272,7 +272,7 @@ void MotionCtrlClass::motorSpeed(int left, int right) {
 
 */
 static void handleLeftSensor(void* context, int dPulse, unsigned long, MotorSensor&) {
-  DEBUG_PRINT("// MotionSensor::handleLeftSensor ");
+  DEBUG_PRINT("MotionSensor::handleLeftSensor ");
   DEBUG_PRINT(dPulse);
   DEBUG_PRINTLN();
   ((MotionSensor*)context)->setLeftPulses(dPulse);
@@ -282,7 +282,7 @@ static void handleLeftSensor(void* context, int dPulse, unsigned long, MotorSens
 
 */
 static void handleRightSensor(void* context, int dPulse, unsigned long, MotorSensor&) {
-  DEBUG_PRINT("// MotionSensor::handleRightSensor ");
+  DEBUG_PRINT("MotionSensor::handleRightSensor ");
   DEBUG_PRINT(dPulse);
   DEBUG_PRINTLN();
   ((MotionSensor*)context)->setRightPulses(dPulse);
@@ -315,13 +315,13 @@ void MotionSensor::tau(unsigned long tau) {
   _leftSensor.tau(tau);
   _rightSensor.tau(tau);
 
-  DEBUG_PRINT("// MotionCtrl::tau ");
+  DEBUG_PRINT("MotionCtrl::tau ");
   DEBUG_PRINT(tau);
   DEBUG_PRINTLN();
 }
 
 void MotionSensor::direction(int left, int right) {
-  DEBUG_PRINT("// MotionSensor::setDirection ");
+  DEBUG_PRINT("MotionSensor::setDirection ");
   DEBUG_PRINT(left);
   DEBUG_PRINT(" ");
   DEBUG_PRINT(right);
@@ -341,7 +341,7 @@ void MotionSensor::polling(unsigned long clockTime) {
 }
 
 void MotionSensor::update(const unsigned long clockTime) {
-  DEBUG_PRINT("// MotionSensor::update ");
+  DEBUG_PRINT("MotionSensor::update ");
   DEBUG_PRINT(_dl);
   DEBUG_PRINT(" ");
   DEBUG_PRINT(_dr);
@@ -355,7 +355,7 @@ void MotionSensor::update(const unsigned long clockTime) {
   _xPulses += sa * ds;
   _yPulses += ca * ds;
 
-  DEBUG_PRINT("// x,y ");
+  DEBUG_PRINT("x,y ");
   DEBUG_PRINT(_xPulses);
   DEBUG_PRINT(" ");
   DEBUG_PRINT(_yPulses);
@@ -365,12 +365,12 @@ void MotionSensor::update(const unsigned long clockTime) {
   if (_updateAngle) {
     _angle = normalDeg(_angle + roundf((_dl - _dr) * DEG_ANGLE_PER_PULSE));
 
-    DEBUG_PRINT("//     angle ");
+    DEBUG_PRINT("    angle ");
     DEBUG_PRINT(_angle);
     DEBUG_PRINTLN();
   }
 
-  DEBUG_PRINT("// pps ");
+  DEBUG_PRINT("pps ");
   DEBUG_PRINT(leftPps());
   DEBUG_PRINT(", ");
   DEBUG_PRINT(rightPps());

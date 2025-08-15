@@ -109,155 +109,10 @@ Wheelly::Wheelly()
   mac1 |= (mac & 0x00000000000000fful) << 40;
 
   _id = String(mac1, HEX);
-  _pubSensorTopicPrefix = String("sens/wheelly/") + _id + "/" + WHEELLY_MESSAGES_VERSION;
-  _pubCommandTopicPrefix = String("cmd/wheelly/") + _id + "/" + WHEELLY_MESSAGES_VERSION + "/res";
-  _subCommandTopics = String("cmd/wheelly/") + _id + "/" + WHEELLY_MESSAGES_VERSION + "/req/+";
-
-  _commandInterpreter.onError([](void* ctx, const char* msg) {
-    ((Wheelly*)ctx)->sendCommandReply("er", msg);
-  },
-                              (void*)this);
-
-  /* ha command */
-  _commandInterpreter.addCommand(
-    "ha", [](void* ctx, const unsigned long, const char* msg) {
-      ((Wheelly*)ctx)->halt();
-    },
-    (void*)this);
-
-  /* qs command */
-  _commandInterpreter.addCommand(
-    "qs", [](void* ctx, const unsigned long, const char* msg) {
-      ((Wheelly*)ctx)->queryStatus();
-    },
-    (void*)this);
-
-  /* rs command */
-  _commandInterpreter.addCommand(
-    "rs", [](void* ctx, const unsigned long, const char* msg) {
-      ((Wheelly*)ctx)->reset();
-    },
-    (void*)this);
-
-  /* qc command */
-  _commandInterpreter.addCommand(
-    "qc", [](void* ctx, const unsigned long, const char* msg) {
-      ((Wheelly*)ctx)->queryConfig();
-    },
-    (void*)this);
-
-  /* vr command */
-  _commandInterpreter.addCommand(
-    "vr", [](void* ctx, const unsigned long, const char* msg) {
-      // vr command
-      char bfr[256];
-      strcpy(bfr, "// vr ");
-      strcat(bfr, version);
-      ((Wheelly*)ctx)->sendCommandReply("vr", bfr);
-    },
-    (void*)this);
-
-  /* sc command */
-  _commandInterpreter.addIntCommand(
-    "sc", [](void* ctx, const unsigned long, const char*, const int* argv) {
-      ((Wheelly*)ctx)->scan(argv[0]);
-    },
-    (void*)this, 1, -90, 90);
-
-  /* mv command */
-  _commandInterpreter.addIntCommand(
-    "mv", [](void* ctx, const unsigned long, const char*, const int* argv) {
-      ((Wheelly*)ctx)->move(argv[0], argv[1]);
-    },
-    (void*)this, 2, -180, 179, -MAX_SPEED, MAX_SPEED);
-
-  /* cc command */
-  _commandInterpreter.addIntCommand(
-    "cc", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-      ((Wheelly*)ctx)->configMotionController(argv);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("cc", bfr);
-    },
-    (void*)this, 3, 0, 180, 0, 180, 0, 20);
-
-  /* cs command */
-  _commandInterpreter.addIntCommand(
-    "cs", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-      ((Wheelly*)ctx)->configMotorSensors(argv[0]);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("cs", bfr);
-    },
-    (void*)this, 1, 1, 10000);
-
-  /* ci command */
-  _commandInterpreter.addIntCommand(
-    "ci", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-      ((Wheelly*)ctx)->configIntervals(argv);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("ci", bfr);
-    },
-    (void*)this, 2, 1, 60000, 1, 60000);
-
-  /* tcsl command */
-  _commandInterpreter.addIntCommand(
-    "tcsl", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-      ((Wheelly*)ctx)->configTcsMotorController(argv, true);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("tcsl", bfr);
-    },
-    (void*)this, 8, 0, 1000, 0, 1000, 0, 1000, -1000, 0, -1000, 0, -1000, 0, 0, 16383, 0, 100);
-
-  /* tcsr command */
-  _commandInterpreter.addIntCommand(
-    "tcsr", [](void* ctx, const unsigned long, const char* cmd, const int* argv) {
-      ((Wheelly*)ctx)->configTcsMotorController(argv, false);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("tcsr", bfr);
-    },
-    (void*)this, 8, 0, 1000, 0, 1000, 0, 1000, -1000, 0, -1000, 0, -1000, 0, 0, 16383, 0, 100);
-
-  /* fl command */
-  _commandInterpreter.addLongCommand(
-    "fl", [](void* ctx, const unsigned long, const char* cmd, const long* argv) {
-      ((Wheelly*)ctx)->configFeedbackMotorController(argv, true);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("fl", bfr);
-    },
-    (void*)this, 2, 0L, 2000000L, 0L, 2000000L);
-
-  /* fr command */
-  _commandInterpreter.addLongCommand(
-    "fr", [](void* ctx, const unsigned long, const char* cmd, const long* argv) {
-      ((Wheelly*)ctx)->configFeedbackMotorController(argv, false);
-      char bfr[256];
-      strcpy(bfr, "// ");
-      strcat(bfr, cmd);
-      ((Wheelly*)ctx)->sendCommandReply("fr", bfr);
-    },
-    (void*)this, 2, 0L, 2000000L, 0L, 2000000L);
-
-  /* ck command */
-  _commandInterpreter.addStrCommand(
-    "ck", [](void* ctx, const unsigned long t0, const char* cmd) {
-      char bfr[256];
-      sprintf(bfr, "%s %ld %ld", cmd, t0, millis());
-      ((Wheelly*)ctx)->sendCommandReply("ck", bfr);
-      DEBUG_PRINTLN(bfr);
-    },
-    (void*)this);
+  _pubSensorTopicPrefix = "sens/wheelly/" + _id + "/" + WHEELLY_MESSAGES_VERSION;
+  _subCommandTopics = "cmd/wheelly/" + _id + "/" + WHEELLY_MESSAGES_VERSION + "/+";
 }
+
 /*
    Initializes wheelly controller
    Returns true if successfully initialized
@@ -410,7 +265,6 @@ void Wheelly::onLine(boolean onLine) {
    Queries and sends the status
 */
 void Wheelly::queryStatus(void) {
-  //sendStatus(millis());
   sendMotion(millis());
   sendProxy();
   sendContacts();
@@ -461,7 +315,7 @@ void Wheelly::handleMpuData() {
    Handles changed contacts
 */
 void Wheelly::handleChangedContacts(void) {
-  DEBUG_PRINTLN("// Wheelly::handleChangedContacts");
+  DEBUG_PRINTLN("Wheelly::handleChangedContacts");
   //sendStatus(millis());
   sendContacts();
 }
@@ -479,7 +333,7 @@ void Wheelly::handleProxyData(void) {
   _echoYaw = _yaw;
   _echoXPulses = _motionCtrl.xPulses();
   _echoYPulses = _motionCtrl.yPulses();
-  DEBUG_PRINT("//Wheelly::handleEchoSample ");
+  DEBUG_PRINT("Wheelly::handleEchoSample ");
   DEBUG_PRINTLN(echoDelay);
 
   /* Checks for obstacles */
@@ -552,7 +406,7 @@ void Wheelly::sendSensorData(const String& topic, const String& data) {
 */
 void Wheelly::sendCommandReply(const String& topic, const String& data) {
   if (_onReply) {
-    _onReply(_context, _pubCommandTopicPrefix + "/" + topic, data);
+    _onReply(_context, topic, data);
   }
 }
 
@@ -577,7 +431,7 @@ void Wheelly::averageSupply(void) {
     _supplyTime = millis();
     _supplyVoltage = (int)(_supplyTotal / _supplySamples);
 
-    DEBUG_PRINT("// Wheelly::averageSupply : supply=");
+    DEBUG_PRINT("Wheelly::averageSupply : supply=");
     DEBUG_PRINT(_supplyVoltage);
     DEBUG_PRINT(", samples=");
     DEBUG_PRINT(_supplySamples);
@@ -593,9 +447,7 @@ void Wheelly::averageSupply(void) {
                            9);
     const int level = (hLevel + 1) / 2;
 
-    DEBUG_PRINT("// Wheelly::sendSupply v=");
-    DEBUG_PRINT(v);
-    DEBUG_PRINT(" , hlevel=");
+    DEBUG_PRINT("Wheelly::sendSupply hlevel=");
     DEBUG_PRINT(hLevel);
     DEBUG_PRINT(" , level=");
     DEBUG_PRINT(level);
@@ -699,11 +551,16 @@ const int Wheelly::forwardBlockDistanceTime() const {
 /**
    Replies the configuration
 */
-void Wheelly::queryConfig(void) {
-  char bfr[256];
+const boolean Wheelly::handleQcCmd(const unsigned long time, const String& topic, const String& args) {
+  char bfr[512];
 
   MotorCtrl& leftMotor = _motionCtrl.leftMotor();
-  sprintf(bfr, "// tcsl %d %d %d %d %d %d %d %d",
+  MotorCtrl& rightMotor = _motionCtrl.leftMotor();
+  sprintf(bfr, "%d %d %d %lu %d %d %d %d %d %d %d %d %d %ld %ld %d %d %d %d %d %d %d %d %ld %ld",
+          _motionCtrl.minRotRange(),
+          _motionCtrl.maxRotRange(),
+          _motionCtrl.maxRotPps(),
+          _motionCtrl.sensors().tau(),
           leftMotor.p0Forw(),
           leftMotor.p1Forw(),
           leftMotor.pxForw(),
@@ -711,15 +568,9 @@ void Wheelly::queryConfig(void) {
           leftMotor.p1Back(),
           leftMotor.pxBack(),
           leftMotor.ax(),
-          leftMotor.alpha());
-  sendCommandReply("reply", bfr);
-  sprintf(bfr, "// fl %ld %ld",
+          leftMotor.alpha(),
           leftMotor.muForw(),
-          leftMotor.muBack());
-  sendCommandReply("reply", bfr);
-
-  MotorCtrl& rightMotor = _motionCtrl.leftMotor();
-  sprintf(bfr, "// tcsr %d %d %d %d %d %d %d %d",
+          leftMotor.muBack(),
           rightMotor.p0Forw(),
           rightMotor.p1Forw(),
           rightMotor.pxForw(),
@@ -727,20 +578,280 @@ void Wheelly::queryConfig(void) {
           rightMotor.p1Back(),
           rightMotor.pxBack(),
           rightMotor.ax(),
-          rightMotor.alpha());
-  sendCommandReply("reply", bfr);
-  sprintf(bfr, "// fr %ld %ld",
+          rightMotor.alpha(),
           rightMotor.muForw(),
           rightMotor.muBack());
-  sendCommandReply("reply", bfr);
+          sendCommandReply(topic + "/res", bfr);
+          return true;
+}
 
-  sprintf(bfr, "// cc %d %d %d",
-          _motionCtrl.minRotRange(),
-          _motionCtrl.maxRotRange(),
-          _motionCtrl.maxRotPps());
-  sendCommandReply("reply", bfr);
+/**
+       Execute a command
+       Returns true if command ok
+       @param t0 the current time
+       @param topic the command topic
+       @param args the arguments
+    */
+const boolean Wheelly::execute(const unsigned long t0, const String& topic, const String& args) {
+  DEBUG_PRINT("Execute command ");
+  DEBUG_PRINT(topic);
+  DEBUG_PRINT(" ");
+  DEBUG_PRINT(args);
+  DEBUG_PRINTLN();
 
-  sprintf(bfr, "// cs %lu",
-          _motionCtrl.sensors().tau());
-  sendCommandReply("reply", bfr);
+  if (topic.endsWith("/ck")) {
+    sendCommandReply(topic + "/res", args + " " + t0 + " " + millis());
+    return true;
+  } else if (topic.endsWith("/ha")) {
+    halt();
+    sendCommandReply(topic + "/res", args);
+    return true;
+  } else if (topic.endsWith("/sc")) {
+    return handleScanCmd(t0, topic, args);
+  } else if (topic.endsWith("/mv")) {
+    return handleMoveCmd(t0, topic, args);
+  } else if (topic.endsWith("/ci")) {
+    return handleCiCmd(t0, topic, args);
+  } else if (topic.endsWith("/cc")) {
+    return handleCcCmd(t0, topic, args);
+  } else if (topic.endsWith("/cs")) {
+    return handleCsCmd(t0, topic, args);
+  } else if (topic.endsWith("/tcsl")) {
+    return handleTcsCmd(t0, topic, args);
+  } else if (topic.endsWith("/tcsr")) {
+    return handleTcsCmd(t0, topic, args);
+  } else if (topic.endsWith("/fl")) {
+    return handleFxCmd(t0, topic, args);
+  } else if (topic.endsWith("/fr")) {
+    return handleFxCmd(t0, topic, args);
+  } else if (topic.endsWith("/rs")) {
+    reset();
+    sendCommandReply(topic + "/res", args);
+    return true;
+  } else if (topic.endsWith("/vr")) {
+    sendCommandReply(topic + "/res", version);
+    return true;
+  } else if (topic.endsWith("/qs")) {
+    queryStatus();
+    sendCommandReply(topic + "/res", args);
+    return true;
+  } else if (topic.endsWith("/qc")) {
+    return handleQcCmd(t0, topic, args);
+  } else {
+    sendCommandReply(topic + "/err", "Wrong command " + args);
+    return false;
+  }
+}
+
+const boolean Wheelly::handleScanCmd(const unsigned long time, const String& topic, const String& args) {
+  int direction;
+  int count;
+  if (sscanf(args.c_str(), "%d%n", &direction, &count) != 1 || count != args.length()) {
+    DEBUG_PRINT("Wrong args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+  if (!(direction >= -90 && direction <= 90)) {
+    DEBUG_PRINT("Wrong args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  scan(direction, time);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleMoveCmd(const unsigned long time, const String& topic, const String& args) {
+  int direction;
+  int speed;
+  int count;
+  if (sscanf(args.c_str(), "%d %d%n", &direction, &speed, &count) != 2 || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+  if (!(direction >= -180 && direction <= 179 && speed >= -MAX_SPEED && speed <= MAX_SPEED)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  move(direction, speed);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleCiCmd(const unsigned long time, const String& topic, const String& args) {
+  int params[2];
+  int count;
+  if (sscanf(args.c_str(), "%d %d%n", &params[0], &params[1], &count) != 2 || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  if (!(params[0] >= 1 && params[0] <= 60000 && params[1] >= 1 && params[1] <= 60000)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  configIntervals(params);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleCcCmd(const unsigned long time, const String& topic, const String& args) {
+  int params[3];
+  int count;
+
+  if (sscanf(args.c_str(), "%d %d %d%n", &params[0], &params[1], &params[2], &count) != 3 || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  if (!(params[0] >= 0 && params[0] <= 180
+        && params[1] >= 0 && params[1] <= 180
+        && params[2] >= 0 && params[2] <= 20)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  configMotionController(params);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleCsCmd(const unsigned long time, const String& topic, const String& args) {
+  int tau;
+  int count;
+
+  if (sscanf(args.c_str(), "%d%n", &tau, &count) != 1 || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  if (!(tau >= 1 && tau <= 10000)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  configMotorSensors(tau);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topic, const String& args) {
+  int params[8];
+  int count;
+
+  if (sscanf(args.c_str(), "%d %d %d %d %d %d %d %d%n",
+             &params[0], &params[1], &params[2], &params[3], &params[4], &params[5], &params[6], &params[7],
+             &count)
+        != 8
+      || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  if (!(params[0] >= 0 && params[0] <= 1000
+        && params[1] >= 0 && params[1] <= 1000
+        && params[2] >= 0 && params[2] <= 1000
+        && params[3] >= -1000 && params[3] <= 0
+        && params[4] >= -1000 && params[4] <= 0
+        && params[5] >= -1000 && params[5] <= 0
+        && params[6] >= 0 && params[6] <= 16383
+        && params[7] >= 0 && params[7] <= 100)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  configTcsMotorController(params, topic.endsWith("/tcsl"));
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleFxCmd(const unsigned long time, const String& topic, const String& args) {
+  long params[2];
+  int count;
+
+  if (sscanf(args.c_str(), "%ld %ld%n", &params[0], &params[1], &count) != 2 || count != args.length()) {
+    DEBUG_PRINT("Wrong parse args ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  if (!(params[0] >= 0 && params[0] <= 2000000L
+        && params[1] >= 0 && params[1] <= 2000000L)) {
+    DEBUG_PRINT("Wrong args values ");
+    DEBUG_PRINT(topic);
+    DEBUG_PRINT(" ");
+    DEBUG_PRINT(args);
+    DEBUG_PRINTLN();
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  configFeedbackMotorController(params, topic.endsWith("/fl"));
+  sendCommandReply(topic + "/res", args);
+  return true;
 }

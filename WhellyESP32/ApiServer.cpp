@@ -72,7 +72,7 @@ static const String methodName(const HTTPMethod method) {
   Handles not found page
 */
 void handleNotFound(void) {
-  DEBUG_PRINT("// handleNotFound method ");
+  DEBUG_PRINT("handleNotFound method ");
   DEBUG_PRINTLN(ApiServer._server.method());
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
@@ -91,7 +91,7 @@ void handleNotFound(void) {
    Handles netwok list request
 */
 void handleGetNetworkList(void) {
-  DEBUG_PRINTLN("// Scanning networks...");
+  DEBUG_PRINTLN("Scanning networks...");
   ApiServer.setActivity();
   StaticJsonDocument<256> jsonDoc;
   JsonArray data = jsonDoc.createNestedArray("networks");
@@ -108,7 +108,7 @@ void handleGetNetworkList(void) {
    Handles the configuration request
 */
 void handleGetConfig(void) {
-  DEBUG_PRINTLN("// handleGetWiFiConfig");
+  DEBUG_PRINTLN("handleGetWiFiConfig");
   StaticJsonDocument<256> jsonDoc;
   ConfStore::toJson(jsonDoc, ApiServer._confStore->config());
 
@@ -122,7 +122,7 @@ void handleGetConfig(void) {
    Handles the configuration request
 */
 void handleGetWheellyId(void) {
-  DEBUG_PRINTLN("// handleGetWheellyId");
+  DEBUG_PRINTLN("handleGetWheellyId");
   JsonDocument jsonDoc;
   jsonDoc["id"] = ApiServer._wheellyId;
 
@@ -136,10 +136,10 @@ void handleGetWheellyId(void) {
    Handles the wifi configuration request
 */
 void handlePostConfig(void) {
-  DEBUG_PRINTLN("// handlePostWiFiConfig");
+  DEBUG_PRINTLN("handlePostWiFiConfig");
   // Retrive body
   String body = ApiServer._server.arg("plain");
-  DEBUG_PRINT("// Body=");
+  DEBUG_PRINT("Body=");
   DEBUG_PRINTLN(body);
   JsonDocument jsonDoc;
   if (deserializeJson(jsonDoc, body) != DeserializationError::Ok) {
@@ -174,7 +174,7 @@ void handlePostConfig(void) {
    Handles the wifi configuration request
 */
 void handlePostRestart(void) {
-  DEBUG_PRINTLN("// handleRestart");
+  DEBUG_PRINTLN("handleRestart");
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
   jsonDoc["restart"] = true;
@@ -193,23 +193,23 @@ void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore ) {
 
 
 void ApiServerClass::start(void) {
-  DEBUG_PRINTLN("// Starting api server ...");
+  DEBUG_PRINTLN("Starting api server ...");
 
   if (!MDNS.begin(DEFAULT_SERVER_NAME)) {
     Serial.println("!! Error starting dns responder.");
   } else {
-    DEBUG_PRINTLN("// Started MDNS");
+    DEBUG_PRINTLN("Started MDNS");
   }
-  DEBUG_PRINTLN("// _apiServer.begin()");
+  DEBUG_PRINTLN("_apiServer.begin()");
   _server.begin();
-  DEBUG_PRINTLN("// _apiServer configuration");
+  DEBUG_PRINTLN("_apiServer configuration");
   _server.on("/api/v2/wheelly/restart", HTTP_METHOD_POST, handlePostRestart);
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_GET, handleGetConfig);
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_POST, handlePostConfig);
   _server.on("/api/v2/wheelly/networks", HTTP_METHOD_GET, handleGetNetworkList);
   _server.on("/api/v2/wheelly/id", HTTP_METHOD_GET,handleGetWheellyId);
   _server.onNotFound(handleNotFound);
-  DEBUG_PRINTLN("// Started api server.");
+  DEBUG_PRINTLN("Started api server.");
 }
 
 void ApiServerClass::polling(const unsigned long t0) {

@@ -73,29 +73,28 @@ static ConfStore confStore;
 void setup() {
   Serial.begin(115200);
   Serial.setTimeout(SERIAL_TIMEOUT);
-  Serial.println();
-  Serial.println("// Startup sequence");
 
   Wire.begin();
   Wire.setClock(WIRE_CLOCK);  // 400kHz I2C clock. Comment this line if having compilation difficulties
 
   // Initialises the configuration store (load the configuration)
-  Serial.println("// Initialise confStore");
-  confStore.begin();
-
   delay(100);
   Serial.println();
+  Serial.println("Startup sequence");
 
-  Serial.println("// Initialise wifi module");
+  Serial.println("Initialise confStore");
+  confStore.begin();
+
+  Serial.println("Initialise wifi module");
   const ConfigRecord &config = confStore.config();
   wiFiModule.begin(config);
 
-  Serial.println("// Initialise mqtt client");
+  Serial.println("Initialise mqtt client");
   mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, wheelly.id(), config.mqttUser, config.mqttPsw,
                    wheelly.subCommandTopics(), MQTT_RETRY_INTERVAL);
   mqttClient.onMessage(handleMqttMessage);
 
-  Serial.println("// Initialise whelly");
+  Serial.println("Initialise whelly");
   wheelly.begin();
   wheelly.onReply([](void *, const String &topic, const String &data) {
     // Handles reply to remote controller
@@ -104,17 +103,18 @@ void setup() {
       wheelly.activity();
     }
   });
+  Serial.println("WheellyId=");
 
-  Serial.println("// Initialise api server");
+  Serial.println("Initialise api server");
   ApiServer.begin(wheelly.id(), confStore);
   ApiServer.onActivity([](void *, ApiServerClass &) {
     wheelly.activity();
   });
 
-  Serial.println("// Start wifi module");
+  Serial.println("Start wifi module");
   wiFiModule.onChange(handleOnChange);
   wiFiModule.start();
-  Serial.println("// Startup sequence completed");
+  Serial.println("Startup sequence completed");
 }
 
 /*

@@ -36,7 +36,6 @@
 #include "MotionCtrl.h"
 #include "Display.h"
 #include "ProxySensor.h"
-#include "CommandInterpreter.h"
 
 #define WHEELLY_VERSION "0.9.0"
 #define WHEELLY_MESSAGES_VERSION "v0"
@@ -60,9 +59,7 @@ private:
   MPU6050Class _mpu;
   ContactSensors _contactSensors;
   ProxySensor _proxySensor;
-  CommandInterpreter _commandInterpreter;
   String _pubSensorTopicPrefix;
-  String _pubCommandTopicPrefix;
   String _subCommandTopics;
 
   Timer _ledTimer;
@@ -108,7 +105,14 @@ private:
   void handleMpuData(void);
   void handleChangedContacts(void);
 
-  void queryConfig(void);
+  const boolean handleScanCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleMoveCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleCiCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleCcCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleCsCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleTcsCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleFxCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleQcCmd(const unsigned long time, const String& topic, const String& args);
 
   /*
        Sends the status of wheelly
@@ -260,11 +264,10 @@ public:
        Execute a command
        Returns true if command ok
        @param t0 the current time
-       @param command the command
+       @param topic the command topic
+       @param args the arguments
     */
-  const boolean execute(const unsigned long t0, const String& topic, const String& command) {
-    return _commandInterpreter.execute(t0, command.c_str());
-  }
+  const boolean execute(const unsigned long t0, const String& topic, const String& args);
 
   /**
        Sets on line status

@@ -91,7 +91,7 @@ static void dumpData(const uint8_t *data, const size_t len) {
 static const int16_t toInt(const uint8_t *data) {
   int16_t value = ((uint16_t)(data[0]) << 8) | ((uint16_t)(data[1]));
 
-  DEBUG_PRINT("// toInt 0x");
+  DEBUG_PRINT("toInt 0x");
   DEBUG_PRINTF(data[0], HEX);
   DEBUG_PRINT(" 0x");
   DEBUG_PRINTF(data[1], HEX);
@@ -208,11 +208,11 @@ const uint8_t MPU6050Class::flushFifo() {
 */
 const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long warmup) {
   _gyroOffset = Vector3();
-  Serial.println("// MPU Calibrating ...");
+  Serial.println("MPU Calibrating ...");
 
   unsigned long timeout = millis() + warmup;
   _rc = 0;
-  DEBUG_PRINTLN("// MPU Warming up ...");
+  DEBUG_PRINTLN("MPU Warming up ...");
   // Waits for warmup duration just polling the MPU
   while (millis() <= timeout) {
     getGyro(_gyroOffset);
@@ -225,7 +225,7 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   int numSamples = 0;
   int numAccSamples = 0;
   Vector3 acc;
-  DEBUG_PRINTLN("// MPU Start calibration ...");
+  DEBUG_PRINTLN("MPU Start calibration ...");
   while (_rc == 0 && !(numAccSamples >= minNoSamples)) {
     // Processes gyro samples
     Vector3 gyro;
@@ -260,24 +260,24 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   _quat = q;
   _gravity = acc;
 
-  Serial.print("// MPU Calibration completed:");
+  Serial.print("MPU Calibration completed:");
   Serial.println();
-  Serial.print("//   ");
+  Serial.print("  ");
   Serial.print(numSamples);
   Serial.print(" gyroscope samples");
   Serial.println();
-  Serial.print("//   offset: ");
+  Serial.print("  offset: ");
   Serial.print(_gyroOffset.toString());
   Serial.println();
 
-  Serial.print("//   ");
+  Serial.print("  ");
   Serial.print(numAccSamples);
   Serial.print(" accelerometer samples");
   Serial.println();
-  Serial.print("//   rotation angle (DEG): ");
+  Serial.print("  rotation angle (DEG): ");
   Serial.print(angle * 180 / PI);
   Serial.println();
-  Serial.print("//   vector: ");
+  Serial.print("  vector: ");
   Serial.print(_gravity.toString());
   Serial.println();
 
@@ -409,7 +409,7 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t reg, const uint8_t value) 
 const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const uint8_t len) {
   char msg[256];
 #ifdef DEBUG_MPU_READ
-  DEBUG_PRINT("// MPU read 0x");
+  DEBUG_PRINT("MPU read 0x");
   DEBUG_PRINTF(reg, HEX);
   DEBUG_PRINTLN();
 #endif
@@ -473,7 +473,7 @@ const uint8_t MPU6050Class::readAcc(Vector3 &acc) {
   uint8_t block[6];
   if (mpuRegRead(ACCEL_REG, block, sizeof(block)) == 0) {
     acc = fromBytes(block, _accScale);
-    DEBUG_PRINT("// Read acceleration ");
+    DEBUG_PRINT("Read acceleration ");
     DEBUG_PRINT(acc.toString());
     DEBUG_PRINTLN();
   }

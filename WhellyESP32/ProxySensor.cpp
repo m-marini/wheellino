@@ -46,19 +46,19 @@ static void spline(float& a, float& b, unsigned long& time, const int from, cons
   time = (unsigned long)round(1.5 * dy / v);
   a = -16 * v * v * v / 27 / dy / dy;
   b = -4 * v * v / 3 / dy;
-  DEBUG_PRINT("// ProxySensor::spline from=");
+  DEBUG_PRINT("ProxySensor::spline from=");
   DEBUG_PRINT(from);
   DEBUG_PRINT(", to=");
   DEBUG_PRINT(to);
   DEBUG_PRINTLN();
 
-  DEBUG_PRINT("//   dy=");
+  DEBUG_PRINT("  dy=");
   DEBUG_PRINT(dy);
   DEBUG_PRINT(", v=");
   DEBUG_PRINT(v);
   DEBUG_PRINTLN();
 
-  DEBUG_PRINT("//   time=");
+  DEBUG_PRINT("  time=");
   DEBUG_PRINT(time);
   DEBUG_PRINT(", a=");
   DEBUG_PRINTF(a, 6);
@@ -130,7 +130,7 @@ void ProxySensor::ping(const unsigned long t0) {
   digitalWrite(_triggerPin, LOW);
   delayMicroseconds(2);
   unsigned long duration = pulseIn(_echoPin, HIGH, INACTIVITY_MICROS);
-  DEBUG_PRINT("// ProxySensor::polling duration: ");
+  DEBUG_PRINT("ProxySensor::polling duration: ");
   DEBUG_PRINT(duration);
   DEBUG_PRINTLN();
 
@@ -169,7 +169,7 @@ void ProxySensor::moveServo(const unsigned long dt) {
   /* Computes and move the direction of sensor */
   _direction = direction(dt);
   int wr = min(max(0, 90 - _direction - _offset), 180);
-  DEBUG_PRINT("// ProxySensor::moveServo dt: ");
+  DEBUG_PRINT("ProxySensor::moveServo dt: ");
   DEBUG_PRINT(dt);
   DEBUG_PRINT(", dir=");
   DEBUG_PRINT(_direction);
@@ -188,7 +188,7 @@ void ProxySensor::moveServo(const unsigned long dt) {
 */
 const int ProxySensor::direction(const unsigned long dt) {
   float dir = -_a * dt * dt * dt + _b * dt * dt + _toDirection;
-  DEBUG_PRINT("// ProxySensor::direction dt=");
+  DEBUG_PRINT("ProxySensor::direction dt=");
   DEBUG_PRINT(dt);
   DEBUG_PRINT(", dir=");
   DEBUG_PRINTF(dir, 3);
@@ -201,7 +201,7 @@ const int ProxySensor::direction(const unsigned long dt) {
    @param angle the direction in (DEG)
 */
 void ProxySensor::direction(const int value, const unsigned long t0) {
-  DEBUG_PRINT("// ProxySensor::direction dir=");
+  DEBUG_PRINT("ProxySensor::direction dir=");
   DEBUG_PRINT(value);
   DEBUG_PRINTLN();
   if (_toDirection != value) { /* Checks for direction change */

@@ -77,9 +77,9 @@ JsonDocument& ConfStore::toJson(JsonDocument& result, const ConfigRecord& config
   * Initializes the config store
   */
 void ConfStore::begin(void) {
-  DEBUG_PRINTLN("// Mounting FS...");
+  DEBUG_PRINTLN("Mounting FS...");
   if (SPIFFS.begin()) {
-    DEBUG_PRINTLN("// Mounted FS");
+    DEBUG_PRINTLN("Mounted FS");
     loadConfig();
   }
 }
@@ -121,7 +121,7 @@ const ConfStoreRetCode ConfStore::loadConfig(void) {
   }
   File configFile = SPIFFS.open(CONFIG_FILE, "r");
   size_t size = configFile.size();
-  DEBUG_PRINT("// Config size: ");
+  DEBUG_PRINT("Config size: ");
   DEBUG_PRINT(size);
   DEBUG_PRINTLN();
   if (size > 1024) {

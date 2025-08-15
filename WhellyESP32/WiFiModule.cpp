@@ -60,13 +60,13 @@ void WiFiModuleClass::begin(const ConfigRecord& config) {
    Starts in access point mode
 */
 void WiFiModuleClass::startAccessPoint(void) {
-  DEBUG_PRINT("// Starting Access point SSID: ");
+  DEBUG_PRINT("Starting Access point SSID: ");
   DEBUG_PRINT(DEFAULT_SSID);
   DEBUG_PRINTLN();
   WiFi.mode(WIFI_AP);
   WiFi.softAP(DEFAULT_SSID);
 
-  Serial.print("// WiFi connected ");
+  Serial.print("WiFi connected ");
   Serial.print(ssid());
   Serial.print("@");
   Serial.println(ipAddress());
@@ -106,7 +106,7 @@ void WiFiModuleClass::polling(const unsigned long clockTime) {
       _status = status;
       switch (status) {
         case WL_CONNECTED:
-          Serial.print("// WiFi connected ");
+          Serial.print("WiFi connected ");
           Serial.print(ssid());
           Serial.print("@");
           Serial.println(ipAddress());
@@ -148,7 +148,7 @@ const boolean WiFiModuleClass::accessPoint(void) const {
 */
 void WiFiModuleClass::start() {
   if (_config.wifiActive) {
-    DEBUG_PRINT("// Connecting SSID: ");
+    DEBUG_PRINT("Connecting SSID: ");
     DEBUG_PRINT(_config.wifiSsid);
     DEBUG_PRINTLN();
     _connectingTime = millis();
