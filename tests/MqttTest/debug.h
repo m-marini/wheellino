@@ -26,56 +26,14 @@
  *
  */
 
-#include "Arduino.h"
-#include "WiFiModule.h"
-#include "ApiServer.h"
-#include "ConfStore.h"
-
-#define DEBUG
-#include "debug.h"
-
-#define SERIAL_BPS 115200
-
-static ConfStore confStore;
-static WiFiModuleClass wiFiModule;
-
-void setup() {
-  Serial.begin(SERIAL_BPS);
-  Serial.println();
-
-  confStore.begin();
-
-  ApiServer.begin("0123456789ab", confStore);
-  ApiServer.onActivity([](void*, ApiServerClass&) {
-    Serial.print("ApiServer activity");
-    Serial.println();
-  });
-
-  wiFiModule.begin(confStore.config());
-  wiFiModule.onChange(handleOnChange);
-  wiFiModule.start();
-}
-
-void loop() {
-  const unsigned long now = millis();
-  wiFiModule.polling(now);
-  ApiServer.polling(now);
-}
-
-static void handleOnChange(void* context, WiFiModuleClass& module) {
-  char bfr[256];
-  if (module.connected()) {
-    DEBUG_PRINTLN("// ApiServer.begin()");
-    ApiServer.start();
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " - IP: ");
-    strcat(bfr, module.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " connecting...");
-  } else {
-    strcpy(bfr, "Disconnected");
-  }
-  Serial.print(bfr);
-  Serial.println();
-}
+#ifdef DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTF(x, y) Serial.print(x, y)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINTLNF(x, y) Serial.println(x, y)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTF(x, y)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINTLNF(x, y)
+#endif

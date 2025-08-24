@@ -26,56 +26,35 @@
  *
  */
 
-#include "Arduino.h"
-#include "WiFiModule.h"
-#include "ApiServer.h"
-#include "ConfStore.h"
+#include "Contacts.h"
 
-#define DEBUG
-#include "debug.h"
 
-#define SERIAL_BPS 115200
 
-static ConfStore confStore;
-static WiFiModuleClass wiFiModule;
-
-void setup() {
-  Serial.begin(SERIAL_BPS);
-  Serial.println();
-
-  confStore.begin();
-
-  ApiServer.begin("0123456789ab", confStore);
-  ApiServer.onActivity([](void*, ApiServerClass&) {
-    Serial.print("ApiServer activity");
-    Serial.println();
-  });
-
-  wiFiModule.begin(confStore.config());
-  wiFiModule.onChange(handleOnChange);
-  wiFiModule.start();
+/*
+   Creates the contact sensors
+*/
+ContactSensors::ContactSensors(const uint8_t frontSensorPin, const uint8_t rearSensorPin)
+  : _frontSensorPin(frontSensorPin), _rearSensorPin(rearSensorPin) {
 }
 
-void loop() {
-  const unsigned long now = millis();
-  wiFiModule.polling(now);
-  ApiServer.polling(now);
+/*
+   Initializes the contact sensors
+*/
+void ContactSensors::begin(void) {
+  pinMode(_frontSensorPin, INPUT_PULLUP);
+  pinMode(_rearSensorPin, INPUT_PULLUP);
 }
 
-static void handleOnChange(void* context, WiFiModuleClass& module) {
-  char bfr[256];
-  if (module.connected()) {
-    DEBUG_PRINTLN("// ApiServer.begin()");
-    ApiServer.start();
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " - IP: ");
-    strcat(bfr, module.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " connecting...");
-  } else {
-    strcpy(bfr, "Disconnected");
+/*
+   Polls for contact sensors
+*/
+void ContactSensors::polling(const unsigned long t0) {
+  boolean frontClear = digitalRead(_frontSensorPin);
+  boolean rearClear = digitalRead(_rearSensorPin);
+  boolean changed = _frontClear != frontClear || _rearClear != rearClear;
+  _frontClear = frontClear;
+  _rearClear = rearClear;
+  if (_onChanged && changed) {
+    _onChanged(_context, *this);
   }
-  Serial.print(bfr);
-  Serial.println();
 }

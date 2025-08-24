@@ -28,7 +28,7 @@
 
 #include "Arduino.h"
 #include "WiFiModule.h"
-#include "ApiServer.h"
+#include "MqttClient.h"
 #include "ConfStore.h"
 
 #define DEBUG
@@ -36,37 +36,58 @@
 
 #define SERIAL_BPS 115200
 
-static ConfStore confStore;
+static const String MQTT_CLIENT_ID("wheelly");
+static const String MQTT_USER("wheelly");
+static const String MQTT_PASSWORD("wheelly");
+static const String MQTT_PUB_TOPIC("sens/test");
+static const String MQTT_SUB_TOPICS("cmd/test/#");
+static const unsigned long RETRY_INTERVAL = 3000;
+static const unsigned long SEND_INTERVAL = 500;
+
 static WiFiModuleClass wiFiModule;
+static unsigned long sendTimeout;
+
+static ConfStore confStore;
+
+static void onMessage(const String& topics, const String& message) {
+  Serial.print(topics);
+  Serial.print(" ");
+  Serial.println(message);
+}
 
 void setup() {
   Serial.begin(SERIAL_BPS);
   Serial.println();
 
   confStore.begin();
+  const ConfigRecord config = confStore.config();
 
-  ApiServer.begin("0123456789ab", confStore);
-  ApiServer.onActivity([](void*, ApiServerClass&) {
-    Serial.print("ApiServer activity");
-    Serial.println();
-  });
-
-  wiFiModule.begin(confStore.config());
+  // Initialises wifi
+  Serial.println("Initializing WiFi.");
+  wiFiModule.begin(config);
   wiFiModule.onChange(handleOnChange);
   wiFiModule.start();
+
+  // Initialises mqtt
+  Serial.println("Initializing mqtt client");
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPICS, RETRY_INTERVAL);
+  mqttClient.onMessage(onMessage);
 }
 
 void loop() {
   const unsigned long now = millis();
   wiFiModule.polling(now);
-  ApiServer.polling(now);
+  mqttClient.polling(now);
+  if (now >= sendTimeout) {
+    mqttClient.send(MQTT_PUB_TOPIC, String(now));
+    sendTimeout = now + SEND_INTERVAL;
+  }
 }
 
 static void handleOnChange(void* context, WiFiModuleClass& module) {
   char bfr[256];
   if (module.connected()) {
-    DEBUG_PRINTLN("// ApiServer.begin()");
-    ApiServer.start();
+    mqttClient.connect();
     strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " - IP: ");
     strcat(bfr, module.ipAddress().toString().c_str());
