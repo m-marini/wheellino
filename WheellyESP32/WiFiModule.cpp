@@ -33,8 +33,8 @@
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 
-#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static const char* TAG = "WiFiModule";
 
 #include "WiFiModule.h"
 
@@ -60,16 +60,11 @@ void WiFiModuleClass::begin(const ConfigRecord& config) {
    Starts in access point mode
 */
 void WiFiModuleClass::startAccessPoint(void) {
-  DEBUG_PRINT("// Starting Access point SSID: ");
-  DEBUG_PRINT(DEFAULT_SSID);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "Starting Access point SSID: %d", DEFAULT_SSID.c_str());
   WiFi.mode(WIFI_AP);
   WiFi.softAP(DEFAULT_SSID);
 
-  Serial.print("// WiFi connected ");
-  Serial.print(ssid());
-  Serial.print("@");
-  Serial.println(ipAddress());
+  ESP_LOGI(TAG, "WiFi connected %s@%s", ssid().c_str(), ipAddress().toString().c_str());
 
   if (_onChange) {
     _onChange(_context, *this);
@@ -99,31 +94,26 @@ const String& WiFiModuleClass::ssid(void) const {
    @param clockTime the current clock time
 */
 void WiFiModuleClass::polling(const unsigned long clockTime) {
-  //DEBUG_PRINTLN("Wifi polling"));
   if (station()) {
     wl_status_t status = WiFi.status();
     if (_status != status) {
       _status = status;
       switch (status) {
         case WL_CONNECTED:
-          Serial.print("// WiFi connected ");
-          Serial.print(ssid());
-          Serial.print("@");
-          Serial.println(ipAddress());
+          ESP_LOGI(TAG, "WiFi connected %s@%s", ssid().c_str(), ipAddress().toString().c_str());
           break;
         case WL_DISCONNECTED:
         case WL_IDLE_STATUS:
           break;
         default:
-          Serial.print("!! Failed with status: ");
-          Serial.println(status);
+          ESP_LOGE(TAG, "Failed with status: %d", status);
       }
       if (_onChange) {
         _onChange(_context, *this);
       }
     }
     if (_status != WL_CONNECTED && clockTime >= _connectingTime + CONNECT_TIMEOUT) {
-      Serial.println("!! Wifi connection timeout");
+      ESP_LOGE(TAG, "Wifi connection timeout");
       startAccessPoint();
     }
   }
@@ -148,9 +138,7 @@ const boolean WiFiModuleClass::accessPoint(void) const {
 */
 void WiFiModuleClass::start() {
   if (_config.wifiActive) {
-    DEBUG_PRINT("// Connecting SSID: ");
-    DEBUG_PRINT(_config.wifiSsid);
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "Connecting SSID: %s", _config.wifiSsid.c_str());
     _connectingTime = millis();
     WiFi.mode(WIFI_STA);
     WiFi.begin(_config.wifiSsid, _config.wifiPassword);

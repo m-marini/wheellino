@@ -26,56 +26,60 @@
  *
  */
 
+#ifndef Contacts_h
+#define Contacts_h
+
 #include "Arduino.h"
-#include "WiFiModule.h"
-#include "ApiServer.h"
-#include "ConfStore.h"
 
-#define DEBUG
-#include "debug.h"
+/*
+   Reads the status of contact sensors
+*/
+class ContactSensors {
+private:
+  const uint8_t _frontSensorPin;
+  const uint8_t _rearSensorPin;
+  boolean _frontClear;
+  boolean _rearClear;
+  void *_context;
+  void (*_onChanged)(void *, ContactSensors &);
 
-#define SERIAL_BPS 115200
+public:
+  /*
+       Creates the contact sensors
+    */
+  ContactSensors(const uint8_t frontSensorPin, const uint8_t rearSensorPin);
 
-static ConfStore confStore;
-static WiFiModuleClass wiFiModule;
+  /*
+       Initializes the contact sensors
+    */
+  void begin(void);
 
-void setup() {
-  Serial.begin(SERIAL_BPS);
-  Serial.println();
+  /*
+       Polls for contact sensors
+    */
+  void polling(const unsigned long t0 = millis());
 
-  confStore.begin();
-
-  ApiServer.begin("0123456789ab", confStore);
-  ApiServer.onActivity([](void*, ApiServerClass&) {
-    Serial.print("ApiServer activity");
-    Serial.println();
-  });
-
-  wiFiModule.begin(confStore.config());
-  wiFiModule.onChange(handleOnChange);
-  wiFiModule.start();
-}
-
-void loop() {
-  const unsigned long now = millis();
-  wiFiModule.polling(now);
-  ApiServer.polling(now);
-}
-
-static void handleOnChange(void* context, WiFiModuleClass& module) {
-  char bfr[256];
-  if (module.connected()) {
-    DEBUG_PRINTLN("// ApiServer.begin()");
-    ApiServer.start();
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " - IP: ");
-    strcat(bfr, module.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " connecting...");
-  } else {
-    strcpy(bfr, "Disconnected");
+  /*
+       Returns true if front contact clear
+    */
+  const boolean frontClear(void) const {
+    return _frontClear;
   }
-  Serial.print(bfr);
-  Serial.println();
-}
+
+  /*
+       Returns true if rear contact clear
+    */
+  const boolean rearClear(void) const {
+    return _rearClear;
+  }
+
+  /**
+       Sets callback on reached
+    */
+  void onChanged(void (*callback)(void *context, ContactSensors &sensors), void *context = NULL) {
+    _onChanged = callback;
+    _context = context;
+  }
+};
+
+#endif

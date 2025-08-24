@@ -34,8 +34,8 @@
 #include "ApiServer.h"
 #include "ConfStore.h"
 
-//#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static const char *TAG = "ApiServer";
 
 #define HTTP_METHOD_GET ((HTTPMethod)1)
 #define HTTP_METHOD_POST ((HTTPMethod)3)
@@ -72,8 +72,7 @@ static const String methodName(const HTTPMethod method) {
   Handles not found page
 */
 void handleNotFound(void) {
-  DEBUG_PRINT("// handleNotFound method ");
-  DEBUG_PRINTLN(ApiServer._server.method());
+  ESP_LOGD(TAG, "handleNotFound method %d", (int)ApiServer._server.method());
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
   jsonDoc["message"] = "Not Found";
@@ -81,8 +80,7 @@ void handleNotFound(void) {
   jsonDoc["method"] = methodName(ApiServer._server.method());
   String response;
   serializeJson(jsonDoc, response);
-  Serial.print("404 - ");
-  Serial.println(response);
+  ESP_LOGE(TAG, "404 - %s", response.c_str());
   ApiServer._server.send(404, "application/json", response);
   ApiServer.setActivity();
 }
@@ -91,7 +89,7 @@ void handleNotFound(void) {
    Handles netwok list request
 */
 void handleGetNetworkList(void) {
-  DEBUG_PRINTLN("// Scanning networks...");
+  ESP_LOGD(TAG, "Scanning networks...");
   ApiServer.setActivity();
   StaticJsonDocument<256> jsonDoc;
   JsonArray data = jsonDoc.createNestedArray("networks");
@@ -108,7 +106,7 @@ void handleGetNetworkList(void) {
    Handles the configuration request
 */
 void handleGetConfig(void) {
-  DEBUG_PRINTLN("// handleGetWiFiConfig");
+  ESP_LOGD(TAG, "handleGetWiFiConfig");
   StaticJsonDocument<256> jsonDoc;
   ConfStore::toJson(jsonDoc, ApiServer._confStore->config());
 
@@ -122,7 +120,7 @@ void handleGetConfig(void) {
    Handles the configuration request
 */
 void handleGetWheellyId(void) {
-  DEBUG_PRINTLN("// handleGetWheellyId");
+  ESP_LOGD(TAG, "handleGetWheellyId");
   JsonDocument jsonDoc;
   jsonDoc["id"] = ApiServer._wheellyId;
 
@@ -136,11 +134,10 @@ void handleGetWheellyId(void) {
    Handles the wifi configuration request
 */
 void handlePostConfig(void) {
-  DEBUG_PRINTLN("// handlePostWiFiConfig");
+  ESP_LOGD(TAG, "handlePostWiFiConfig");
   // Retrive body
   String body = ApiServer._server.arg("plain");
-  DEBUG_PRINT("// Body=");
-  DEBUG_PRINTLN(body);
+  ESP_LOGD(TAG, "Body=%s", body.c_str());
   JsonDocument jsonDoc;
   if (deserializeJson(jsonDoc, body) != DeserializationError::Ok) {
     sendError(400, "Malformed JSON");
@@ -164,8 +161,7 @@ void handlePostConfig(void) {
     return;
   }
 
-  Serial.print("WiFi configuration: ");
-  Serial.println(response);
+  ESP_LOGI(TAG, "WiFi configuration: %s", response.c_str());
   ApiServer._server.send(200, "application/json", response);
   ApiServer.setActivity();
 }
@@ -174,7 +170,7 @@ void handlePostConfig(void) {
    Handles the wifi configuration request
 */
 void handlePostRestart(void) {
-  DEBUG_PRINTLN("// handleRestart");
+  ESP_LOGD(TAG, "handleRestart");
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
   jsonDoc["restart"] = true;
@@ -186,30 +182,29 @@ void handlePostRestart(void) {
   ApiServer._restartInstant = millis() + RESTART_DELAY;
 }
 
-void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore ) {
+void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore) {
   _confStore = &confStore;
   _wheellyId = wheellyId;
 }
 
-
 void ApiServerClass::start(void) {
-  DEBUG_PRINTLN("// Starting api server ...");
+  ESP_LOGD(TAG, "Starting api server ...");
 
   if (!MDNS.begin(DEFAULT_SERVER_NAME)) {
-    Serial.println("!! Error starting dns responder.");
+    ESP_LOGD(TAG, "Error starting dns responder.");
   } else {
-    DEBUG_PRINTLN("// Started MDNS");
+    ESP_LOGI(TAG, "Started MDNS");
   }
-  DEBUG_PRINTLN("// _apiServer.begin()");
+  ESP_LOGD(TAG, "_apiServer.begin()");
   _server.begin();
-  DEBUG_PRINTLN("// _apiServer configuration");
+  ESP_LOGD(TAG, "_apiServer configuration");
   _server.on("/api/v2/wheelly/restart", HTTP_METHOD_POST, handlePostRestart);
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_GET, handleGetConfig);
   _server.on("/api/v2/wheelly/config", HTTP_METHOD_POST, handlePostConfig);
   _server.on("/api/v2/wheelly/networks", HTTP_METHOD_GET, handleGetNetworkList);
-  _server.on("/api/v2/wheelly/id", HTTP_METHOD_GET,handleGetWheellyId);
+  _server.on("/api/v2/wheelly/id", HTTP_METHOD_GET, handleGetWheellyId);
   _server.onNotFound(handleNotFound);
-  DEBUG_PRINTLN("// Started api server.");
+  ESP_LOGD(TAG, "Started api server.");
 }
 
 void ApiServerClass::polling(const unsigned long t0) {
