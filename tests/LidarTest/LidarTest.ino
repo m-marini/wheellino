@@ -44,7 +44,7 @@ static const unsigned WIRE_CLOCK = 400000;
 */
 static const unsigned long SERIAL_TIMEOUT = 2000ul;
 
-static Lidar lidar(FRONT_LIDAR_PIN);
+static Lidar lidar(FRONT_LIDAR_PIN, REAR_LIDAR_PIN);
 
 static void handleLidarRange(void* context, Lidar& lidar, const uint16_t frontRange, const uint16_t rearRange) {
   ESP_LOGI(TAG, "Distances %u mm, %u mm", frontRange, rearRange);

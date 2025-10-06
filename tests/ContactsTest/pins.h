@@ -45,8 +45,8 @@
   22 - SCL
   23 - TRIGGER_PIN
   25 - STATUS_LED_PIN
-  26 - 
-  27 - 
+  26 - FRONT_LIDAR_PIN
+  27 - REAR_LIDAR_PIN
   32 - LEFT_PIN
   33 - RIGHT_PIN
   34 - ECHO_PIN - input only
@@ -84,5 +84,7 @@
 
 #define TRIGGER_PIN 23
 #define STATUS_LED_PIN 25
+#define FRONT_LIDAR_PIN 26
+#define REAR_LIDAR_PIN 27
 
 #endif
