@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.9.0] 2025-10-06
+
 ### Added
 
 - Issue [#113](https://github.com/m-marini/wheellino/issues/113): Add MQTT architecture
