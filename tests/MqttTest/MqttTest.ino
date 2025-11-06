@@ -31,8 +31,8 @@
 #include "MqttClient.h"
 #include "ConfStore.h"
 
-#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static char* TAG = "MqttTest";
 
 #define SERIAL_BPS 115200
 
@@ -50,26 +50,26 @@ static unsigned long sendTimeout;
 static ConfStore confStore;
 
 static void onMessage(const String& topics, const String& message) {
-  Serial.print(topics);
-  Serial.print(" ");
-  Serial.println(message);
+  ESP_LOGI(TAG, "%s %s", topics.c_str(), message.c_str());
 }
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  Serial.println();
+  while (!Serial) {
+    delay(10);
+  }
 
   confStore.begin();
   const ConfigRecord config = confStore.config();
 
   // Initialises wifi
-  Serial.println("Initializing WiFi.");
+  ESP_LOGI(TAG, "Initializing WiFi.");
   wiFiModule.begin(config);
   wiFiModule.onChange(handleOnChange);
   wiFiModule.start();
 
   // Initialises mqtt
-  Serial.println("Initializing mqtt client");
+  ESP_LOGI(TAG, "Initializing mqtt client");
   mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPICS, RETRY_INTERVAL);
   mqttClient.onMessage(onMessage);
 }
@@ -97,6 +97,5 @@ static void handleOnChange(void* context, WiFiModuleClass& module) {
   } else {
     strcpy(bfr, "Disconnected");
   }
-  Serial.print(bfr);
-  Serial.println();
+  ESP_LOGI(TAG, "%s", bfr);
 }

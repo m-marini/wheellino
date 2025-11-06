@@ -26,39 +26,33 @@
  *
  */
 
-#ifndef ProxySensor_h
-#define ProxySensor_h
+#ifndef LidarServo_h
+#define LidarServo_h
 
 #include "Arduino.h"
 #include <ESP32Servo.h>
 
+class LidarServo;
+
+typedef void (*OnPositionCallBack_t)(void *context, LidarServo &servo);
+
 /*
    Proxy sensor
 */
-class ProxySensor {
+class LidarServo {
 private:
   const uint8_t _servoPin;
-  const uint8_t _triggerPin;
-  const uint8_t _echoPin;
   Servo _servo;
   int _direction;
   int _toDirection;
   int _offset;
   boolean _moving;
-  unsigned long _interval;
   unsigned long _lastPoll;
   unsigned long _positionTime;
-  unsigned long _pingTime;
   unsigned long _resetTime;
-  unsigned long _echoTime;
-  unsigned long _echoDelay;
-  int _echoDirection;
-  int _noMeasures;
-  int _noValidSamples;
-  unsigned long _totalDuration;
   float _a;
   float _b;
-  void (*_onDataReady)(void *, ProxySensor &);
+  OnPositionCallBack_t _onPosition;
   void *_context;
 
   /**
@@ -72,13 +66,8 @@ private:
     */
   const int direction(const unsigned long dt);
 
-  /**
-       Pings for echo
-    */
-  void ping(const unsigned long t0);
-
 public:
-  ProxySensor(const uint8_t servoPin, const uint8_t triggerPin, const uint8_t echoPin);
+  LidarServo(const uint8_t servoPin);
 
   /**
        Begins the sensor
@@ -88,8 +77,8 @@ public:
   /*
        Sets callback on reached
     */
-  void onDataReady(void (*callback)(void *context, ProxySensor &sensor), void *context = NULL) {
-    _onDataReady = callback;
+  void onPosition(OnPositionCallBack_t callback, void *context = NULL) {
+    _onPosition = callback;
     _context = context;
   }
 
@@ -112,36 +101,24 @@ public:
   }
 
   /**
-       Sets the measure interval
-    */
-  void interval(const unsigned long interval);
-
-  /**
-       Returns the instant of echo signal (ms)
-    */
-  const unsigned long echoTime(void) const {
-    return _echoTime;
-  }
-
-  /**
-       Returns the direction of echo signal (DEG)
-    */
-  const int echoDirection(void) const {
-    return _echoDirection;
-  }
-
-  /**
-       Returns the delay of echo (ns)
-    */
-  const unsigned long echoDelay(void) const {
-    return _echoDelay;
-  }
-
-  /**
-       Returns the sensor direction target
+       Returns the servo direction
     */
   const int direction(void) const {
     return _direction;
+  }
+
+  /**
+       Returns the servo direction
+    */
+  const int targetDirection(void) const {
+    return _toDirection;
+  }
+
+  /**
+  * Returns true if the servo is moving
+  */
+  const bool moving() const {
+    return _moving;
   }
 };
 

@@ -26,22 +26,16 @@
  *
  */
 
+#include <esp_log.h>
+static char* TAG = "MotorCtrl";
+
 #include "Arduino.h"
 
 #include "MotorCtrl.h"
 
-//#define DEBUG
-
-#ifdef DEBUG
-//#define DEBUG_MOTOR_CTRL
-//#define DEBUG_SPEEDOMETER
-//#define DEBUG_POLLING
-#endif
-
-#include "debug.h"
-
 #include "num.h"
 #include "pins.h"
+
 
 #define DEFAULT_P0 59
 #define DEFAULT_P1 73
@@ -84,6 +78,7 @@ MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& 
    Initializes motor controller
 */
 void MotorCtrl::begin() {
+  ESP_LOGI(TAG, "Begin");
   pinMode(_forwPin, OUTPUT);
   pinMode(_backPin, OUTPUT);
   _sensor.begin();
@@ -157,76 +152,39 @@ void MotorCtrl::polling(const unsigned long timestamp) {
     // Computes the power
     const int realSpeed = round(_sensor.pps());
 
-    DEBUG_PRINT("// MotorCtrl::polling 0x");
-    DEBUG_PRINTF((unsigned long)this, HEX);
-    DEBUG_PRINTLN();
-    DEBUG_PRINT("//   dt: ");
-    DEBUG_PRINT(dt);
-    DEBUG_PRINT(", _speed: ");
-    DEBUG_PRINT(_speed);
-    DEBUG_PRINT(", realSpeed: ");
-    DEBUG_PRINT(realSpeed);
-    DEBUG_PRINT(", _power: ");
-    DEBUG_PRINT(_power);
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "MotorCtrl::polling 0x%lx dt: %ld, _speed: %d, realSpeed: %d, _power: %d",
+             (const unsigned long)this, dt, _speed, realSpeed, _power);
     int pwr = 0;
     if (_speed > 0) {
       // Move forward
       const int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
       const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
       const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      DEBUG_PRINT("//   fx: ");
-      DEBUG_PRINT(fx);
-      DEBUG_PRINT(", dpt: ");
-      DEBUG_PRINT(dpt);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
 
       const long dpf = _muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      DEBUG_PRINT("//   dpf: ");
-      DEBUG_PRINT(dpf);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  dpf: %ld", dpf);
 
       const int dp = asr(dpt + dpf, dt);
       pwr = clip(_power + dp, pth, MAX_POWER);
 
-      DEBUG_PRINT("//   dp: ");
-      DEBUG_PRINT(dp);
-      DEBUG_PRINT(", pth: ");
-      DEBUG_PRINT(pth);
-      DEBUG_PRINT(", pwr: ");
-      DEBUG_PRINT(pwr);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
 
     } else if (_speed < 0) {
       // Move backward
       const int pth = realSpeed == 0 ? _p1Back : _p0Back;
       const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
       const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      DEBUG_PRINT("//   fx: ");
-      DEBUG_PRINT(fx);
-      DEBUG_PRINT(", dpt: ");
-      DEBUG_PRINT(dpt);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
 
       const long dpf = _muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      DEBUG_PRINT("//   dpf: ");
-      DEBUG_PRINT(dpf);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  dpf: %ld", dpf);
 
       const int dp = asr(dpt + dpf, dt);
       pwr = clip(_power + dp, -MAX_POWER, pth);
 
-      DEBUG_PRINT("//   dp: ");
-      DEBUG_PRINT(dp);
-      DEBUG_PRINT(", pth: ");
-      DEBUG_PRINT(pth);
-      DEBUG_PRINT(", pwr: ");
-      DEBUG_PRINT(pwr);
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
     }
-    DEBUG_PRINT("//   pwr: ");
-    DEBUG_PRINT(pwr);
-    DEBUG_PRINTLN();
     power(pwr);
   }
 }
@@ -290,9 +248,7 @@ void MotorSensor::reset(const unsigned long timestamp) {
   @param direction > 0 if forward, < 0 if backward
 */
 void MotorSensor::direction(const int direction) {
-  DEBUG_PRINT("// MotorSensor::setDirection ");
-  DEBUG_PRINT(direction);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "MotorSensor::setDirection %d", direction);
 
   _direction = direction;
   if (direction == 0) {
@@ -309,12 +265,6 @@ void MotorSensor::polling(const unsigned long clockTime) {
   const long dPulses = pulses - _lastPulses;
   _lastPulses = pulses;
   update(dPulses, clockTime);
-
-#ifdef DEBUG_POLLING
-  DEBUG_PRINT("// MotorSensor::polling ");
-  DEBUG_PRINT(_filter.value());
-  DEBUG_PRINTLN();
-#endif
 }
 
 /*
@@ -333,14 +283,6 @@ void MotorSensor::update(void) {
   Computes the speed and invokes the callback function
 */
 void MotorSensor::update(const int dPulses, const unsigned long clockTime) {
-#ifdef DEBUG_SPEEDOMETER
-  DEBUG_PRINT("// MotorSensor::update dPulse:");
-  DEBUG_PRINT(dPulses);
-  DEBUG_PRINT(", _pulses ");
-  DEBUG_PRINT(_pulses);
-  DEBUG_PRINTLN();
-#endif
-
   _speedometer.update(clockTime, dPulses);
   if (_onSample != NULL && dPulses != 0) {
     _onSample(_context, dPulses, clockTime, *this);
@@ -366,17 +308,6 @@ void Speedometer::update(const unsigned long clockTime, const int dpulse) {
   } else {
     _pps = (1000.0 * dpulse + _pps * (_tau - dt)) / _tau;
   }
-#ifdef DEBUG_SPEEDOMETER
-  DEBUG_PRINT("// Speedometer::update dpulse:");
-  DEBUG_PRINT(dpulse);
-  DEBUG_PRINT(", dt: ");
-  DEBUG_PRINT(dt);
-  DEBUG_PRINT(", tau: ");
-  DEBUG_PRINT(_tau);
-  DEBUG_PRINT(", pps: ");
-  DEBUG_PRINTF(_pps, 3);
-  DEBUG_PRINTLN();
-#endif
   _prevTime = clockTime;
 }
 

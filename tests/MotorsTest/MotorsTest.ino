@@ -35,8 +35,8 @@
 #include "pins.h"
 #include "MotorCtrl.h"
 
-//#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static char* TAG = "MotorTest";
 
 #define SERIAL_BPS 115200
 #define MOTOR_TEST_DURATION 3000
@@ -124,11 +124,12 @@ static Test* tests[]{
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  delay(500);
-  Serial.println("");
+  while (!Serial) {
+    delay(10);
+  }
   leftMotor.begin();
   rightMotor.begin();
-  Serial.println("Start.");
+  ESP_LOGI(TAG, "Start.");
 
   int n = 0;
   int err = 0;
@@ -141,7 +142,7 @@ void loop() {
   static int currentTest = 0;
   Test& test = *tests[currentTest];
   if (test.completed()) {
-    DEBUG_PRINTLN("// loop: Test completed");
+    ESP_LOGD(TAG, "Test completed");
     delay(1000);
   } else {
     test.polling(millis());
@@ -155,9 +156,7 @@ void loop() {
 }
 
 void MotorPowerTest::begin(void) {
-  Serial.println();
-  Serial.print(_name);
-  Serial.println();
+  ESP_LOGI(TAG, "%s", _name);
 
   _motor.automatic(false);
   _motor.power(_power);
@@ -165,24 +164,17 @@ void MotorPowerTest::begin(void) {
 }
 
 void MotorPowerTest::polling(const unsigned long t0) {
-  DEBUG_PRINT("// MotorPowerTest::polling t0: ");
-  DEBUG_PRINT(t0);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "t0: %lu", t0);
   MotorSensor& sensor = _motor.sensor();
   if (t0 < _timeout) {
     _motor.polling(t0);
     const long pulses = sensor.pulses();
     if (pulses != _oldPulses) {
       _oldPulses = pulses;
-      DEBUG_PRINT("// MotorPowerTest::polling pulses: ");
-      DEBUG_PRINT(pulses);
-      DEBUG_PRINT(", pps: ");
-      DEBUG_PRINT(sensor.pps());
-      DEBUG_PRINTLN();
+      ESP_LOGD(TAG, "pulses: %ld, pps: %f", pulses, (double)sensor.pps());
     }
   } else if (!_completed) {
-    DEBUG_PRINT("//   completed");
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "completed");
 
     _completed = true;
     const int pps = sensor.pps();
@@ -190,33 +182,24 @@ void MotorPowerTest::polling(const unsigned long t0) {
     _valid = true;
     if ((pps < 0 && _power > 0)
         || (pps > 0 && _power < 0)) {
-      Serial.print("KO speed measured ");
-      Serial.print(pps);
-      Serial.println();
+      ESP_LOGE(TAG, "KO speed measured %d", pps);
       _valid = false;
     }
     if (abs(pps) < SPEED_THRESHOLD) {
-      Serial.print("KO speed measured ");
-      Serial.print(pps);
-      Serial.println();
+      ESP_LOGE(TAG, "KO speed measured %d", pps);
       _valid = false;
     }
     if (_valid) {
-      Serial.print("OK speed measured ");
-      Serial.print(pps);
-      Serial.println();
+      ESP_LOGI(TAG, "OK speed measured %d", pps);
     }
   } else {
-    DEBUG_PRINT("// MotorPowerTest::polling unexpected status");
-    DEBUG_PRINTLN();
+    ESP_LOGE(TAG, "unexpected status");
     _motor.power(0);
   }
 }
 
 void SpeedTest::begin(void) {
-  Serial.println();
-  Serial.print(_name);
-  Serial.println();
+  ESP_LOGI(TAG, "%s", _name);
 
   leftMotor.automatic(true);
   rightMotor.automatic(true);
@@ -231,11 +214,7 @@ void SpeedTest::polling(const unsigned long t0) {
   if (t0 < _timeout) {
     leftMotor.polling(t0);
     rightMotor.polling(t0);
-    DEBUG_PRINT("Speeds: ");
-    DEBUG_PRINT(leftSensor.pps());
-    DEBUG_PRINT(", ");
-    DEBUG_PRINT(rightSensor.pps());
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "Speeds: %f, %f", (double)leftSensor.pps(), (double)rightSensor.pps());
   } else if (!_completed) {
     _completed = true;
     const float leftSpeedMeasure = leftSensor.pps();
@@ -248,31 +227,18 @@ void SpeedTest::polling(const unsigned long t0) {
     _valid = true;
     char msg[256];
     if (abs(_leftSpeed - leftSpeedMeasure) >= SPEED_THRESHOLD) {
-      Serial.print("KO left speed measured ");
-      Serial.print(leftSpeedMeasure);
-      Serial.print(" != expected ");
-      Serial.print(_leftSpeed);
-      Serial.println();
+      ESP_LOGI(TAG, "KO left speed measured %f != expected %f", (double)leftSpeedMeasure, (double)_leftSpeed);
       _valid = false;
     }
     if (abs(_rightSpeed - rightSpeedMeasure) >= SPEED_THRESHOLD) {
-      Serial.print("KO right speed measured ");
-      Serial.print(rightSpeedMeasure);
-      Serial.print(" != expected ");
-      Serial.print(_rightSpeed);
-      Serial.println();
+      ESP_LOGI(TAG, "KO right speed measured %f != expected %f", (double)rightSpeedMeasure, (double)_rightSpeed);
       _valid = false;
     }
     if (_valid) {
-      Serial.print("OK speeds measured ");
-      Serial.print(leftSpeedMeasure);
-      Serial.print(", ");
-      Serial.print(rightSpeedMeasure);
-      Serial.println();
+      ESP_LOGI(TAG, "OK speeds measured %f, %f", (double)leftSpeedMeasure, (double)rightSpeedMeasure);
     }
   } else {
-    DEBUG_PRINT("// SpeedTest::polling unexpected status");
-    DEBUG_PRINTLN();
+    ESP_LOGE(TAG, "unexpected status");
   }
 }
 
@@ -287,14 +253,7 @@ void SummaryTest::begin(void) {
       failed++;
     }
   }
-  Serial.println();
-  Serial.print("Failed ");
-  Serial.print(failed);
-  Serial.print(", success ");
-  Serial.print(valid);
-  Serial.print(", total ");
-  Serial.print(n - 2);
-  Serial.println();
+  ESP_LOGI(TAG, "Failed %d, success %d, total %d", failed, valid, n - 2);
 }
 
 void SummaryTest::polling(const unsigned long) {
@@ -303,9 +262,7 @@ void SummaryTest::polling(const unsigned long) {
 }
 
 void SensorsTest::begin(void) {
-  Serial.println();
-  Serial.print("Testing sensors ...");
-  Serial.println();
+  ESP_LOGI(TAG, "Testing sensors ...");
   leftSensor.direction(1);
   rightSensor.direction(1);
 }
@@ -316,19 +273,11 @@ void SensorsTest::polling(const unsigned long t0) {
   const long left = leftSensor.pulses();
   if (left != _leftPulses) {
     _leftPulses = left;
-    Serial.print("Left pulses: ");
-    Serial.print(left);
-    Serial.print(", pps: ");
-    Serial.print(leftSensor.pps());
-    Serial.println();
+    ESP_LOGI(TAG, "Left pulses: %ld, pps: %f", left, (double)leftSensor.pps());
   }
   const long right = rightSensor.pulses();
   if (right != _rightPulses) {
     _rightPulses = right;
-    Serial.print("Right pulses: ");
-    Serial.print(right);
-    Serial.print(", pps: ");
-    Serial.print(rightSensor.pps());
-    Serial.println();
+    ESP_LOGI(TAG, "Right pulses: %ld, pps: %f", right, (double)rightSensor.pps());
   }
 }

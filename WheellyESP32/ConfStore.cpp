@@ -73,6 +73,7 @@ JsonDocument& ConfStore::toJson(JsonDocument& result, const ConfigRecord& config
   * Initializes the config store
   */
 void ConfStore::begin(void) {
+  ESP_LOGI(TAG, "Begin");
   ESP_LOGD(TAG, "Mounting FS...");
   if (SPIFFS.begin()) {
     ESP_LOGD(TAG, "Mounted FS");

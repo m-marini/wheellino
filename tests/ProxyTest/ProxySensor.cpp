@@ -26,10 +26,10 @@
  *
  */
 
-#include "ProxySensor.h"
+#include <esp_log.h>
+static const char* TAG = "ProxySensor";
 
-//#define DEBUG
-#include "debug.h"
+#include "ProxySensor.h"
 
 static const unsigned long RESET_INTERVAL = 3000ul;
 static const unsigned long INACTIVITY = 50ul;
@@ -46,25 +46,9 @@ static void spline(float& a, float& b, unsigned long& time, const int from, cons
   time = (unsigned long)round(1.5 * dy / v);
   a = -16 * v * v * v / 27 / dy / dy;
   b = -4 * v * v / 3 / dy;
-  DEBUG_PRINT("// ProxySensor::spline from=");
-  DEBUG_PRINT(from);
-  DEBUG_PRINT(", to=");
-  DEBUG_PRINT(to);
-  DEBUG_PRINTLN();
-
-  DEBUG_PRINT("//   dy=");
-  DEBUG_PRINT(dy);
-  DEBUG_PRINT(", v=");
-  DEBUG_PRINT(v);
-  DEBUG_PRINTLN();
-
-  DEBUG_PRINT("//   time=");
-  DEBUG_PRINT(time);
-  DEBUG_PRINT(", a=");
-  DEBUG_PRINTF(a, 6);
-  DEBUG_PRINT(", b=");
-  DEBUG_PRINTF(b, 6);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "ProxySensor::spline from=%d, to=%d", from, to);
+  ESP_LOGD(TAG, "  dy=%d, v=%f", dy, v);
+  ESP_LOGD(TAG, "  time=%lu, a=%.6f, b=%.6f", time, a, b);
 }
 
 /**
@@ -81,7 +65,7 @@ ProxySensor::ProxySensor(const uint8_t servoPin, const uint8_t triggerPin, const
    Begins the sensor
 */
 void ProxySensor::begin(void) {
-  DEBUG_PRINTLN("ProxySensor::begin");
+  ESP_LOGD(TAG, "ProxySensor::begin");
   _servo.attach(_servoPin);
   _servo.write(90 - _direction - _offset);
   pinMode(_echoPin, INPUT);
@@ -130,9 +114,7 @@ void ProxySensor::ping(const unsigned long t0) {
   digitalWrite(_triggerPin, LOW);
   delayMicroseconds(2);
   unsigned long duration = pulseIn(_echoPin, HIGH, INACTIVITY_MICROS);
-  DEBUG_PRINT("// ProxySensor::polling duration: ");
-  DEBUG_PRINT(duration);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "ProxySensor::polling duration: %lu", duration);
 
   /* Update the measures */
   _noMeasures++;
@@ -169,13 +151,7 @@ void ProxySensor::moveServo(const unsigned long dt) {
   /* Computes and move the direction of sensor */
   _direction = direction(dt);
   int wr = min(max(0, 90 - _direction - _offset), 180);
-  DEBUG_PRINT("// ProxySensor::moveServo dt: ");
-  DEBUG_PRINT(dt);
-  DEBUG_PRINT(", dir=");
-  DEBUG_PRINT(_direction);
-  DEBUG_PRINT(", wr: ");
-  DEBUG_PRINT(wr);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "ProxySensor::moveServo dt: %lu, dir=%d, wr: %d", dt, _direction, wr);
   _servo.write(wr);
 
   /* Set moving sensor if not yet in position */
@@ -188,11 +164,7 @@ void ProxySensor::moveServo(const unsigned long dt) {
 */
 const int ProxySensor::direction(const unsigned long dt) {
   float dir = -_a * dt * dt * dt + _b * dt * dt + _toDirection;
-  DEBUG_PRINT("// ProxySensor::direction dt=");
-  DEBUG_PRINT(dt);
-  DEBUG_PRINT(", dir=");
-  DEBUG_PRINTF(dir, 3);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "ProxySensor::direction dt=%lu, dir=%.3f", dt, dir);
   return (int)round(dir);
 }
 
@@ -201,9 +173,7 @@ const int ProxySensor::direction(const unsigned long dt) {
    @param angle the direction in (DEG)
 */
 void ProxySensor::direction(const int value, const unsigned long t0) {
-  DEBUG_PRINT("// ProxySensor::direction dir=");
-  DEBUG_PRINT(value);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "ProxySensor::direction dir=%d", value);
   if (_toDirection != value) { /* Checks for direction change */
     _toDirection = value;
     /* Computes the spline parameters */

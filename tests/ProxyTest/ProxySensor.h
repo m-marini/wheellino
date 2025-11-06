@@ -36,6 +36,47 @@
    Proxy sensor
 */
 class ProxySensor {
+private:
+  const uint8_t _servoPin;
+  const uint8_t _triggerPin;
+  const uint8_t _echoPin;
+  Servo _servo;
+  int _direction;
+  int _toDirection;
+  int _offset;
+  boolean _moving;
+  unsigned long _interval;
+  unsigned long _lastPoll;
+  unsigned long _positionTime;
+  unsigned long _pingTime;
+  unsigned long _resetTime;
+  unsigned long _echoTime;
+  unsigned long _echoDelay;
+  int _echoDirection;
+  int _noMeasures;
+  int _noValidSamples;
+  unsigned long _totalDuration;
+  float _a;
+  float _b;
+  void (*_onDataReady)(void *, ProxySensor &);
+  void *_context;
+
+  /**
+       Moves the servo to position the sensor
+    */
+  void moveServo(const unsigned long t0);
+
+  /**
+       Returns the interpolated direction (DEG) at dt time to position
+       @param dt the time to position (ms)
+    */
+  const int direction(const unsigned long dt);
+
+  /**
+       Pings for echo
+    */
+  void ping(const unsigned long t0);
+
 public:
   ProxySensor(const uint8_t servoPin, const uint8_t triggerPin, const uint8_t echoPin);
 
@@ -102,46 +143,6 @@ public:
   const int direction(void) const {
     return _direction;
   }
-private:
-  const uint8_t _servoPin;
-  const uint8_t _triggerPin;
-  const uint8_t _echoPin;
-  Servo _servo;
-  int _direction;
-  int _toDirection;
-  int _offset;
-  boolean _moving;
-  unsigned long _interval;
-  unsigned long _lastPoll;
-  unsigned long _positionTime;
-  unsigned long _pingTime;
-  unsigned long _resetTime;
-  unsigned long _echoTime;
-  unsigned long _echoDelay;
-  int _echoDirection;
-  int _noMeasures;
-  int _noValidSamples;
-  unsigned long _totalDuration;
-  float _a;
-  float _b;
-  void (*_onDataReady)(void *, ProxySensor &);
-  void *_context;
-
-  /**
-       Moves the servo to position the sensor
-    */
-  void moveServo(const unsigned long t0);
-
-  /**
-       Returns the interpolated direction (DEG) at dt time to position
-       @param dt the time to position (ms)
-    */
-  const int direction(const unsigned long dt);
-
-  /**
-       Pings for echo
-    */
-  void ping(const unsigned long t0);
 };
 
 #endif

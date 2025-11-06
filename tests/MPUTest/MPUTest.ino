@@ -29,6 +29,9 @@
 #include "Arduino.h"
 #include <Wire.h>
 
+#include <esp_log.h>
+static char* TAG = "MPUTest";
+
 #include "mpu6050mm.h"
 #include "num.h"
 
@@ -55,7 +58,9 @@ MPU6050Class Mpu;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  Serial.println("");
+  while (!Serial) {
+    delay(10);
+  }
   Wire.begin();
   Wire.setClock(WIRE_CLOCK);
   Wire.setTimeOut(50);
@@ -114,14 +119,7 @@ void setup() {
   if (!testGyro(++n)) {
     err++;
   }
-  Serial.println();
-  Serial.print("Failed ");
-  Serial.print(err);
-  Serial.print(", success ");
-  Serial.print(n - err);
-  Serial.print(", total ");
-  Serial.print(n);
-  Serial.println();
+  ESP_LOGI(TAG, "Failed %d, success %d, total %d", err, n - err, n);
 }
 
 void loop() {
@@ -131,24 +129,16 @@ void loop() {
 static const boolean testGyroBuffer(const int n) {
   char name[128];
   sprintf(name, "Test gyroscope buffer");
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
 
   uint8_t rc = Mpu.reset();
   if (rc != 0) {
-    Serial.print("KO reset rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO reset", rc);
     return false;
   }
   rc = Mpu.begin();
   if (rc != 0) {
-    Serial.print("KO begin rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO begin", rc);
     return false;
   }
 
@@ -171,73 +161,44 @@ static const boolean testGyroBuffer(const int n) {
   } while (t1 < timeout);
 
   if (rc != 0) {
-    Serial.print("KO reading buffer rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO reading buffer", rc);
     return false;
   }
 
   if (sampleCounter <= 0) {
-    Serial.print("KO ");
-    Serial.print(name);
-    Serial.print(" no data read");
-    Serial.println();
+    ESP_LOGE(TAG, "KO %s no data read", name);
     return false;
   }
 
   float freq = 1000.0 * sampleCounter / (t1 - t0);
   if (abs(freq - EXPECTED_FREQUENCE) > FREQUENCE_THRESHOLD) {
-    Serial.print("KO ");
-    Serial.print(name);
-    Serial.print(" unexpected frequence: ");
-    Serial.print(freq, 2);
-    Serial.print(", expected: ");
-    Serial.print(EXPECTED_FREQUENCE);
-    Serial.println();
+    ESP_LOGE(TAG, "KO %s unexpected frequence: %.2f, expected: %f", name, (double)freq, EXPECTED_FREQUENCE);
     return false;
   }
 
   gyroAverage /= sampleCounter;
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.print(", sample counter: ");
-  Serial.print(sampleCounter);
-  Serial.print(", frequency: ");
-  Serial.print(freq, 2);
-  Serial.print(", gyroAverage: ");
-  Serial.print(gyroAverage.toString());
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s, sample counter: %d, frequency: %.2f, gyroAverage: %s", name, sampleCounter, (double)freq, gyroAverage.toString().c_str());
   return true;
 }
 
 static const boolean testGyro(const int n) {
   char name[128];
   sprintf(name, "Test gyroscope");
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
 
   uint8_t rc = Mpu.reset();
   if (rc != 0) {
-    Serial.print("KO reset rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO reset", rc);
     return false;
   }
   rc = Mpu.begin();
   if (rc != 0) {
-    Serial.print("KO begin rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO begin", rc);
     return false;
   }
   rc = Mpu.calibrate();
   if (rc != 0) {
-    Serial.print("KO calibration rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO calibration", rc);
     return false;
   }
 
@@ -260,29 +221,18 @@ static const boolean testGyro(const int n) {
   } while (t1 < timeout && sampleCounter < MAX_SAMPLES_COUNT);
 
   if (rc != 0) {
-    Serial.print("KO polling rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO polling", rc);
     return false;
   }
 
   if (sampleCounter == 0) {
-    Serial.print("KO no samples");
-    Serial.println();
+    ESP_LOGE(TAG, "KO no samples");
     return false;
   }
 
   float freq = 1000.0 * sampleCounter / (t1 - t0);
   if (abs(freq - EXPECTED_FREQUENCE) > FREQUENCE_THRESHOLD) {
-    Serial.print("KO ");
-    Serial.print(name);
-    Serial.print(" unexpected frequence: ");
-    Serial.print(freq, 2);
-    Serial.print(", expected: ");
-    Serial.print(EXPECTED_FREQUENCE);
-    Serial.print(", sample counter: ");
-    Serial.print(sampleCounter);
-    Serial.println();
+    ESP_LOGE(TAG, "KO %s unexpected frequence: %.2f, expected: %f, sample counter: %d", name, freq, EXPECTED_FREQUENCE, sampleCounter);
     return false;
   }
 
@@ -302,75 +252,40 @@ static const boolean testGyro(const int n) {
   sigma = sqrt(sigma / (sampleCounter - 1));
 
   if (abs(avgYaw * 180 / PI) > YAW_THRESHOLD_DEG) {
-    Serial.print("KO ");
-    Serial.print(name);
-    Serial.print(" unexpected yaw (>");
-    Serial.print(YAW_THRESHOLD_DEG, 4);
-    Serial.print("), sample counter: ");
-    Serial.print(sampleCounter);
-    Serial.print(", yaw: ");
-    Serial.print(avgYaw * 180 / PI, 4);
-    Serial.print(", sigma: ");
-    Serial.print(sigma * 180 / PI, 4);
-    Serial.println();
+    ESP_LOGE(TAG, "KO %s unexpected yaw (>%.4f), sample counter: %d, yaw: %.4f, sigma: %.4f",
+             name, YAW_THRESHOLD_DEG, sampleCounter, avgYaw * 180 / PI, sigma * 180 / PI);
     return false;
   }
 
   if (sigma * 180 / PI > SIGMA_THRESHOLD_DEG) {
-    Serial.print("KO ");
-    Serial.print(name);
-    Serial.print(" unexpected sigma (>");
-    Serial.print(SIGMA_THRESHOLD_DEG, 4);
-    Serial.print("), sample counter: ");
-    Serial.print(sampleCounter);
-    Serial.print(", yaw: ");
-    Serial.print(avgYaw * 180 / PI, 4);
-    Serial.print(", sigma: ");
-    Serial.print(sigma * 180 / PI, 4);
-    Serial.println();
+    ESP_LOGE(TAG, "KO %s unexpected sigma (>%.4f), sample counter: %d, yaw: %.4f, sigma: %.4f",
+             name, SIGMA_THRESHOLD_DEG, sampleCounter, avgYaw * 180 / PI, sigma * 180 / PI);
     return false;
   }
 
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.print(", sample counter: ");
-  Serial.print(sampleCounter);
-  Serial.print(", yaw: ");
-  Serial.print(avgYaw * 180 / PI, 4);
-  Serial.print(", sigma: ");
-  Serial.print(sigma * 180 / PI, 4);
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s, sample counter: %d, yaw: %.4f, sigma: %.4f",
+           name, sampleCounter, avgYaw * 180 / PI, sigma * 180 / PI);
   return true;
 }
 
 static const boolean testCalibration(const int n) {
   char name[128];
   sprintf(name, "Test calibration");
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
 
   uint8_t rc = Mpu.reset();
   if (rc != 0) {
-    Serial.print("KO reset rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO reset", rc);
     return false;
   }
   rc = Mpu.begin();
   if (rc != 0) {
-    Serial.print("KO begin rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO begin", rc);
     return false;
   }
   rc = Mpu.calibrate();
   if (rc != 0) {
-    Serial.print("KO calibration rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO calibration", rc);
     return false;
   }
 
@@ -380,9 +295,7 @@ static const boolean testCalibration(const int n) {
       || abs(grav[1]) > ACC_THRESHOLD_G
       || abs(grav[2]) < 1 - ACC_THRESHOLD_G
       || abs(grav[2]) > 1 + ACC_THRESHOLD_G) {
-    Serial.print("KO gravity out of range, ");
-    Serial.print(grav.toString());
-    Serial.println();
+    ESP_LOGE(TAG, "KO gravity out of range, %s", grav.toString().c_str());
     return false;
   }
 
@@ -390,19 +303,12 @@ static const boolean testCalibration(const int n) {
   if (abs(gyroOffset[0]) > GYRO_THRESHOLD
       || abs(gyroOffset[1]) > GYRO_THRESHOLD
       || abs(gyroOffset[2]) > GYRO_THRESHOLD) {
-    Serial.print("KO gyroOffset out of range, ");
-    Serial.print(gyroOffset.toString());
-    Serial.println();
+    ESP_LOGE(TAG, "KO gyroOffset out of range, %s", gyroOffset.toString().c_str());
     return false;
   }
 
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.print(" gravity: ");
-  Serial.print(grav.toString());
-  Serial.print(", offset: ");
-  Serial.print(gyroOffset.toString());
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s gravity: %s, offset: %s",
+           name, grav.toString().c_str(), gyroOffset.toString().c_str());
   return true;
 }
 
@@ -410,25 +316,17 @@ static const boolean testReadAcc(const int n) {
   char name[128];
   sprintf(name, "Test mpu read acceleration");
   // Write divider
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
 
   uint8_t rc = Mpu.reset();
   if (rc != 0) {
-    Serial.print("KO reset rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO reset", rc);
     return false;
   }
 
   rc = Mpu.begin();
   if (rc != 0) {
-    Serial.print("KO begin rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO begin", rc);
     return false;
   }
 
@@ -439,37 +337,26 @@ static const boolean testReadAcc(const int n) {
   do {
     rc = Mpu.readIntStatus();
     if (rc != 0) {
-      Serial.print("KO readStatus rc=");
-      printRc(rc);
-      Serial.println();
+      printRc("KO readStatus", rc);
       return false;
     }
     t1 = micros();
   } while (!Mpu.dataReady() && t1 <= timout);
 
   if (!Mpu.dataReady()) {
-    Serial.print("KO data ready timed out");
-    Serial.println();
+    printRc("KO data ready timed out", rc);
     return false;
   }
 
   Vector3 acc;
   rc = Mpu.readAcc(acc);
   if (rc != 0) {
-    Serial.print("KO readAcc rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO readAcc", rc);
     return false;
   }
 
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.print(", ");
-  Serial.print(acc.toString());
-  Serial.print(" in ");
-  Serial.print(t1 - t0);
-  Serial.print(" us");
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s, %s in %lu us",
+           name, acc.toString().c_str(), t1 - t0);
   return true;
 }
 
@@ -482,30 +369,18 @@ static const boolean testRead(const int n, const char* regName, const uint8_t re
   char name[128];
   sprintf(name, "Test mpu read registry %s (0x%hx)", regName, reg);
   // Write divider
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
   uint8_t bfr;
   uint8_t rc = Mpu.mpuRegRead(reg, &bfr, 1);
   if (rc != 0) {
-    Serial.print("KO rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO", rc);
     return false;
   }
   if (bfr != expected) {
-    Serial.print("KO wrong value 0x");
-    Serial.print(bfr, HEX);
-    Serial.print(", expected 0x");
-    Serial.print(expected, HEX);
-    Serial.println();
+    ESP_LOGE(TAG, "KO wrong value 0x%hhx, expected 0x%hhx", bfr, expected);
     return false;
   }
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s", name);
   return true;
 }
 
@@ -514,49 +389,42 @@ static const boolean testWrite(const int n, const char* regName, const uint8_t r
   char name[128];
   sprintf(name, "Test mpu write registry %s (0x%hx) value 0x%hx", regName, reg, value);
   // Write divider
-  Serial.println();
-  Serial.print(n);
-  Serial.print(". ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "%d. %s", n, name);
   uint8_t rc = Mpu.mpuRegWrite(reg, value);
   if (rc != 0) {
-    Serial.print("KO rc=");
-    printRc(rc);
-    Serial.println();
+    printRc("KO", rc);
     return false;
   }
-  Serial.print("OK ");
-  Serial.print(name);
-  Serial.println();
+  ESP_LOGI(TAG, "OK %s", name);
   return true;
 }
 
-static void printRc(const uint8_t rc) {
-  Serial.print(rc);
+static void printRc(const char* str, const uint8_t rc) {
+  char* descr = "???";
   switch (rc) {
     case 0:
-      Serial.print(" OK");
+      descr = "OK";
       break;
     case 1:
-      Serial.print(" data too long to fit in transmit buffer");
+      descr = "data too long to fit in transmit buffer";
       break;
     case 2:
-      Serial.print(" received NACK on transmit of address");
+      descr = "received NACK on transmit of address";
       break;
     case 3:
-      Serial.print(" received NACK on transmit of data");
+      descr = "received NACK on transmit of data";
       break;
     case 4:
-      Serial.print(" other error");
+      descr = "other error";
       break;
     case 5:
-      Serial.print(" timeout");
+      descr = "timeout";
       break;
     case READ_LEN_ERROR:
-      Serial.print(" read length error");
+      descr = "read length error";
       break;
   }
+  ESP_LOGE(TAG, "%s rc=%hhu %s", str, rc, descr);
 }
 
 void sendReply(const char* data) {}

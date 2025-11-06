@@ -53,6 +53,30 @@ typedef enum {
    Displays status of Wheelly on LCD
 */
 class DisplayClass : public Print {
+private:
+  LiquidCrystal_PCF8574 _lcd;
+  Timer _timer;
+  size_t _scrollOffset;
+  boolean _blink;
+  uint8_t _error;
+  boolean _move;
+  block_t _block;
+  uint8_t _connected;
+  unsigned long _activityTime;
+  int _distance;
+  int _supplyLevel;
+  char _buffer[SCROLL_BUFFER_SIZE];
+  char _wiFiInfo[WIFI_BUFFER_SIZE];
+
+  static void handleTimer(void*, const unsigned long);
+
+  void showScroll(void);
+  void showInfo(void);
+  void refreshInfo(void);
+  void refreshScroll(const char* line);
+  void scroll(const unsigned long);
+  void blink(const unsigned long);
+
 public:
   // Creates the display
   DisplayClass(const uint8_t addr = 0x27);
@@ -94,29 +118,6 @@ public:
   void showWiFiInfo(const char* info);
 
   using Print::write;
-private:
-  LiquidCrystal_PCF8574 _lcd;
-  Timer _timer;
-  size_t _scrollOffset;
-  boolean _blink;
-  uint8_t _error;
-  boolean _move;
-  block_t _block;
-  uint8_t _connected;
-  unsigned long _activityTime;
-  int _distance;
-  int _supplyLevel;
-  char _buffer[SCROLL_BUFFER_SIZE];
-  char _wiFiInfo[WIFI_BUFFER_SIZE];
-
-  static void handleTimer(void*, const unsigned long);
-
-  void showScroll(void);
-  void showInfo(void);
-  void refreshInfo(void);
-  void refreshScroll(const char* line);
-  void scroll(const unsigned long);
-  void blink(const unsigned long);
 };
 
 #endif

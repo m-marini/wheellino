@@ -39,16 +39,6 @@ const long clip(const long value, const long minValue, const long maxValue) {
 }
 
 /*
-   Returns the clipped value
-   @param value the value
-   @param min the minimum value
-   @param max the maximum value
-*/
-const int clip(const int value, const int minValue, const int maxValue) {
-  return min(max(value, minValue), maxValue);
-}
-
-/*
   Returns normalized radians angle (in range -PI, PI)
 */
 const float normalRad(const float rad) {

@@ -28,28 +28,11 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <esp_log.h>
+static const char *TAG = "mpu6050mm";
+
 #include "mpu6050mm.h"
 
-//#define DEBUG
-#ifdef DEBUG
-
-//#define DUMP_FIFO
-//#define DEBUG_MPU_WRITE
-//#define DEBUG_MPU_READ
-
-#define DEBUG_PRINT(x) Serial.print(x)
-#define DEBUG_PRINTF(x, y) Serial.print(x, y)
-#define DEBUG_PRINTLN(x) Serial.println(x)
-#define DEBUG_PRINTLNF(x, y) Serial.println(x, y)
-
-#else
-
-#define DEBUG_PRINT(x)
-#define DEBUG_PRINTF(x, y)
-#define DEBUG_PRINTLN(x)
-#define DEBUG_PRINTLNF(x, y)
-
-#endif
 
 #define REVALIDATION_SAMPLE_COUNT 1000
 //#define FIFO_BLOCK_SIZE 6
@@ -90,17 +73,9 @@ static void dumpData(const uint8_t *data, const size_t len) {
 */
 static const int16_t toInt(const uint8_t *data) {
   int16_t value = ((uint16_t)(data[0]) << 8) | ((uint16_t)(data[1]));
-
-  DEBUG_PRINT("// toInt 0x");
-  DEBUG_PRINTF(data[0], HEX);
-  DEBUG_PRINT(" 0x");
-  DEBUG_PRINTF(data[1], HEX);
-  DEBUG_PRINT(" -> ");
-  DEBUG_PRINT(value);
-  DEBUG_PRINT(" 0x");
-  DEBUG_PRINTF(value, HEX);
-  DEBUG_PRINTLN();
-
+#ifdef DEBUG
+  ESP_LOGD(TAG, "toInt 0x%hhx 0x%hhx -> %d 0x%x", data[0], data[1], value, value);
+#endif
   return value;
 }
 
@@ -141,6 +116,7 @@ const uint8_t MPU6050Class::begin(
   const uint8_t dlpfCfg,
   const uint8_t clkSel) {
 
+  ESP_LOGI(TAG, "Begin");
   _gyroScale = GYRO_SCALE[fsSel];
   _accScale = ACC_SCALE[afsSel];
   float goRate = dlpfCfg == DLPF_0 ? 8000.0 : 1000.0;
@@ -208,11 +184,11 @@ const uint8_t MPU6050Class::flushFifo() {
 */
 const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long warmup) {
   _gyroOffset = Vector3();
-  Serial.println("// MPU Calibrating ...");
+  ESP_LOGI(TAG, "MPU Calibrating ...");
 
   unsigned long timeout = millis() + warmup;
   _rc = 0;
-  DEBUG_PRINTLN("// MPU Warming up ...");
+  ESP_LOGD(TAG, "MPU Warming up ...");
   // Waits for warmup duration just polling the MPU
   while (millis() <= timeout) {
     getGyro(_gyroOffset);
@@ -225,7 +201,7 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   int numSamples = 0;
   int numAccSamples = 0;
   Vector3 acc;
-  DEBUG_PRINTLN("// MPU Start calibration ...");
+  ESP_LOGD(TAG, "MPU Start calibration ...");
   while (_rc == 0 && !(numAccSamples >= minNoSamples)) {
     // Processes gyro samples
     Vector3 gyro;
@@ -260,26 +236,12 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   _quat = q;
   _gravity = acc;
 
-  Serial.print("// MPU Calibration completed:");
-  Serial.println();
-  Serial.print("//   ");
-  Serial.print(numSamples);
-  Serial.print(" gyroscope samples");
-  Serial.println();
-  Serial.print("//   offset: ");
-  Serial.print(_gyroOffset.toString());
-  Serial.println();
-
-  Serial.print("//   ");
-  Serial.print(numAccSamples);
-  Serial.print(" accelerometer samples");
-  Serial.println();
-  Serial.print("//   rotation angle (DEG): ");
-  Serial.print(angle * 180 / PI);
-  Serial.println();
-  Serial.print("//   vector: ");
-  Serial.print(_gravity.toString());
-  Serial.println();
+  ESP_LOGI(TAG, "MPU Calibration completed:");
+  ESP_LOGI(TAG, "  %d gyroscope samples", numSamples);
+  ESP_LOGI(TAG, "  offset: %s", _gyroOffset.toString().c_str());
+  ESP_LOGI(TAG, "  %d accelerometer samples", numAccSamples);
+  ESP_LOGI(TAG, "  rotation angle (DEG): %f", angle * 180 / PI);
+  ESP_LOGI(TAG, "  vector: %s", _gravity.toString().c_str());
 
   return _rc;
 }
@@ -291,7 +253,7 @@ void MPU6050Class::polling(unsigned long clockTime) {
 
 #ifdef DEBUG
   if (readIntStatus() == 0 && fifoOverflow()) {
-    DEBUG_PRINTLN("!! Fifo Overflow");
+    ESP_LOGD(TAG, "!! Fifo Overflow");
   }
 #endif
 
@@ -393,7 +355,7 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t reg, const uint8_t value) 
             (const unsigned short)reg,
             (const unsigned short)_address,
             (const unsigned short)_rc);
-    DEBUG_PRINTLN(msg);
+    ESP_LOGE(TAG, "%s", msg);
     throwError(msg);
     return _rc;
   }
@@ -409,9 +371,7 @@ const uint8_t MPU6050Class::mpuRegWrite(const uint8_t reg, const uint8_t value) 
 const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const uint8_t len) {
   char msg[256];
 #ifdef DEBUG_MPU_READ
-  DEBUG_PRINT("// MPU read 0x");
-  DEBUG_PRINTF(reg, HEX);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "MPU read 0x%hhx", reg);
 #endif
   Wire.beginTransmission(_address);
   Wire.write(reg);
@@ -421,7 +381,7 @@ const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const ui
             (const unsigned short)reg,
             (const unsigned short)_address,
             (const unsigned short)_rc);
-    DEBUG_PRINTLN(msg);
+    ESP_LOGE(TAG, "%s", msg);
     throwError(msg);
     return _rc;
   }
@@ -430,7 +390,7 @@ const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const ui
     sprintf(msg, "!! Error reading: len=%hu, required= %hu",
             (const unsigned short)n,
             (const unsigned short)len);
-    DEBUG_PRINTLN(msg);
+    ESP_LOGE(TAG, "%s", msg);
     _rc = READ_LEN_ERROR;
     throwError(msg);
     return _rc;
@@ -439,14 +399,6 @@ const uint8_t MPU6050Class::mpuRegRead(const uint8_t reg, uint8_t *bfr, const ui
   for (uint8_t i = 0; i < n; ++i) {
     *ptr++ = Wire.read();
   }
-#ifdef DEBUG_MPU_READ
-  ptr = bfr;
-  for (uint8_t i = 0; i < n; ++i) {
-    DEBUG_PRINT(" ");
-    DEBUG_PRINTF(*ptr++, HEX);
-  }
-  DEBUG_PRINTLN();
-#endif
   return _rc;
 }
 
@@ -473,9 +425,7 @@ const uint8_t MPU6050Class::readAcc(Vector3 &acc) {
   uint8_t block[6];
   if (mpuRegRead(ACCEL_REG, block, sizeof(block)) == 0) {
     acc = fromBytes(block, _accScale);
-    DEBUG_PRINT("// Read acceleration ");
-    DEBUG_PRINT(acc.toString());
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "Read acceleration %s", acc.toString().c_str());
   }
   return _rc;
 }

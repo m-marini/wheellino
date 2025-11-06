@@ -26,6 +26,9 @@
  *
  */
 
+#include <esp_log.h>
+static const char* TAG = "Contacts";
+
 #include "Contacts.h"
 
 /*
@@ -39,6 +42,7 @@ ContactSensors::ContactSensors(const uint8_t frontSensorPin, const uint8_t rearS
    Initializes the contact sensors
 */
 void ContactSensors::begin(void) {
+  ESP_LOGI(TAG, "Begin");
   pinMode(_frontSensorPin, INPUT_PULLUP);
   pinMode(_rearSensorPin, INPUT_PULLUP);
 }
@@ -47,6 +51,12 @@ void ContactSensors::begin(void) {
    Polls for contact sensors
 */
 void ContactSensors::polling(const unsigned long t0) {
-  _frontClear = digitalRead(_frontSensorPin);
-  _rearClear = digitalRead(_rearSensorPin);
+  boolean frontClear = digitalRead(_frontSensorPin);
+  boolean rearClear = digitalRead(_rearSensorPin);
+  boolean changed = _frontClear != frontClear || _rearClear != rearClear;
+  _frontClear = frontClear;
+  _rearClear = rearClear;
+  if (_onChanged && changed) {
+    _onChanged(_context, *this);
+  }
 }

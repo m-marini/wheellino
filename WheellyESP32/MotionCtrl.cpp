@@ -19,12 +19,15 @@
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE ORt
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  *    END OF TERMS AND CONDITIONS
  *
  */
+
+#include <esp_log.h>
+static char* TAG = "MotionCtrl";
 
 #include "Arduino.h"
 
@@ -91,6 +94,7 @@ MotionCtrlClass::MotionCtrlClass(byte leftForwPin, byte leftBackPin, byte rightF
   Initializes the motion controller
 */
 void MotionCtrlClass::begin() {
+  ESP_LOGI(TAG, "Begin");
   _leftMotor.begin();
   _rightMotor.begin();
   _sensors.begin();

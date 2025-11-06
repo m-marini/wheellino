@@ -1,8 +1,36 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
+#include <esp_log.h>
+static const char* TAG = "Display";
 
 #include "Display.h"
 
-//#define DEBUG
-#include "debug.h"
 
 static const unsigned long TIMER_INTERVAL = 400ul;
 static const unsigned long BLINK_ON = 0;
@@ -177,6 +205,7 @@ DisplayClass::DisplayClass(const uint8_t addr)
    Initializes DisplayClass
 */
 void DisplayClass::begin() {
+  ESP_LOGI(TAG, "Begin");
   _lcd.begin(DISPLAY_WIDTH, DISPLAY_HEIGHT);
   _lcd.createChar(ERROR_STRING[0], errorChar);
   _lcd.createChar(MOVING_STRING[0], uparrowChar);
@@ -298,10 +327,7 @@ void DisplayClass::supply(const int level) {
   const int old = _supplyLevel;
   _supplyLevel = min(max(level, 0), (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
   if (old != _supplyLevel) {
-    DEBUG_PRINT("DisplayClass::supply(");
-    DEBUG_PRINT(_supplyLevel);
-    DEBUG_PRINT(")");
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "supplyLevel: %d", _supplyLevel);
     _lcd.createChar(SUPPLY_STRING[0], supplyCharSet[_supplyLevel]);
     showInfo();
   }

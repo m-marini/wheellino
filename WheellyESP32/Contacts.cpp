@@ -26,9 +26,10 @@
  *
  */
 
+#include <esp_log.h>
+static const char* TAG = "Contacts";
+
 #include "Contacts.h"
-
-
 
 /*
    Creates the contact sensors
@@ -41,6 +42,7 @@ ContactSensors::ContactSensors(const uint8_t frontSensorPin, const uint8_t rearS
    Initializes the contact sensors
 */
 void ContactSensors::begin(void) {
+  ESP_LOGI(TAG, "Begin");
   pinMode(_frontSensorPin, INPUT_PULLUP);
   pinMode(_rearSensorPin, INPUT_PULLUP);
 }

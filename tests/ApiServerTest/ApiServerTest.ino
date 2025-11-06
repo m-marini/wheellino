@@ -31,8 +31,8 @@
 #include "ApiServer.h"
 #include "ConfStore.h"
 
-#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static const char* TAG = "ApiServerTest";
 
 #define SERIAL_BPS 115200
 
@@ -41,7 +41,9 @@ static WiFiModuleClass wiFiModule;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  Serial.println();
+  while(!Serial) {
+    delay(10);
+  }
 
   confStore.begin();
 
@@ -65,7 +67,7 @@ void loop() {
 static void handleOnChange(void* context, WiFiModuleClass& module) {
   char bfr[256];
   if (module.connected()) {
-    DEBUG_PRINTLN("// ApiServer.begin()");
+    ESP_LOGI(TAG, "Connected");
     ApiServer.start();
     strcpy(bfr, module.ssid().c_str());
     strcat(bfr, " - IP: ");
@@ -76,6 +78,5 @@ static void handleOnChange(void* context, WiFiModuleClass& module) {
   } else {
     strcpy(bfr, "Disconnected");
   }
-  Serial.print(bfr);
-  Serial.println();
+  ESP_LOGI(TAG, "%s", bfr);
 }

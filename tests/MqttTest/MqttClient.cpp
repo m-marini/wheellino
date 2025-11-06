@@ -1,7 +1,8 @@
+#include <esp_log.h>
+
 #include "MqttClient.h"
 
-//#define DEBUG
-#include "debug.h"
+static const char* TAG = "MqttClient";
 
 MqttClient mqttClient;
 
@@ -20,11 +21,7 @@ MqttClient::MqttClient()
 void MqttClient::begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password,
                        const String& subTopics, const unsigned long retryInterval) {
   // Initialises mqtt
-  Serial.print("Initialized mqtt client ");
-  Serial.print(brokerHost.c_str());
-  Serial.print(":");
-  Serial.print(brokerPort);
-  Serial.println();
+  ESP_LOGI(TAG, "Initialized mqtt client %s:%d", brokerHost, brokerPort);
   _client.setServer(brokerHost.c_str(), brokerPort);
   _client.setCallback(callback);
   _clientId = clientId;
@@ -39,19 +36,13 @@ void MqttClient::polling(const unsigned long clockTime) {
     if (_client.connected()) {
       _client.loop();
     } else if (clockTime >= _retryTimeout) {
-      Serial.print("Connecting client broker ");
-      Serial.print( _user.c_str());
-      Serial.print("@");
-      Serial.print(_clientId.c_str());
-      Serial.println();
+      ESP_LOGI(TAG, "Connecting client broker %s@%s", _user.c_str(), _clientId.c_str());
       if (_client.connect(_clientId.c_str(), _user.c_str(), _password.c_str())) {
-        Serial.println("Client broker connected");
-        Serial.print("Subscribe to ");
-        Serial.println(_subTopics);
+        ESP_LOGI(TAG, "Client broker connected");
+        ESP_LOGI(TAG, "Subscribe to %s", _subTopics.c_str());
         _client.subscribe(_subTopics.c_str());
       } else {
-        Serial.print("Client broker connection failed state=");
-        Serial.println(_client.state());
+        ESP_LOGE(TAG, "Client broker connection failed state=%d", _client.state());
         _retryTimeout = clockTime + _retryInterval;
       }
     }
@@ -65,5 +56,11 @@ void MqttClient::connect(void) {
 void MqttClient::send(const String& topic, const String& msg) {
   if (_client.connected()) {
     _client.publish(topic.c_str(), msg.c_str());
+  }
+}
+
+void MqttClient::send(const String& topic, const byte* msg, const size_t len) {
+  if (_client.connected()) {
+    _client.publish(topic.c_str(), msg, len);
   }
 }
