@@ -33,6 +33,9 @@
 */
 #include "Arduino.h"
 
+#include <esp_log.h>
+static const char* TAG = "LCDTest";
+
 #include "Display.h"
 
 #define SERIAL_BPS 115200
@@ -44,12 +47,14 @@ static DisplayClass Display;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  Serial.println("");
-  Serial.println("Starting ...");
+  while (!Serial){
+    delay(10);
+  }
+  ESP_LOGI(TAG, "Starting ...");
 
   Display.begin();
 
-  Serial.println("Testing supply level");
+  ESP_LOGI(TAG, "Testing supply level");
   Display.clear();
   Display.showWiFiInfo("Testing supply level");
   Display.error(0);
@@ -64,7 +69,7 @@ void setup() {
     }
   }
 
-  Serial.println("Testing distance 5 cm");
+  ESP_LOGI(TAG, "Testing distance 5 cm");
   Display.clear();
   Display.showWiFiInfo("Testing distance 5 cm");
   Display.error(1);
@@ -75,7 +80,7 @@ void setup() {
   Display.activity();
   waitForTimeout(DISPLAY_INTERVAL);
 
-  Serial.println("Testing distance 95 cm");
+  ESP_LOGI(TAG, "Testing distance 95 cm");
   Display.clear();
   Display.showWiFiInfo("Testing distance 95 cm");
   Display.error(2);
@@ -86,7 +91,7 @@ void setup() {
   Display.activity();
   waitForTimeout(DISPLAY_INTERVAL);
 
-  Serial.println("Testing distance 345 cm");
+  ESP_LOGI(TAG, "Testing distance 345 cm");
   Display.clear();
   Display.showWiFiInfo("Testing distance 345 cm");
   Display.error(3);
@@ -97,7 +102,7 @@ void setup() {
   Display.activity();
   waitForTimeout(DISPLAY_INTERVAL);
 
-  Serial.println("Testing no distance");
+  ESP_LOGI(TAG, "Testing no distance");
   Display.clear();
   Display.showWiFiInfo("Testing no distance");
   Display.error(0);
@@ -115,7 +120,7 @@ void setup() {
   Display.connected(false);
   waitForTimeout(DISPLAY_INTERVAL);
 
-  Serial.println("Completed");
+  ESP_LOGI(TAG, "Completed");
   Display.clear();
 }
 

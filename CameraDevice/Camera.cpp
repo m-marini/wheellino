@@ -140,6 +140,8 @@ const esp_err_t Camera::begin(void) {
 #if defined(CAMERA_MODEL_ESP32S3_EYE)
   s->set_vflip(s, 1);
 #endif
+  s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);
   return err;
 }
 

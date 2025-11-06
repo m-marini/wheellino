@@ -2,4 +2,4 @@ Blender/*.blend[0-9]
 **/*.*~
 KC/**/*.zip
 KC/**/*.bak
-
+KC/**/fp-info-cache

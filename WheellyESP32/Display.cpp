@@ -205,6 +205,7 @@ DisplayClass::DisplayClass(const uint8_t addr)
    Initializes DisplayClass
 */
 void DisplayClass::begin() {
+  ESP_LOGI(TAG, "Begin");
   _lcd.begin(DISPLAY_WIDTH, DISPLAY_HEIGHT);
   _lcd.createChar(ERROR_STRING[0], errorChar);
   _lcd.createChar(MOVING_STRING[0], uparrowChar);

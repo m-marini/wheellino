@@ -183,6 +183,7 @@ void handlePostRestart(void) {
 }
 
 void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore) {
+  ESP_LOGI(TAG, "Begin");
   _confStore = &confStore;
   _wheellyId = wheellyId;
 }

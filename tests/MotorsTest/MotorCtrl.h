@@ -33,6 +33,11 @@
   Speedometer measures the speed
 */
 class Speedometer {
+private:
+  float _pps;
+  unsigned long _tau;
+  unsigned long _prevTime;
+
 public:
   /*
        Creates the speedometer
@@ -71,17 +76,23 @@ public:
   const unsigned long tau(void) const {
     return _tau;
   }
-
-private:
-  float _pps;
-  unsigned long _tau;
-  unsigned long _prevTime;
 };
 
 /*
    Motor sensor measures the movement of motor
 */
 class MotorSensor {
+private:
+  uint8_t _sensorPin;
+  volatile long _pulses;
+  long _lastPulses;
+  int _direction;
+  void* _context;
+  void (*_onSample)(void*, const int, const unsigned long clockTime, MotorSensor&);
+  Speedometer _speedometer;
+
+  void update(const int dPulse, const unsigned long clockTime);
+
 public:
   /*
        Creates the sensor
@@ -149,23 +160,32 @@ public:
   const unsigned long tau(void) const {
     return _speedometer.tau();
   }
-
-private:
-  uint8_t _sensorPin;
-  volatile long _pulses;
-  long _lastPulses;
-  int _direction;
-  void* _context;
-  void (*_onSample)(void*, const int, const unsigned long clockTime, MotorSensor&);
-  Speedometer _speedometer;
-
-  void update(const int dPulse, const unsigned long clockTime);
 };
 
 /*
   Motor ontroller
 */
 class MotorCtrl {
+private:
+  const uint8_t _forwPin;
+  const uint8_t _backPin;
+  boolean _automatic;
+  MotorSensor& _sensor;
+  int _p0Forw;
+  int _p1Forw;
+  int _pxForw;
+  long _muForw;
+  int _p0Back;
+  int _p1Back;
+  int _pxBack;
+  long _muBack;
+  int _alpha;
+  int _ax;
+  unsigned long _prevTimestamp;
+  int _speed;
+  int _power;
+
+  const long asr(const long dp, const long dt) const;
 
 public:
   /*
@@ -313,27 +333,6 @@ public:
   const int alpha(void) const {
     return _alpha;
   }
-
-private:
-  const uint8_t _forwPin;
-  const uint8_t _backPin;
-  boolean _automatic;
-  MotorSensor& _sensor;
-  int _p0Forw;
-  int _p1Forw;
-  int _pxForw;
-  long _muForw;
-  int _p0Back;
-  int _p1Back;
-  int _pxBack;
-  long _muBack;
-  int _alpha;
-  int _ax;
-  unsigned long _prevTimestamp;
-  int _speed;
-  int _power;
-
-  const long asr(const long dp, const long dt) const;
 };
 
 #endif

@@ -2,10 +2,10 @@
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 
-#define DEBUG
-#include <debug.h>
+#include <esp_log.h>
+static const char* TAG = "ConfStore";
 
-#define CONFIG_FILE "/config.json"
+static const char* CONFIG_FILE = "/config.json";
 
 /**
  * Creates the configuration store
@@ -37,11 +37,7 @@ ConfigRecord& ConfStore::defaultConfig(ConfigRecord& config) {
  */
 const ConfStoreRetCode ConfStore::fromJson(ConfigRecord& config, const JsonDocument& doc) {
 
-#ifdef DEBUG
-  Serial.println("Json file");
-  serializeJson(doc, Serial);
-  Serial.println();
-#endif
+  ESP_LOGD(TAG, "Json file %s", doc);
 
   defaultConfig(config);
   config.version = doc["version"] | config.version;
@@ -55,7 +51,7 @@ const ConfStoreRetCode ConfStore::fromJson(ConfigRecord& config, const JsonDocum
 
   // Validates json fields
   if (config.version != CURRENT_VERSION) {
-    Serial.println("!! Bad config file");
+    ESP_LOGE(TAG, "Bad config file");
     return BAD_CONFIG_VERSION;
   }
   return SUCCESS;
@@ -77,9 +73,10 @@ JsonDocument& ConfStore::toJson(JsonDocument& result, const ConfigRecord& config
   * Initializes the config store
   */
 void ConfStore::begin(void) {
-  DEBUG_PRINTLN("// Mounting FS...");
+  ESP_LOGI(TAG, "Begin");
+  ESP_LOGD(TAG, "Mounting FS...");
   if (SPIFFS.begin()) {
-    DEBUG_PRINTLN("// Mounted FS");
+    ESP_LOGD(TAG, "Mounted FS");
     loadConfig();
   }
 }
@@ -102,7 +99,7 @@ const ConfStoreRetCode ConfStore::saveConfig(void) {
   toJson(doc, _config);
   File configFile = SPIFFS.open(CONFIG_FILE, "w");
   if (!configFile) {
-    DEBUG_PRINTLN("!! Failed to open config file for writing");
+    ESP_LOGE(TAG, "!! Failed to open config file for writing");
     return CANNOT_WRITE_FILE;
   }
   serializeJson(doc, configFile);
@@ -116,16 +113,14 @@ const ConfStoreRetCode ConfStore::saveConfig(void) {
 */
 const ConfStoreRetCode ConfStore::loadConfig(void) {
   if (!SPIFFS.exists(CONFIG_FILE)) {
-    Serial.println("!! Config file not found");
+    ESP_LOGE(TAG, "!! Config file not found");
     return FILE_NOT_FOUND;
   }
   File configFile = SPIFFS.open(CONFIG_FILE, "r");
   size_t size = configFile.size();
-  DEBUG_PRINT("// Config size: ");
-  DEBUG_PRINT(size);
-  DEBUG_PRINTLN();
+  ESP_LOGD(TAG, "Config size: %ld", size);
   if (size > 1024) {
-    Serial.println("!! Config file size is too large");
+    ESP_LOGE(TAG, "Config file size is too large");
     configFile.close();
     return CONFIG_FILE_TOO_LARGE;
   }
@@ -134,7 +129,7 @@ const ConfStoreRetCode ConfStore::loadConfig(void) {
   auto error = deserializeJson(doc, configFile);
   configFile.close();
   if (error) {
-    Serial.println("!! Failed to parse config file");
+    ESP_LOGE(TAG, "Failed to parse config file");
     return PARSE_JSON_ERROR;
   }
 

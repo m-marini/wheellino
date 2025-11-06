@@ -84,6 +84,11 @@ public:
   void send(const String& topic, const String& data);
 
   /**
+  * Sends a byte array to the outTopic
+  */
+  void send(const String& topic, const byte* msg, const size_t len);
+
+  /**
   * Dispatches the message
   */
   void dispatch(const String& topic, const String& message) {

@@ -53,6 +53,7 @@ WiFiModuleClass::WiFiModuleClass(void)
    Loads and applies the configuration
 */
 void WiFiModuleClass::begin(const ConfigRecord& config) {
+  ESP_LOGI(TAG, "Begin");
   _config = config;
 }
 

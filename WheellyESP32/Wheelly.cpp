@@ -29,6 +29,7 @@
 #include "Wheelly.h"
 #include "pins.h"
 
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <esp_log.h>
 static const char* TAG = "Wheelly";
 
@@ -63,10 +64,11 @@ static const unsigned long STATS_INTERVAL = 10000ul;
    Proximity sensor
    Proximity distance scanner
 */
-static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100);  // 20 cm
-static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100);  // 400 cm
-static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100);    // 3 cm
-static const int DISTANCE_TICK = 5;
+//static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100);  // 20 cm
+//static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100);  // 400 cm
+//static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100);    // 3 cm
+//static const int DISTANCE_TICK = 5;
+static const uint16_t STOP_DISTANCE = 200;  // 200 mm
 
 /*
    Proxy sensor servo
@@ -74,7 +76,7 @@ static const int DISTANCE_TICK = 5;
 static const unsigned long DEFAULT_SCAN_INTERVAL = 1000ul;
 static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
-static const int SERVO_OFFSET = -4;
+static const int SERVO_OFFSET = 0;
 
 /*
    Voltage levels
@@ -97,7 +99,9 @@ Wheelly::Wheelly()
   : _motionCtrl(LEFT_FORW_PIN, LEFT_BACK_PIN, RIGHT_FORW_PIN, RIGHT_BACK_PIN, LEFT_PIN, RIGHT_PIN),
     _sendInterval(DEFAULT_SEND_INTERVAL),
     _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN),
-    _proxySensor(SERVO_PIN, TRIGGER_PIN, ECHO_PIN) {
+    _lidar(FRONT_LIDAR_PIN, REAR_LIDAR_PIN),
+    _servo(SERVO_PIN) {
+  // Computes device id from mac address
   uint64_t mac = ESP.getEfuseMac();
   uint64_t mac1 = 0;
   mac1 |= (mac & 0xffff000000000000ul);
@@ -118,6 +122,7 @@ Wheelly::Wheelly()
    Returns true if successfully initialized
 */
 boolean Wheelly::begin(void) {
+  ESP_LOGI(TAG, "Begin");
   /* Setup display */
   _display.begin();
 
@@ -145,14 +150,17 @@ boolean Wheelly::begin(void) {
   _statsTimer.start();
   _statsTime = millis();
 
-  /* Setup proxy sensor */
-  _proxySensor.onDataReady([](void* context, ProxySensor& sensor) {
-    ((Wheelly*)context)->handleProxyData();
+  /* Setup lidar servo */
+  _servo.offset(SERVO_OFFSET);
+  _servo.begin();
+
+  // Setup lidar
+  _lidar.interval(_sendInterval);
+  _lidar.onRange([](void* context, Lidar& lidar, const uint16_t frontDistance, const uint16_t rearDistance) {
+    ((Wheelly*)context)->handleLidarRange(frontDistance, rearDistance);
   },
-                           this);
-  _proxySensor.interval(_sendInterval);
-  _proxySensor.offset(SERVO_OFFSET);
-  _proxySensor.begin();
+                 this);
+  _lidar.begin();
 
   /* Setup contact sensors */
   _contactSensors.onChanged([](void* context, ContactSensors& sensors) {
@@ -208,7 +216,8 @@ void Wheelly::polling(const unsigned long t0) {
   }
 
   /* Polls sensors */
-  _proxySensor.polling(t0);
+  _lidar.polling(t0);
+  _servo.polling(t0);
   _contactSensors.polling(t0);
 
   /* Polls motion controller */
@@ -266,7 +275,7 @@ void Wheelly::onLine(boolean onLine) {
 */
 void Wheelly::queryStatus(void) {
   sendMotion(millis());
-  sendProxy();
+  sendLidar();
   sendContacts();
   sendSupply();
 }
@@ -291,7 +300,7 @@ void Wheelly::move(const int direction, const int speed) {
 */
 void Wheelly::configIntervals(const int* intervals) {
   _sendInterval = intervals[0];
-  _proxySensor.interval(intervals[1]);
+  _lidar.interval(intervals[1]);
 }
 
 /*
@@ -302,6 +311,42 @@ void Wheelly::reset() {
   _motionCtrl.reset(millis());
   _mpuError = 0;
 }
+
+/**
+* Handles lidar positioned event
+*/
+void Wheelly::handleLidarRange(const uint16_t frontDistance, const uint16_t rearDistance) {
+  ESP_LOGD(TAG, "%u mm, %u mm", frontDistance, rearDistance);
+  boolean prevCanMove = canMoveForward();
+  // Reads lidar measures
+  _lidarTime = millis();
+  _lidarYaw = _yaw;
+  _lidarDirection = _servo.direction();
+  _lidarXPulses = _motionCtrl.xPulses();
+  _lidarYPulses = _motionCtrl.yPulses();
+  _frontDistance = frontDistance;
+  _rearDistance = rearDistance;
+
+  /* Checks for obstacles */
+  if (_motionCtrl.isForward() && !canMoveForward()
+      || _motionCtrl.isBackward() && !canMoveBackward()) {
+    /* Halt robot if cannot move */
+    _motionCtrl.halt();
+  }
+
+  sendLidar();
+  if (canMoveForward() != prevCanMove) {
+    sendContacts();
+  }
+
+  /* Displays sensor data */
+  if (_frontDistance == 0) {
+    _display.distance(-1);
+  } else {
+    _display.distance(_frontDistance / 10);
+  }
+}
+
 /*
    Handles sample event from distance sensor
 */
@@ -316,48 +361,7 @@ void Wheelly::handleMpuData() {
 */
 void Wheelly::handleChangedContacts(void) {
   ESP_LOGD(TAG, "Wheelly::handleChangedContacts");
-  //sendStatus(millis());
   sendContacts();
-}
-
-/*
-   Handles sample event from distance sensor
-*/
-void Wheelly::handleProxyData(void) {
-  /* Reads proxy data */
-  boolean prevCanMove = canMoveForward();
-  const unsigned long echoDelay = _proxySensor.echoDelay();
-  _echoDelay = echoDelay > MIN_ECHO_TIME ? echoDelay : 0;
-  _echoDirection = _proxySensor.echoDirection();
-  _echoTime = _proxySensor.echoTime();
-  _echoYaw = _yaw;
-  _echoXPulses = _motionCtrl.xPulses();
-  _echoYPulses = _motionCtrl.yPulses();
-  ESP_LOGD(TAG, "echoDelay=%lu", echoDelay);
-
-  /* Checks for obstacles */
-  if (_motionCtrl.isForward() && !canMoveForward()
-      || _motionCtrl.isBackward() && !canMoveBackward()) {
-    /* Halt robot if cannot move */
-    _motionCtrl.halt();
-  }
-  /* Sends sensor data */
-  //sendStatus(millis());
-  sendProxy();
-  if (canMoveForward() != prevCanMove) {
-    sendContacts();
-  }
-
-  /* Displays sensor data */
-  if (_echoTime == 0) {
-    _display.distance(-1);
-  } else {
-    // Converts delay (us) to distance (cm)
-    int distance = (int)(_echoDelay * 100 / 5887);
-    distance = (2 * distance + DISTANCE_TICK) / DISTANCE_TICK / 2;
-    distance *= DISTANCE_TICK;
-    _display.distance(distance);
-  }
 }
 
 /*
@@ -366,7 +370,7 @@ void Wheelly::handleProxyData(void) {
    @param t0 the scanning instant
 */
 void Wheelly::scan(const int angle, const unsigned long t0) {
-  _proxySensor.direction(angle, t0);
+  _servo.direction(angle, t0);
 }
 
 /*
@@ -505,24 +509,25 @@ void Wheelly::sendContacts(void) {
 /*
    Sends the status of proxy sensor
 */
-void Wheelly::sendProxy(void) {
+void Wheelly::sendLidar(void) {
   char bfr[256];
-  /* px time direction delay x y yaw */
-  sprintf(bfr, "%ld,%d,%ld,%.1f,%.1f,%d",
-          _echoTime,
-          _echoDirection,
-          _echoDelay,
-          _echoXPulses,
-          _echoYPulses,
-          _echoYaw);
-  sendSensorData("px", bfr);
+  /* rg time frontDistance rearDistance x y yaw lidarDirection*/
+  sprintf(bfr, "%ld,%u,%u,%.1f,%.1f,%d,%d",
+          _lidarTime,
+          _frontDistance,
+          _rearDistance,
+          _lidarXPulses,
+          _lidarYPulses,
+          _lidarYaw,
+          _lidarDirection);
+  sendSensorData("rg", bfr);
 }
 
 /*
    Returns true if can move forward
 */
 const boolean Wheelly::canMoveForward() const {
-  return forwardBlockDistanceTime() > STOP_ECHO_TIME && _contactSensors.frontClear();
+  return !(_frontDistance > 0 && _frontDistance <= STOP_DISTANCE) && _contactSensors.frontClear();
 }
 
 /*
@@ -530,13 +535,6 @@ const boolean Wheelly::canMoveForward() const {
 */
 const boolean Wheelly::canMoveBackward() const {
   return _contactSensors.rearClear();
-}
-
-/*
-   Returns the block echo time
-*/
-const int Wheelly::forwardBlockDistanceTime() const {
-  return (_echoDelay > 0 && _echoDelay <= MAX_ECHO_TIME) ? _echoDelay : MAX_ECHO_TIME;
 }
 
 /**
@@ -645,7 +643,7 @@ const boolean Wheelly::handleScanCmd(const unsigned long time, const String& top
   }
 
   scan(direction, time);
-  sendCommandReply(topic + "/res", args);
+ sendCommandReply(topic + "/res", args);
   return true;
 }
 

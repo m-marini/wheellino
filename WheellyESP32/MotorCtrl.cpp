@@ -27,6 +27,7 @@
  */
 
 #include <esp_log.h>
+static char* TAG = "MotorCtrl";
 
 #include "Arduino.h"
 
@@ -77,6 +78,7 @@ MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& 
    Initializes motor controller
 */
 void MotorCtrl::begin() {
+  ESP_LOGI(TAG, "Begin");
   pinMode(_forwPin, OUTPUT);
   pinMode(_backPin, OUTPUT);
   _sensor.begin();

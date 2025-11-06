@@ -26,10 +26,10 @@
  *
  */
 
-#include "pins.h"
+#include <esp_log.h>
+static char* TAG = "VoltageTest";
 
-//#define DEBUG
-#include "debug.h"
+#include "pins.h"
 
 #define SERIAL_BPS 115200
 #define SAMPLE_INTERVAL 100
@@ -37,11 +37,12 @@
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  delay(500);
-  Serial.println("");
+  while (!Serial) {
+    delay(10);
+  }
   pinMode(VOLTAGE_PIN, INPUT);
 
-  Serial.println("Start");
+  ESP_LOGI(TAG, "Start");
 }
 
 static unsigned long sampleTimeout;
@@ -60,11 +61,7 @@ void loop() {
   if (t0 >= averageTimeout) {
     if (count > 0) {
       int supply = total / count;
-      Serial.print("Supply: ");
-      Serial.print(supply);
-      Serial.print(", count: ");
-      Serial.print(count);
-      Serial.println();
+      ESP_LOGI(TAG, "Supply: %d, count: %d", supply, count);
       total = 0;
       count = 0;
     }

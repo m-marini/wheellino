@@ -26,11 +26,11 @@
  *
  */
 
+#include <esp_log.h>
+static const char* TAG = "LedTest";
+
 #include "pins.h"
 #include "Timer.h"
-
-//#define DEBUG
-#include "debug.h"
 
 #define SERIAL_BPS 115200
 #define INTERVAL 100
@@ -39,14 +39,15 @@ static Timer timer;
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  delay(500);
-  Serial.println("");
+  while (!Serial) {
+    delay(10);
+  }
   pinMode(STATUS_LED_PIN, OUTPUT);
   timer.interval(INTERVAL);
   timer.continuous(true);
   timer.onNext(handleTimer);
 
-  Serial.println("Start");
+  ESP_LOGI(TAG, "Start");
   timer.start();
 }
 

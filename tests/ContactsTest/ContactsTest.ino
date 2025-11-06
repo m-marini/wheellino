@@ -29,8 +29,8 @@
 #include "Contacts.h"
 #include "pins.h"
 
-//#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static const char* TAG = "ContactsTest";
 
 #define SERIAL_BPS 115200
 
@@ -40,11 +40,12 @@ static ContactSensors sensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN);
 
 void setup() {
   Serial.begin(SERIAL_BPS);
-  delay(500);
-  Serial.println("");
+  while (!Serial) {
+    delay(10);
+  }
+  ESP_LOGI(TAG, "Begin");
   sensors.begin();
-
-  Serial.println("Start");
+  ESP_LOGI(TAG, "Start");
 }
 
 static boolean prevFront;
@@ -53,7 +54,6 @@ static boolean prevRear;
 unsigned long timeout;
 
 void loop() {
-  // put your main code here, to run repeatedly:
   const unsigned long t0 = millis();
   sensors.polling(t0);
   const boolean front = sensors.frontClear();
@@ -61,10 +61,9 @@ void loop() {
   if (front != prevFront || rear != prevRear) {
     prevFront = front;
     prevRear = rear;
-    Serial.print(front ? "  front" : "X front");
-    Serial.print(", ");
-    Serial.print(rear ? "   rear" : "X rear");
-    Serial.println();
+    ESP_LOGI(TAG, "%s, %s",
+             front ? "  front" : "X front",
+             rear ? "   rear" : "X rear");
   }
   delay(INTERVAL);
 }

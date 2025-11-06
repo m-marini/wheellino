@@ -73,8 +73,9 @@ static void dumpData(const uint8_t *data, const size_t len) {
 */
 static const int16_t toInt(const uint8_t *data) {
   int16_t value = ((uint16_t)(data[0]) << 8) | ((uint16_t)(data[1]));
-
+#ifdef DEBUG
   ESP_LOGD(TAG, "toInt 0x%hhx 0x%hhx -> %d 0x%x", data[0], data[1], value, value);
+#endif
   return value;
 }
 
@@ -115,6 +116,7 @@ const uint8_t MPU6050Class::begin(
   const uint8_t dlpfCfg,
   const uint8_t clkSel) {
 
+  ESP_LOGI(TAG, "Begin");
   _gyroScale = GYRO_SCALE[fsSel];
   _accScale = ACC_SCALE[afsSel];
   float goRate = dlpfCfg == DLPF_0 ? 8000.0 : 1000.0;

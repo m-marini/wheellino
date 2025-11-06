@@ -35,7 +35,9 @@
 #include "mpu6050mm.h"
 #include "MotionCtrl.h"
 #include "Display.h"
-#include "ProxySensor.h"
+#include "Lidar.h"
+#include "LidarServo.h"
+#include "Timer.h"
 
 #define WHEELLY_VERSION "0.9.0"
 #define WHEELLY_MESSAGES_VERSION "v0"
@@ -58,7 +60,8 @@ private:
   MotionCtrlClass _motionCtrl;
   MPU6050Class _mpu;
   ContactSensors _contactSensors;
-  ProxySensor _proxySensor;
+  LidarServo _servo;
+  Lidar _lidar;
   String _pubSensorTopicPrefix;
   String _subCommandTopics;
 
@@ -78,12 +81,13 @@ private:
   unsigned long _counter;
   unsigned long _statsTime;
 
-  unsigned long _echoTime;
-  unsigned long _echoDelay;
-  int _echoDirection;
-  int _echoYaw;
-  float _echoXPulses;
-  float _echoYPulses;
+  unsigned long _lidarTime;
+  uint16_t _frontDistance;
+  uint16_t _rearDistance;
+  int _lidarYaw;
+  int _lidarDirection;
+  float _lidarXPulses;
+  float _lidarYPulses;
 
   unsigned long _supplyTimeout;
   unsigned long _supplySampleTimeout;
@@ -97,9 +101,8 @@ private:
 
   const boolean canMoveForward(void) const;
   const boolean canMoveBackward(void) const;
-  const int forwardBlockDistanceTime() const;
 
-  void handleProxyData(void);
+  void handleLidarRange(const uint16_t frontDistance,const uint16_t rearDistance);
   void handleStats(void);
   void handleLed(const unsigned long n);
   void handleMpuData(void);
@@ -118,7 +121,7 @@ private:
        Sends the status of wheelly
     */
   void sendMotion(const unsigned long t0);
-  void sendProxy(void);
+  void sendLidar(void);
   void sendContacts(void);
   void sendSupply(void);
   void sampleSupply(void);
