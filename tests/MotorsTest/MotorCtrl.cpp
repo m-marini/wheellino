@@ -158,7 +158,8 @@ void MotorCtrl::polling(const unsigned long timestamp) {
     if (_speed > 0) {
       // Move forward
       const int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
-      const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
+      //const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
+      const long fx = (long)_pxForw * _speed / MAX_SPEED;
       const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
       ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
 
@@ -173,7 +174,8 @@ void MotorCtrl::polling(const unsigned long timestamp) {
     } else if (_speed < 0) {
       // Move backward
       const int pth = realSpeed == 0 ? _p1Back : _p0Back;
-      const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
+      //const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
+      const long fx = -(long)_pxBack * _speed / MAX_SPEED;
       const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
       ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
 
