@@ -1,4 +1,32 @@
 /*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
+/*
    Measure the motor speed.
 
    Sending command 'start' the robot will move randomly
@@ -6,24 +34,29 @@
    and the motor speed measured (pps).
 */
 
-//#define DEBUG
-#include "debug.h"
+#include <esp_log.h>
+static const char* TAG = "WheellyMeasuresESP32";
 
 #include "pins.h"
 
 #include "WiFiModule.h"
-#include "TelnetServer.h"
 #include "Timer.h"
 #include "MotorCtrl.h"
 #include "Contacts.h"
 #include "Display.h"
 #include "Tests.h"
+#include "MqttClient.h"
 
 /*
    Serial config
 */
-#define SERIAL_BPS  115200
-#define MAX_POWER   255
+#define SERIAL_BPS 115200
+#define MAX_POWER 255
+
+#define WHEELLY_VERSION "0.10.0"
+#define WHEELLY_MESSAGES_VERSION "v0"
+
+static const unsigned WIRE_CLOCK = 400000;
 
 #define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
 
@@ -36,11 +69,6 @@ static const unsigned long SERIAL_TIMEOUT = 2000ul;
    WiFi module
 */
 static WiFiModuleClass wiFiModule;
-
-/*
-   Telnet server
-*/
-static TelnetServerClass telnetServer;
 
 /*
    Motor sensors
@@ -60,47 +88,238 @@ MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, rightSensor);
 ContactSensors contacts(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN);
 
 /**
+* Configuration store
+*/
+static ConfStore confStore;
+
+/**
    LCD
 */
 static DisplayClass Display;
 
 /*
-   Variables
+  Mqqt parameters
 */
-static RecordList leftRecords;
-static RecordList rightRecords;
+static const unsigned long MQTT_RETRY_INTERVAL = 3000ul;
+static boolean mqttConnected;
+static String deviceId;
+static String pubSensorTopic;
+static String respCommandTopic;
+static String errCommandTopic;
+static String subCommandTopics;
+
+static const unsigned long STATUS_INTERVAL = 500ul;
 
 /*
-  Tests
+Test variables
 */
-static FrictionTest frictionTest(leftSensor, rightSensor,
-                                 leftMotor, rightMotor, contacts,
-                                 leftRecords, rightRecords);
+static unsigned long testStartInstant;
+static MotorTest leftMotorTest(leftMotor);
+static MotorTest rightMotorTest(rightMotor);
+static unsigned long leftPulses;
+static unsigned long rightPulses;
+static bool frontSensor;
+static bool rearSensor;
+static unsigned int frontDistance;
+static unsigned int rearDistance;
 
-static PowerTest powerTest(leftSensor, rightSensor,
-                           leftMotor, rightMotor, contacts,
-                           leftRecords, rightRecords);
+static Timer statusTimer;
+
+/**
+Returns true if test is running
+*/
+static bool isTesting(void) {
+  return leftMotorTest.testing() || leftMotorTest.testing();
+}
+
+/**
+Sends the report to queue
+*/
+static void sendReport() {
+  // Handles reply to remote controller
+  if (mqttClient.connected()) {
+    const unsigned long t0 = millis();
+    char status[256];
+    const bool testing = isTesting();
+    sprintf(status, "%lu,%d,%d,%d,%ld,%ld,%d,%d,%u,%u",
+            testing ? t0 - testStartInstant : 0l,
+            testing,
+            leftMotorTest.power(), rightMotorTest.power(),
+            leftPulses, rightPulses,
+            frontSensor, rearSensor,
+            frontDistance, rearDistance);
+    mqttClient.send(pubSensorTopic, status);
+  }
+}
+
+/*
+Handles status timer
+*/
+static void handleStatus(void*, const unsigned long) {
+  if (!isTesting()) {
+    sendReport();
+  }
+}
+
+/*
+Sends command reply
+*/
+static void sendCommandReply(const String& topic, const String& message) {
+  if (mqttClient.connected()) {
+    mqttClient.send(topic, message);
+  }
+}
+
+/*
+Handles mqtt message
+*/
+static void handleMqttMessage(const String& topic, const String& message) {
+  ESP_LOGI(TAG, "Message %s %s", topic.c_str(), message.c_str());
+  if (topic.endsWith("/test")) {
+    startTest(message);
+  }
+}
+
+static const String validateArguments(const int maxPower, const unsigned long stepUpInterval, const int stepUpPower,
+                                      const unsigned long stepDownInterval, const int stepDownPower) {
+  if (maxPower == 0 || abs(maxPower) > MAX_POWER) {
+    return "Invalid power";
+  }
+  if (stepUpInterval == 0 || stepDownInterval == 0) {
+    return "Invalid interval";
+  }
+  if ((maxPower > 0 && stepUpPower <= 0)
+      || (maxPower < 0 && stepUpPower >= 0)) {
+    return "Invalid step up power";
+  }
+  if ((maxPower > 0 && stepDownPower >= 0)
+      || (maxPower < 0 && stepDownPower <= 0)) {
+    return "Invalid step down power";
+  }
+  return "";
+}
+
+/*
+ Starts the test
+*/
+static bool startTest(const String& args) {
+  if (isTesting()) {
+    ESP_LOGE(TAG, "Wrong args %s", args.c_str());
+    sendCommandReply(errCommandTopic, "Test is already running");
+    return false;
+  }
+  int count;
+  int leftMaxPower;
+  unsigned long leftStepUpInterval;
+  int leftStepUpPower;
+  unsigned long leftStepDownInterval;
+  int leftStepDownPower;
+  int rightMaxPower;
+  unsigned long rightStepUpInterval;
+  int rightStepUpPower;
+  unsigned long rightStepDownInterval;
+  int rightStepDownPower;
+  int n = sscanf(args.c_str(), "%d,%lu,%d,%lu,%d,%d,%lu,%d,%lu,%d%n",
+                 &leftMaxPower,
+                 &leftStepUpInterval,
+                 &leftStepUpPower,
+                 &leftStepDownInterval,
+                 &leftStepDownPower,
+                 &rightMaxPower,
+                 &rightStepUpInterval,
+                 &rightStepUpPower,
+                 &rightStepDownInterval,
+                 &rightStepDownPower,
+                 &count);
+  if (n != 10 || count != args.length()) {
+    ESP_LOGE(TAG, "Wrong args n=%d count=%d [%s]", n, count, args.c_str());
+    sendCommandReply(errCommandTopic, "Wrong args " + args);
+    return false;
+  }
+
+  // Valudate arguments
+  String argError = validateArguments(leftMaxPower, leftStepUpInterval, leftStepUpPower, leftStepDownInterval, leftStepDownPower);
+  if (argError != "") {
+    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
+    sendCommandReply(errCommandTopic, argError + " " + args);
+    return false;
+  }
+  argError = validateArguments(rightMaxPower, rightStepUpInterval, rightStepUpPower, rightStepDownInterval, rightStepDownPower);
+  if (argError != "") {
+    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
+    sendCommandReply(errCommandTopic, argError + " " + args);
+    return false;
+  }
+
+  testStartInstant = millis();
+  leftPulses = rightPulses = 0;
+  leftMotorTest.start(testStartInstant, leftMaxPower,
+                      leftStepUpInterval, leftStepUpPower,
+                      leftStepDownInterval, leftStepDownPower);
+  rightMotorTest.start(testStartInstant, rightMaxPower,
+                       rightStepUpInterval, rightStepUpPower,
+                       rightStepDownInterval, rightStepDownPower);
+
+  sendCommandReply(respCommandTopic, args);
+  return true;
+}
+
+static void handlePowerChange(void*) {
+  sendReport();
+}
 
 /*
    Set up
 */
 void setup() {
-  Serial.begin(SERIAL_BPS);
+  Serial.begin(115200);
   Serial.setTimeout(SERIAL_TIMEOUT);
-  Serial.println();
 
+  Wire.begin();
+  Wire.setClock(WIRE_CLOCK);  // 400kHz I2C clock. Comment this line if having compilation difficulties
+
+  // Initialises the configuration store (load the configuration)
   delay(100);
+  Serial.println();
+  ESP_LOGI(TAG, "Startup sequence");
 
   Display.begin();
   Display.clear();
 
-  Serial.println();
+  ESP_LOGI(TAG, "Initialise confStore");
+  confStore.begin();
 
+  ESP_LOGI(TAG, "Initialise wifi module");
+  const ConfigRecord& config = confStore.config();
+  wiFiModule.begin(config);
+
+  // Initializes the device id and the queue names
+  uint64_t mac = ESP.getEfuseMac();
+  uint64_t mac1 = 0;
+  mac1 |= (mac & 0xffff000000000000ul);
+  mac1 |= (mac & 0x0000ff0000000000ul) >> 40;
+  mac1 |= (mac & 0x000000ff00000000ul) >> 24;
+  mac1 |= (mac & 0x00000000ff000000ul) >> 8;
+  mac1 |= (mac & 0x0000000000ff0000ul) << 8;
+  mac1 |= (mac & 0x000000000000ff00ul) << 24;
+  mac1 |= (mac & 0x00000000000000fful) << 40;
+
+  deviceId = String(mac1, HEX);
+  pubSensorTopic = "sens/wheelly/" + deviceId + "/" + WHEELLY_MESSAGES_VERSION + "/test";
+  respCommandTopic = "cmd/wheelly/" + deviceId + "/" + WHEELLY_MESSAGES_VERSION + "/test/resp";
+  errCommandTopic = "cmd/wheelly/" + deviceId + "/" + WHEELLY_MESSAGES_VERSION + "/test/err";
+  subCommandTopics = "cmd/wheelly/" + deviceId + "/" + WHEELLY_MESSAGES_VERSION + "/+";
+
+  ESP_LOGI(TAG, "Initialise mqtt client");
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, deviceId, config.mqttUser, config.mqttPsw,
+                   subCommandTopics, MQTT_RETRY_INTERVAL);
+
+  mqttClient.onMessage(handleMqttMessage);
+
+  ESP_LOGI(TAG, "Start wifi module");
   wiFiModule.onChange(handleOnChange);
-  wiFiModule.begin();
-
-  telnetServer.onClient(handleOnClient);
-  telnetServer.onLineReady(handleLineReady);
+  wiFiModule.start();
+  ESP_LOGI(TAG, "Startup sequence completed");
 
   leftSensor.onSample(handleLeftSensor);
   rightSensor.onSample(handleRightSensor);
@@ -114,24 +333,16 @@ void setup() {
   contacts.onChanged(handleContacts);
   contacts.begin();
 
-  powerTest.onCompletion([](void *) {
-    handleTestCompletion();
-  });
+  ESP_LOGI(TAG, "Starting status timer");
+  statusTimer.interval(STATUS_INTERVAL);
+  statusTimer.continuous(true);
+  statusTimer.onNext(handleStatus);
+  statusTimer.start();
 
-  powerTest.onStop([](void *, const char* reason) {
-    handleTestStop(reason);
-  });
+  leftMotorTest.onPowerChange(handlePowerChange);
+  rightMotorTest.onPowerChange(handlePowerChange);
 
-  frictionTest.onCompletion([](void *) {
-    handleTestCompletion();
-  });
-
-  frictionTest.onStop([](void *, const char* reason) {
-    handleTestStop(reason);
-  });
-
-  Serial.print("Wheelly measures started.");
-  Serial.println();
+  ESP_LOGI(TAG, "Wheelly measures started device=%s", deviceId.c_str());
   Display.clear();
   Display.print("Wheelly measures started.");
 }
@@ -143,321 +354,54 @@ void loop() {
   unsigned long t0 = millis();
   Display.polling(t0);
   wiFiModule.polling(t0);
-  telnetServer.polling(t0);
   contacts.polling(t0);
   leftMotor.polling(t0);
   rightMotor.polling(t0);
-  powerTest.polling(t0);
-  frictionTest.polling(t0);
-}
-
-/**
-   Power test completion
-*/
-static void handleTestCompletion(void) {
-  Display.move(false);
-  char *msg = "completed";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  dumpData("l", leftRecords);
-  dumpData("r", rightRecords);
-}
-
-
-/**
-   Power test completion
-*/
-static void handleTestStop(const char * reason) {
-  Display.move(false);
-  Serial.println(reason);
-  telnetServer.println(reason);
+  mqttClient.polling(t0);
+  if (mqttConnected != mqttClient.connected()) {
+    mqttConnected = mqttClient.connected();
+  }
+  leftMotorTest.pooling(t0);
+  rightMotorTest.pooling(t0);
+  statusTimer.polling(t0);
 }
 
 /*
    Handles the wifi module state change
 */
-static void handleOnChange(void *, WiFiModuleClass & module) {
+static void handleOnChange(void*, WiFiModuleClass& module) {
   char bfr[256];
-  if (module.connected()) {
-    telnetServer.begin();
-    strcpy(bfr, wiFiModule.ssid());
+  boolean connected = module.connected();
+  if (connected) {
+    mqttClient.connect();
+    strcpy(bfr, wiFiModule.ssid().c_str());
     strcat(bfr, " - IP: ");
     strcat(bfr, wiFiModule.ipAddress().toString().c_str());
   } else if (module.connecting()) {
-    strcpy(bfr, wiFiModule.ssid());
+    strcpy(bfr, wiFiModule.ssid().c_str());
     strcat(bfr, " connecting...");
   } else {
     strcpy(bfr, "Disconnected");
   }
-  Serial.println(bfr);
+  ESP_LOGI(TAG, "%s", bfr);
   Display.clear();
-  Display.print(bfr);
+  Display.showWiFiInfo(bfr);
 }
 
-/*
-  Handles the wifi client connection, disconnection
-*/
-static void handleOnClient(void*, TelnetServerClass & telnet) {
-  boolean hasClient = telnet.hasClient();
-  Serial.println(hasClient
-                 ? "Client connected"
-                 : "Client disconnected");
-  Display.connected(hasClient);
-  if (hasClient) {
-    telnet.println("Wheelly measures ready");
-  } else {
-    powerTest.stop("!! Disconnected");
-    frictionTest.stop("!! Disconnected");
-  }
+static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
+  leftPulses += dPulse;
+  sendReport();
 }
 
-/*
-   Handles line ready from wifi
-   @param line the line
-*/
-static void handleLineReady(void *, const char* line) {
-  Serial.print(line);
-  Serial.println();
-  Display.activity();
-  execute(line);
+static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
+  rightPulses += dPulse;
+  sendReport();
 }
 
-/*
-   Returns true if wrong number of arguments
-*/
-static const boolean parseCmdArgs(const char* command, const int from, const int argc, int *argv) {
-  DEBUG_PRINT("parseCmdArgs[");
-  DEBUG_PRINT(command);
-  DEBUG_PRINT("]");
-  DEBUG_PRINTLN();
-
-  const char* s0 = command + from;
-  const char* s1 = s0;
-  char parm[100];
-  for (int i = 0; i < argc - 1; i++) {
-    s1 = strchr(s0, ' ');
-    DEBUG_PRINT("parseCmdArgs");
-    if (!s1 || s1 == s0) {
-      // Missing argument
-      char error[256];
-      sprintf(error, "!! Found %d arguments, expected %d: %s",
-              i + 1,
-              argc,
-              command);
-
-      Serial.println(error);
-      telnetServer.println(error);
-      return false;
-    }
-    DEBUG_PRINT("s0=[");
-    DEBUG_PRINT(s0);
-    DEBUG_PRINT("], s1=[");
-    DEBUG_PRINT(s1);
-    DEBUG_PRINT("], s1-s0=");
-    DEBUG_PRINT(s1 - s0);
-    DEBUG_PRINTLN();
-
-    strncpy(parm, s0, s1 - s0);
-    parm[s1 - s0] = 0;
-    DEBUG_PRINT("parm=[");
-    DEBUG_PRINT(parm);
-    DEBUG_PRINT("]");
-    DEBUG_PRINTLN();
-
-    *argv++ = atoi(parm);
-    s0 = s1 + 1;
-  }
-  DEBUG_PRINT("s0=[");
-  DEBUG_PRINT(s0);
-  DEBUG_PRINT("]");
-  DEBUG_PRINTLN();
-  *argv = atoi(s0);
-  return true;
-}
-
-/*
-   Returns true if value is invalid
-*/
-static const boolean validateIntArg(const int value, const int minValue, const int maxValue, const char* cmd, const int arg) {
-  if (!inrange(value, minValue, maxValue)) {
-    char error[256];
-    sprintf(error, "!! Wrong arg[%d]: value %d must be between %d, %d range: %s",
-            arg + 1,
-            value,
-            minValue,
-            maxValue,
-            cmd);
-    Serial.println(error);
-    telnetServer.println(error);
-    return false;
-  }
-  return true;
-}
-
-/*
-  Executes a command.
-  Returns true if command executed
-  @param command the command
-*/
-static const boolean execute(const char* command) {
-  char cmd[256];
-  // Left trim
-  while (isspace(*command)) {
-    command++;
-  }
-  strcpy(cmd, command);
-
-  // Right trim
-  for (int i = strlen(cmd) - 1; i >= 0 && isspace(cmd[i]); i--) {
-    cmd[i] = 0;
-  }
-
-  DEBUG_PRINT("// processCommand: ");
-  DEBUG_PRINTLN(cmd);
-  if (strcmp(cmd, "ha") == 0) {
-    // stop command
-    return handleHaltCommand();
-  } else if (strncmp(cmd, "pw ", 3) == 0) {
-    // start command
-    return handleStartPowerCommand(cmd);
-  } else if (strncmp(cmd, "fr ", 3) == 0) {
-    // start command
-    return handleStartFrictionCommand(cmd);
-  } else {
-    char msg[256];
-    strcpy(msg, "!! Wrong command: ");
-    strcat(msg, cmd);
-    Serial.println(msg);
-    telnetServer.println(msg);
-    return false;
-  }
-}
-
-
-static const boolean handleStartPowerCommand(const char* cmd) {
-  if (powerTest.isRunning() || frictionTest.isRunning()) {
-    char* msg = "!! Measures already running";
-    Serial.println(msg);
-    telnetServer.println(msg);
-    return false;
-  }
-  int params[3];
-  if (!parseCmdArgs(cmd, 3, 3, params)) {
-    return false;
-  }
-  // Validate duration
-  if (!validateIntArg(params[0], 1, 60000, cmd, 0)) {
-    return false;
-  }
-  // Validate left power
-  if (!validateIntArg(params[1], -MAX_POWER, MAX_POWER, cmd, 1)) {
-    return false;
-  }
-  // Validate right power
-  if (!validateIntArg(params[2], -MAX_POWER, MAX_POWER, cmd, 2)) {
-    return false;
-  }
-  powerTest.start(millis(), params[0], params[1], params[2]);
-  char* msg = "started";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  Display.move(true);
-  return true;
-}
-
-static const boolean handleStartFrictionCommand(const char* cmd) {
-  if (powerTest.isRunning() || frictionTest.isRunning()) {
-    char* msg = "!! Measures already running";
-    Serial.println(msg);
-    telnetServer.println(msg);
-    return false;
-  }
-  int params[4];
-  if (!parseCmdArgs(cmd, 3, 4, params)) {
-    return false;
-  }
-  // Validate interval
-  if (!validateIntArg(params[0], 1, 1000, cmd, 0)) {
-    return false;
-  }
-  // Validate pulses threshold
-  if (!validateIntArg(params[1], 1, 1000, cmd, 1)) {
-    return false;
-  }
-  // Validate left direction
-  if (!validateIntArg(params[2], -1, 1, cmd, 2)) {
-    return false;
-  }
-  // Validate right direction
-  if (!validateIntArg(params[3], -1, 1, cmd, 3)) {
-    return false;
-  }
-  frictionTest.start(millis(), params[0], params[1], params[2], params[3]);
-  char* msg = "started";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  Display.move(true);
-  return true;
-}
-
-static const boolean handleHaltCommand() {
-  if (powerTest.isRunning()) {
-    powerTest.stop("// Stopped");
-    return true;
-  }
-  if (frictionTest.isRunning()) {
-    frictionTest.stop("// Stopped");
-    return true;
-  }
-
-  char* msg = "!! Measures not running";
-  Serial.println(msg);
-  telnetServer.println(msg);
-  return false;
-}
-
-static void dumpData(const char* id, const RecordList& records) {
-  size_t n = records.size();
-  char msg[256];
-  sprintf(msg, "%ss %ld", id, n);
-  Serial.println(msg);
-  telnetServer.println(msg);
-
-  const Record* ptr = records.records();
-  const unsigned long startTime = ptr->time;
-  for (size_t i = 0; i < n; i++, ptr++) {
-    sprintf(msg, "%sd %ld %ld %d %d", id, i,
-            ptr->time - startTime,
-            ptr->pulses,
-            ptr->power);
-    DEBUG_PRINTLN(msg);
-    telnetServer.println(msg);
-  }
-  sprintf(msg, "%se", id);
-  DEBUG_PRINTLN(msg);
-  telnetServer.println(msg);
-}
-
-static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
-  powerTest.processLeftPulses(clockTime, dPulse);
-  frictionTest.processLeftPulses(clockTime, dPulse);
-}
-
-static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor & sensor) {
-  powerTest.processRightPulses(clockTime, dPulse);
-  frictionTest.processRightPulses(clockTime, dPulse);
-}
-
-static void handleContacts(void *, ContactSensors & sensors) {
-  boolean front = !sensors.frontClear();
-  boolean rear = !sensors.rearClear();
-  block_t block = front
-                  ? rear ? FULL_BLOCK : FORWARD_BLOCK
-                  : rear ? BACKWARD_BLOCK : NO_BLOCK;
-
-  Display.block(block);
-  if (front || rear) {
-    powerTest.processContacts(front, rear);
-    frictionTest.processContacts();
-  }
+static void handleContacts(void*, ContactSensors& sensors) {
+  frontSensor = sensors.frontClear();
+  rearSensor = sensors.rearClear();
+  leftMotorTest.stop();
+  rightMotorTest.stop();
+  sendReport();
 }

@@ -39,7 +39,7 @@
 #include "LidarServo.h"
 #include "Timer.h"
 
-#define WHEELLY_VERSION "0.9.0"
+#define WHEELLY_VERSION "0.10.0"
 #define WHEELLY_MESSAGES_VERSION "v0"
 
 /*
