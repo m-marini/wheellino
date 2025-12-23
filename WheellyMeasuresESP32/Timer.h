@@ -3,66 +3,100 @@
 
 #include "Arduino.h"
 
-#define MAX_INTERVALS 4
+typedef void (*TimerCallback_t)(void* context, const unsigned long counter);
 
 /*
-   ASynchronous timer
+   Asynchronous timer
 */
 class Timer {
-  public:
-    Timer() {};
 
-    // Sets a single interval
-    void interval(const unsigned long interval) {
-      _interval = interval;
-    }
+private:
+  bool _continuous;
+  unsigned long _interval;
+  TimerCallback_t _onNext;
+  void* _context;
 
-    // Sets true if continuos events
-    void continuous(const boolean cont)  {
-      _continuous = cont;
-    }
+  unsigned long _next;
+  unsigned long _counter;
+  boolean _running;
 
-    // Starts the timer
-    void start(void);
+public:
+  /**
+  * Creates the timer
+  */
+  Timer(){};
 
-    // Starts the timer
-    void start(const unsigned long timeout);
+  /**
+  * Sets the interval
+  *
+  * @param interval the interval (ms)
+  */
+  void interval(const unsigned long interval) {
+    _interval = interval;
+  }
 
-    // Stops the timer
-    void stop(void);
+  /**
+  * Sets true if continuos events
+  */
+  void continuous(const boolean cont) {
+    _continuous = cont;
+  }
 
-    // Restarts the timer
-    void restart(void);
+  /**
+  * Starts the timer
+  */
+  void start(void);
 
-    // Returns true if timer is not expired (is timing)
-    const bool isRunning(void) const {
-      return _running;
-    }
+  /**
+  * Starts the timer
+  *
+  * @param timeout the next event instant
+  */
+  void start(const unsigned long timeout);
 
-    // Returns the interval
-    const unsigned long interval(void) const {
-      return _interval;
-    }
+  /**
+  * Stops the timer
+  */
+  void stop(void);
 
-    // Sets the callback
-    void onNext(void (*callback)(void* context, const unsigned long counter), void* context = NULL);
+  /**
+  * Restarts the timer
+  */
+  void restart(void);
 
-    // Polls the timer
-    void polling(const unsigned long clockTime = millis());
+  /**
+  * Sets the callback
+  */
+  void onNext(TimerCallback_t callback, void* context = NULL) {
+    _onNext = callback;
+    _context = context;
+  }
 
-    const unsigned long next(void) const {
-      return _next;
-    }
+  /**
+  * Polls the timer
+  */
+  void polling(const unsigned long clockTime = millis());
 
-  private:
-    bool _continuous;
-    unsigned long _interval;
-    void (*_onNext)(void*, const unsigned long);
-    void *_context;
+  /**
+  * Returns the next event instant
+  */
+  const unsigned long next(void) const {
+    return _next;
+  }
 
-    unsigned long _next;
-    unsigned long _counter;
-    boolean _running;
+  /**
+  * Returns the interval
+  */
+  const unsigned long interval(void) const {
+    return _interval;
+  }
+
+  /**
+  * Returns true if timer is not expired (is timing)
+  */
+  const bool isRunning(void) const {
+    return _running;
+  }
 };
 
 #endif

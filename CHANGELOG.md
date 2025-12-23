@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue [#120](https://github.com/m-marini/wheellino/issues/120): Change motor controller
 
+### Changed
+
+- Issue [#122](https://github.com/m-marini/wheellino/issues/122): Mqtt Wheelly measures
+
 ## [0.9.0] 2025-10-06
 
 ### Added

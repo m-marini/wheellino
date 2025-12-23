@@ -1,7 +1,36 @@
+/*
+ * Copyright (c) 2023  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
+#include <esp_log.h>
+static const char* TAG = "Display";
+
 #include "Display.h"
 
-//#define DEBUG
-#include "debug.h"
 
 static const unsigned long TIMER_INTERVAL = 400ul;
 static const unsigned long BLINK_ON = 0;
@@ -21,15 +50,16 @@ static const char* BLANK4_STRING = "    ";
 
 static const int STOP_DISTANCE = 20;
 
-static uint8_t errorChar[] = { 0b01110,
-                               0b10001,
-                               0b10101,
-                               0b10101,
-                               0b10001,
-                               0b10101,
-                               0b10001,
-                               0b01110,
-                             };
+static uint8_t errorChar[] = {
+  0b01110,
+  0b10001,
+  0b10101,
+  0b10101,
+  0b10001,
+  0b10101,
+  0b10001,
+  0b01110,
+};
 
 static uint8_t fullBlockChar[] = { 0b01110,
                                    0b10001,
@@ -38,28 +68,29 @@ static uint8_t fullBlockChar[] = { 0b01110,
                                    0b10101,
                                    0b11011,
                                    0b10001,
-                                   0b11111
-                                 };
+                                   0b11111 };
 
-static uint8_t forwardBlockChar[] = { 0b01010,
-                                      0b00100,
-                                      0b01010,
-                                      0b00000,
-                                      0b01110,
-                                      0b10001,
-                                      0b10001,
-                                      0b11111,
-                                    };
+static uint8_t forwardBlockChar[] = {
+  0b01010,
+  0b00100,
+  0b01010,
+  0b00000,
+  0b01110,
+  0b10001,
+  0b10001,
+  0b11111,
+};
 
-static uint8_t backwardBlockChar[] = {0b01110,
-                                      0b10001,
-                                      0b10001,
-                                      0b11111,
-                                      0b00000,
-                                      0b11011,
-                                      0b00100,
-                                      0b11011,
-                                     };
+static uint8_t backwardBlockChar[] = {
+  0b01110,
+  0b10001,
+  0b10001,
+  0b11111,
+  0b00000,
+  0b11011,
+  0b00100,
+  0b11011,
+};
 
 static uint8_t connectedChar[] = { 0b00000,
                                    0b00000,
@@ -68,18 +99,18 @@ static uint8_t connectedChar[] = { 0b00000,
                                    0b00010,
                                    0b11001,
                                    0b00101,
-                                   0b10101
-                                 };
+                                   0b10101 };
 
-static uint8_t uparrowChar[] = { 0b00100,
-                                 0b01010,
-                                 0b11011,
-                                 0b01010,
-                                 0b01010,
-                                 0b01010,
-                                 0b01010,
-                                 0b01110,
-                               };
+static uint8_t uparrowChar[] = {
+  0b00100,
+  0b01010,
+  0b11011,
+  0b01010,
+  0b01010,
+  0b01010,
+  0b01010,
+  0b01110,
+};
 
 static uint8_t terminalChar[] = { 0b01110,
                                   0b10001,
@@ -88,8 +119,7 @@ static uint8_t terminalChar[] = { 0b01110,
                                   0b10001,
                                   0b10101,
                                   0b10001,
-                                  0b01110
-                                };
+                                  0b01110 };
 
 static uint8_t activityChar[] = { 0b01110,
                                   0b10001,
@@ -98,8 +128,7 @@ static uint8_t activityChar[] = { 0b01110,
                                   0b00100,
                                   0b00100,
                                   0b01010,
-                                  0b10001
-                                };
+                                  0b10001 };
 
 static uint8_t supplyCharSet[][8] = {
   { // Supply chars
@@ -110,61 +139,55 @@ static uint8_t supplyCharSet[][8] = {
     0b10001,
     0b10001,
     0b10001,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b10001,
     0b10001,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b10001,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b10001,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b10001,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }, {
-    0b01110,
+    0b11111 },
+  { 0b01110,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
     0b11111,
-    0b11111
-  }
+    0b11111 }
 };
 
 /*
    Handles scrolling timer
 */
 void DisplayClass::handleTimer(void* context, const unsigned long n) {
-  ((DisplayClass *)context)->scroll(n);
-  ((DisplayClass *)context)->blink(n);
+  ((DisplayClass*)context)->scroll(n);
+  ((DisplayClass*)context)->blink(n);
 }
 
 /*
@@ -182,6 +205,7 @@ DisplayClass::DisplayClass(const uint8_t addr)
    Initializes DisplayClass
 */
 void DisplayClass::begin() {
+  ESP_LOGI(TAG, "Begin");
   _lcd.begin(DISPLAY_WIDTH, DISPLAY_HEIGHT);
   _lcd.createChar(ERROR_STRING[0], errorChar);
   _lcd.createChar(MOVING_STRING[0], uparrowChar);
@@ -303,10 +327,7 @@ void DisplayClass::supply(const int level) {
   const int old = _supplyLevel;
   _supplyLevel = min(max(level, 0), (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
   if (old != _supplyLevel) {
-    DEBUG_PRINT("DisplayClass::supply(");
-    DEBUG_PRINT(_supplyLevel);
-    DEBUG_PRINT(")");
-    DEBUG_PRINTLN();
+    ESP_LOGD(TAG, "supplyLevel: %d", _supplyLevel);
     _lcd.createChar(SUPPLY_STRING[0], supplyCharSet[_supplyLevel]);
     showInfo();
   }
@@ -340,7 +361,7 @@ void DisplayClass::showInfo() {
 
   // BL
   _lcd.setCursor(4, 1);
-  _lcd.print(_blink || _block == NO_BLOCK ?  BLANK2_STRING : BLOCK_STRING);
+  _lcd.print(_blink || _block == NO_BLOCK ? BLANK2_STRING : BLOCK_STRING);
 
   // Distance
   char distance[10];
