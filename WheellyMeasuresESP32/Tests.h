@@ -24,9 +24,10 @@ private:
 
   MotorCtrl& _motorCtrl;
   bool _isTesting;
+  bool _isWaitingForEnd;
+  bool _isSteppingUp;
   int _power;
   unsigned long _nextStepInstant;
-  bool _isSteppingUp;
 
   TestCallback_t _onPowerChange;
   void* _context;
