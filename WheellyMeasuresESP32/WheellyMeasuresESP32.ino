@@ -390,12 +390,10 @@ static void handleOnChange(void*, WiFiModuleClass& module) {
 
 static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
   leftPulses += dPulse;
-  sendReport();
 }
 
 static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
   rightPulses += dPulse;
-  sendReport();
 }
 
 static void handleContacts(void*, ContactSensors& sensors) {
@@ -403,5 +401,4 @@ static void handleContacts(void*, ContactSensors& sensors) {
   rearSensor = sensors.rearClear();
   leftMotorTest.stop();
   rightMotorTest.stop();
-  sendReport();
 }
