@@ -46,6 +46,8 @@ static const char* TAG = "WheellyMeasuresESP32";
 #include "Display.h"
 #include "Tests.h"
 #include "MqttClient.h"
+#include "LidarServo.h"
+#include "Lidar.h"
 
 /*
    Serial config
@@ -111,6 +113,18 @@ static String subCommandTopics;
 static const unsigned long STATUS_INTERVAL = 500ul;
 
 /*
+  Lidars
+*/
+Lidar lidars(FRONT_LIDAR_PIN, REAR_LIDAR_PIN);
+
+/*
+  Lidar servo
+*/
+LidarServo servo(SERVO_PIN);
+static const int SERVO_OFFSET = 0;
+
+
+/*
 Test variables
 */
 static unsigned long testStartInstant;
@@ -120,153 +134,10 @@ static unsigned long leftPulses;
 static unsigned long rightPulses;
 static bool frontSensor;
 static bool rearSensor;
-static unsigned int frontDistance;
-static unsigned int rearDistance;
+static uint16_t frontDistance;
+static uint16_t rearDistance;
 
 static Timer statusTimer;
-
-/**
-Returns true if test is running
-*/
-static bool isTesting(void) {
-  return leftMotorTest.testing() || leftMotorTest.testing();
-}
-
-/**
-Sends the report to queue
-*/
-static void sendReport() {
-  // Handles reply to remote controller
-  if (mqttClient.connected()) {
-    const unsigned long t0 = millis();
-    char status[256];
-    const bool testing = isTesting();
-    sprintf(status, "%lu,%d,%d,%d,%ld,%ld,%d,%d,%u,%u",
-            testing ? t0 - testStartInstant : 0l,
-            testing,
-            leftMotorTest.power(), rightMotorTest.power(),
-            leftPulses, rightPulses,
-            frontSensor, rearSensor,
-            frontDistance, rearDistance);
-    mqttClient.send(pubSensorTopic, status);
-  }
-}
-
-/*
-Handles status timer
-*/
-static void handleStatus(void*, const unsigned long) {
-  if (!isTesting()) {
-    sendReport();
-  }
-}
-
-/*
-Sends command reply
-*/
-static void sendCommandReply(const String& topic, const String& message) {
-  if (mqttClient.connected()) {
-    mqttClient.send(topic, message);
-  }
-}
-
-/*
-Handles mqtt message
-*/
-static void handleMqttMessage(const String& topic, const String& message) {
-  ESP_LOGI(TAG, "Message %s %s", topic.c_str(), message.c_str());
-  if (topic.endsWith("/test")) {
-    startTest(message);
-  }
-}
-
-static const String validateArguments(const int maxPower, const unsigned long stepUpInterval, const int stepUpPower,
-                                      const unsigned long stepDownInterval, const int stepDownPower) {
-  if (maxPower == 0 || abs(maxPower) > MAX_POWER) {
-    return "Invalid power";
-  }
-  if (stepUpInterval == 0 || stepDownInterval == 0) {
-    return "Invalid interval";
-  }
-  if ((maxPower > 0 && stepUpPower <= 0)
-      || (maxPower < 0 && stepUpPower >= 0)) {
-    return "Invalid step up power";
-  }
-  if ((maxPower > 0 && stepDownPower >= 0)
-      || (maxPower < 0 && stepDownPower <= 0)) {
-    return "Invalid step down power";
-  }
-  return "";
-}
-
-/*
- Starts the test
-*/
-static bool startTest(const String& args) {
-  if (isTesting()) {
-    ESP_LOGE(TAG, "Wrong args %s", args.c_str());
-    sendCommandReply(errCommandTopic, "Test is already running");
-    return false;
-  }
-  int count;
-  int leftMaxPower;
-  unsigned long leftStepUpInterval;
-  int leftStepUpPower;
-  unsigned long leftStepDownInterval;
-  int leftStepDownPower;
-  int rightMaxPower;
-  unsigned long rightStepUpInterval;
-  int rightStepUpPower;
-  unsigned long rightStepDownInterval;
-  int rightStepDownPower;
-  int n = sscanf(args.c_str(), "%d,%lu,%d,%lu,%d,%d,%lu,%d,%lu,%d%n",
-                 &leftMaxPower,
-                 &leftStepUpInterval,
-                 &leftStepUpPower,
-                 &leftStepDownInterval,
-                 &leftStepDownPower,
-                 &rightMaxPower,
-                 &rightStepUpInterval,
-                 &rightStepUpPower,
-                 &rightStepDownInterval,
-                 &rightStepDownPower,
-                 &count);
-  if (n != 10 || count != args.length()) {
-    ESP_LOGE(TAG, "Wrong args n=%d count=%d [%s]", n, count, args.c_str());
-    sendCommandReply(errCommandTopic, "Wrong args " + args);
-    return false;
-  }
-
-  // Valudate arguments
-  String argError = validateArguments(leftMaxPower, leftStepUpInterval, leftStepUpPower, leftStepDownInterval, leftStepDownPower);
-  if (argError != "") {
-    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
-    sendCommandReply(errCommandTopic, argError + " " + args);
-    return false;
-  }
-  argError = validateArguments(rightMaxPower, rightStepUpInterval, rightStepUpPower, rightStepDownInterval, rightStepDownPower);
-  if (argError != "") {
-    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
-    sendCommandReply(errCommandTopic, argError + " " + args);
-    return false;
-  }
-
-  testStartInstant = millis();
-  leftPulses = rightPulses = 0;
-  leftMotorTest.start(testStartInstant, leftMaxPower,
-                      leftStepUpInterval, leftStepUpPower,
-                      leftStepDownInterval, leftStepDownPower);
-  rightMotorTest.start(testStartInstant, rightMaxPower,
-                       rightStepUpInterval, rightStepUpPower,
-                       rightStepDownInterval, rightStepDownPower);
-
-  sendCommandReply(respCommandTopic, args);
-  return true;
-}
-
-static void handlePowerChange(void*) {
-  sendReport();
-}
 
 /*
    Set up
@@ -339,6 +210,23 @@ void setup() {
   statusTimer.onNext(handleStatus);
   statusTimer.start();
 
+  // Init led
+  ESP_LOGI(TAG, "Init status led");
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, true);
+
+
+  /* Setup lidar servo */
+  ESP_LOGI(TAG, "Init head servo");
+  servo.offset(SERVO_OFFSET);
+  servo.begin();
+  servo.direction(0, millis());
+
+  /* Setup lidar */
+  ESP_LOGI(TAG, "Init lidars");
+  lidars.begin();
+  lidars.onRange(handleLidarsRange);
+
   leftMotorTest.onPowerChange(handlePowerChange);
   rightMotorTest.onPowerChange(handlePowerChange);
 
@@ -354,16 +242,178 @@ void loop() {
   unsigned long t0 = millis();
   Display.polling(t0);
   wiFiModule.polling(t0);
+  servo.polling(t0);
+  lidars.polling(t0);
   contacts.polling(t0);
   leftMotor.polling(t0);
   rightMotor.polling(t0);
   mqttClient.polling(t0);
   if (mqttConnected != mqttClient.connected()) {
     mqttConnected = mqttClient.connected();
+    Display.connected(mqttConnected);
   }
   leftMotorTest.pooling(t0);
   rightMotorTest.pooling(t0);
   statusTimer.polling(t0);
+  Display.move(isTesting());
+}
+
+
+/**
+Returns true if test is running
+*/
+static bool isTesting(void) {
+  return leftMotorTest.testing() || leftMotorTest.testing();
+}
+
+/**
+Sends the report to queue
+*/
+static void sendReport() {
+  // Handles reply to remote controller
+  if (mqttClient.connected()) {
+    const unsigned long t0 = millis();
+    char status[256];
+    const bool testing = isTesting();
+    sprintf(status, "%lu,%d,%d,%d,%ld,%ld,%d,%d,%u,%u",
+            testing ? t0 - testStartInstant : 0l,
+            testing,
+            leftMotorTest.power(), rightMotorTest.power(),
+            leftPulses, rightPulses,
+            frontSensor, rearSensor,
+            frontDistance, rearDistance);
+    mqttClient.send(pubSensorTopic, status);
+  }
+}
+
+/*
+Handles status timer
+*/
+static void handleStatus(void*, const unsigned long) {
+  if (!isTesting()) {
+    sendReport();
+  }
+}
+
+/*
+Sends command reply
+*/
+static void sendCommandReply(const String& topic, const String& message) {
+  if (mqttClient.connected()) {
+    mqttClient.send(topic, message);
+  }
+}
+
+/*
+Handles mqtt message
+*/
+static void handleMqttMessage(const String& topic, const String& message) {
+  ESP_LOGI(TAG, "Message %s %s", topic.c_str(), message.c_str());
+  if (topic.endsWith("/test")) {
+    startTest(message);
+  }
+}
+
+static const String validateArguments(const int maxPower, const unsigned long stepUpInterval, const unsigned stepUpPower,
+                                      const unsigned long stepDownInterval, const unsigned stepDownPower) {
+  if (maxPower == 0 || abs(maxPower) > MAX_POWER) {
+    return "Invalid power";
+  }
+  if (stepUpInterval == 0 || stepDownInterval == 0) {
+    return "Invalid interval";
+  }
+  if (stepUpPower == 0 || stepUpPower > MAX_POWER) {
+    return "Invalid acceleration power";
+  }
+  if (stepDownPower == 0 || stepDownPower > MAX_POWER) {
+    return "Invalid deceleration power";
+  }
+  return "";
+}
+
+/*
+ Starts the test
+*/
+static bool startTest(const String& args) {
+  if (isTesting()) {
+    ESP_LOGE(TAG, "Wrong args %s", args.c_str());
+    sendCommandReply(errCommandTopic, "Test is already running");
+    return false;
+  }
+  int count;
+  int leftMaxPower;
+  unsigned long leftStepUpInterval;
+  unsigned leftStepUpPower;
+  unsigned long leftStepDownInterval;
+  unsigned leftStepDownPower;
+  int rightMaxPower;
+  unsigned long rightStepUpInterval;
+  unsigned rightStepUpPower;
+  unsigned long rightStepDownInterval;
+  unsigned rightStepDownPower;
+  int n = sscanf(args.c_str(), "%d,%lu,%u,%lu,%u,%d,%lu,%u,%lu,%u%n",
+                 &leftMaxPower,
+                 &leftStepUpInterval,
+                 &leftStepUpPower,
+                 &leftStepDownInterval,
+                 &leftStepDownPower,
+                 &rightMaxPower,
+                 &rightStepUpInterval,
+                 &rightStepUpPower,
+                 &rightStepDownInterval,
+                 &rightStepDownPower,
+                 &count);
+  if (n != 10 || count != args.length()) {
+    ESP_LOGE(TAG, "Wrong args n=%d count=%d [%s]", n, count, args.c_str());
+    sendCommandReply(errCommandTopic, "Wrong args " + args);
+    return false;
+  }
+
+  // Valudate arguments
+  String argError = validateArguments(leftMaxPower, leftStepUpInterval, leftStepUpPower, leftStepDownInterval, leftStepDownPower);
+  if (argError != "") {
+    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
+    sendCommandReply(errCommandTopic, argError + " " + args);
+    return false;
+  }
+
+  argError = validateArguments(rightMaxPower, rightStepUpInterval, rightStepUpPower, rightStepDownInterval, rightStepDownPower);
+  if (argError != "") {
+    ESP_LOGE(TAG, "%s [%s]", argError.c_str(), args.c_str());
+    sendCommandReply(errCommandTopic, argError + " " + args);
+    return false;
+  }
+
+  testStartInstant = millis();
+  leftPulses = rightPulses = 0;
+  leftMotorTest.start(testStartInstant, leftMaxPower,
+                      leftStepUpInterval, leftStepUpPower,
+                      leftStepDownInterval, leftStepDownPower);
+  rightMotorTest.start(testStartInstant, rightMaxPower,
+                       rightStepUpInterval, rightStepUpPower,
+                       rightStepDownInterval, rightStepDownPower);
+
+  sendCommandReply(respCommandTopic, args);
+  return true;
+}
+
+static void handlePowerChange(void*) {
+  sendReport();
+}
+
+/*
+  Handles lidars range
+*/
+static void handleLidarsRange(void*, Lidar& lidars, const uint16_t frontRange, const uint16_t rearRange) {
+  frontDistance = frontRange;
+  rearDistance = rearRange;
+  uint16_t distance = frontDistance;
+  if (rearDistance > 0) {
+    if (distance == 0 || rearDistance < distance) {
+      distance = rearDistance;
+    }
+  }
+  Display.distance((distance + 5) / 10);
 }
 
 /*
@@ -401,4 +451,13 @@ static void handleContacts(void*, ContactSensors& sensors) {
   rearSensor = sensors.rearClear();
   leftMotorTest.stop();
   rightMotorTest.stop();
+  block_t block = frontSensor ? rearSensor
+                                  ? NO_BLOCK
+                                  : BACKWARD_BLOCK
+                  : rearSensor
+                    ? FORWARD_BLOCK
+                    : FULL_BLOCK;
+  bool contact = !frontSensor || !rearSensor;
+  digitalWrite(STATUS_LED_PIN, contact);
+  Display.block(block);
 }
