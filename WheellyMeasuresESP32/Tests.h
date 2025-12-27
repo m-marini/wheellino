@@ -17,16 +17,17 @@ typedef void (*TestCallback_t)(void* context);
 class MotorTest {
 private:
   int _maxPower;
-  int _stepUpPower;
-  int _stepDownPower;
-  unsigned long _stepUpInterval;
-  unsigned long _stepDownInterval;
+  unsigned _accelerationPower;
+  unsigned _decelerationPower;
+  unsigned long _accelerationInterval;
+  unsigned long _decelerationInterval;
 
   MotorCtrl& _motorCtrl;
   bool _isTesting;
+  bool _isWaitingForEnd;
+  bool _isSteppingUp;
   int _power;
   unsigned long _nextStepInstant;
-  bool _isSteppingUp;
 
   TestCallback_t _onPowerChange;
   void* _context;
@@ -69,10 +70,10 @@ public:
     */
   void start(const unsigned long t0,
              const int maxPower,
-             const unsigned long stepUpInterval,
-             const int stepUpPower,
-             const unsigned long stepDownInterval,
-             const int stepDownPower);
+             const unsigned long accelerationInterval,
+             const unsigned accelerationPower,
+             const unsigned long decelerationInterval,
+             const unsigned decelerationPower);
 
   /**
        Stops the test

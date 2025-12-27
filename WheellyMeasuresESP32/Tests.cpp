@@ -4,6 +4,7 @@
 static const char* TAG = "Tests";
 
 #define MAX_POWER 255
+#define END_TEST_INTERVAL 500
 
 /**
        Creates the motor test
@@ -16,20 +17,21 @@ MotorTest::MotorTest(MotorCtrl& motor)
     */
 void MotorTest::start(const unsigned long t0,
                       const int maxPower,
-                      const unsigned long stepUpInterval,
-                      const int stepUpPower,
-                      const unsigned long stepDownInterval,
-                      const int stepDownPower) {
+                      const unsigned long accelerationInterval,
+                      const unsigned accelerationPower,
+                      const unsigned long decelerationInterval,
+                      const unsigned decelerationPower) {
   _maxPower = maxPower;
-  _stepUpPower = stepUpPower;
-  _stepDownPower = stepDownPower;
-  _stepUpInterval = stepUpInterval;
-  _stepDownInterval = stepDownInterval;
+  _accelerationInterval = accelerationInterval;
+  _decelerationInterval = decelerationInterval;
+  _accelerationPower = accelerationPower;
+  _decelerationPower = decelerationPower;
 
   _isTesting = true;
+  _isWaitingForEnd = false;
   _power = 0;
   _isSteppingUp = true;
-  _nextStepInstant = t0 + stepUpInterval;
+  _nextStepInstant = t0 + accelerationInterval;
   changePower();
 }
 
@@ -37,8 +39,9 @@ void MotorTest::start(const unsigned long t0,
        Stops the test
     */
 void MotorTest::stop(void) {
-  _isTesting = 0;
   _power = 0;
+  _isWaitingForEnd = true;
+  _nextStepInstant = millis() + END_TEST_INTERVAL;
   changePower();
 }
 
@@ -46,57 +49,73 @@ void MotorTest::stop(void) {
   Poolling the test
   */
 void MotorTest::pooling(const unsigned long t0) {
-  if (_isTesting && t0 >= _nextStepInstant) {
-    if (_maxPower > 0) {
-      // forward testing
-      if (_isSteppingUp) {
-        // Stepping up
-        _power += _stepUpPower;
-        if (_power >= _maxPower) {
-          // Step up completed
-          _power = _maxPower;
-          _isSteppingUp = false;
-          _nextStepInstant = t0 + _stepDownInterval;
-        } else {
-          _nextStepInstant = t0 + _stepUpInterval;
-        }
-      } else {
-        // Stepping down
-        _power += _stepDownPower;
-        if (_power <= 0) {
-          // Step up completed
-          _power = 0;
-          _isTesting = false;
-        } else {
-          _nextStepInstant = t0 + _stepDownInterval;
-        }
+  if (_isTesting) {
+    if (_isWaitingForEnd) {
+      if (t0 >= _nextStepInstant) {
+        // End test
+        _power = 0;
+        changePower();
+        _isTesting = false;
+        ESP_LOGI(TAG, "End test");
+        changePower();
       }
     } else {
-      // backward testing
-      if (_isSteppingUp) {
-        // Stepping up
-        _power += _stepUpPower;
-        if (_power < _maxPower) {
-          // Step up completed
-          _power = _maxPower;
-          _isSteppingUp = false;
-          _nextStepInstant = t0 + _stepDownInterval;
+      if (t0 >= _nextStepInstant) {
+        changePower();
+        if (_maxPower > 0) {
+          // forward testing
+          if (_isSteppingUp) {
+            // Stepping up
+            _power += _accelerationPower;
+            if (_power >= _maxPower) {
+              // Step up completed
+              _power = _maxPower;
+              _isSteppingUp = false;
+              _nextStepInstant = t0 + _decelerationInterval;
+            } else {
+              _nextStepInstant = t0 + _accelerationInterval;
+            }
+          } else {
+            // Stepping down
+            _power -= _decelerationPower;
+            if (_power <= 0) {
+              // Step down completed
+              _power = 0;
+              _isWaitingForEnd = true;
+              _nextStepInstant = t0 + END_TEST_INTERVAL;
+            } else {
+              _nextStepInstant = t0 + _decelerationInterval;
+            }
+          }
         } else {
-          _nextStepInstant = t0 + _stepUpInterval;
+          // backward testing
+          if (_isSteppingUp) {
+            // Stepping up
+            _power -= _accelerationPower;
+            if (_power < _maxPower) {
+              // Step up completed
+              _power = _maxPower;
+              _isSteppingUp = false;
+              _nextStepInstant = t0 + _decelerationInterval;
+            } else {
+              _nextStepInstant = t0 + _accelerationInterval;
+            }
+          } else {
+            // Stepping down
+            _power += _decelerationPower;
+            if (_power >= 0) {
+              // Step down completed
+              _power = 0;
+              _isWaitingForEnd = true;
+              _nextStepInstant = t0 + END_TEST_INTERVAL;
+            } else {
+              _nextStepInstant = t0 + _decelerationInterval;
+            }
+          }
         }
-      } else {
-        // Stepping down
-        _power += _stepDownPower;
-        if (_power >= 0) {
-          // Step up completed
-          _power = 0;
-          _isTesting = false;
-        } else {
-          _nextStepInstant = t0 + _stepDownInterval;
-        }
+        changePower();
       }
     }
-    changePower();
   }
 }
 
@@ -104,7 +123,7 @@ void MotorTest::pooling(const unsigned long t0) {
   Change power
   */
 void MotorTest::changePower(void) {
-  ESP_LOGD(TAG, "Power %d", _power);
+  ESP_LOGI(TAG, "Power %d @%lx", _power, (unsigned long)this);
   _motorCtrl.power(_power);
   if (_onPowerChange) {
     _onPowerChange(_context);
