@@ -136,6 +136,9 @@ static bool frontSensor;
 static bool rearSensor;
 static uint16_t frontDistance;
 static uint16_t rearDistance;
+static const int MIN_VOLTAGE_VALUE = 1896;
+static const int MAX_VOLTAGE_VALUE = 2621;
+static int supply;
 
 static Timer statusTimer;
 
@@ -156,6 +159,9 @@ void setup() {
 
   Display.begin();
   Display.clear();
+
+  /* Setup supplier sensor */
+  pinMode(VOLTAGE_PIN, INPUT);
 
   ESP_LOGI(TAG, "Initialise confStore");
   confStore.begin();
@@ -240,6 +246,7 @@ void setup() {
 */
 void loop() {
   unsigned long t0 = millis();
+  supplyPolling(t0);
   Display.polling(t0);
   wiFiModule.polling(t0);
   servo.polling(t0);
@@ -258,6 +265,22 @@ void loop() {
   Display.move(isTesting());
 }
 
+/**
+  Polling supply
+*/
+static void supplyPolling(const unsigned long t0) {
+  supply = analogRead(VOLTAGE_PIN);
+
+  /* Computes the charging level */
+  const int hLevel = min(max(
+                           (int)map(supply, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
+                           0),
+                         9);
+  const int level = (hLevel + 1) / 2;
+
+  /* Display the charging level */
+  Display.supply(level);
+}
 
 /**
 Returns true if test is running
@@ -275,13 +298,14 @@ static void sendReport() {
     const unsigned long t0 = millis();
     char status[256];
     const bool testing = isTesting();
-    sprintf(status, "%lu,%d,%d,%d,%ld,%ld,%d,%d,%u,%u",
+    sprintf(status, "%lu,%d,%d,%d,%ld,%ld,%d,%d,%u,%u,%d",
             testing ? t0 - testStartInstant : 0l,
             testing,
             leftMotorTest.power(), rightMotorTest.power(),
             leftPulses, rightPulses,
             frontSensor, rearSensor,
-            frontDistance, rearDistance);
+            frontDistance, rearDistance,
+            supply);
     mqttClient.send(pubSensorTopic, status);
   }
 }
