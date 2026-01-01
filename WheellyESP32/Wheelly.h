@@ -102,7 +102,7 @@ private:
   const boolean canMoveForward(void) const;
   const boolean canMoveBackward(void) const;
 
-  void handleLidarRange(const uint16_t frontDistance,const uint16_t rearDistance);
+  void handleLidarRange(const uint16_t frontDistance, const uint16_t rearDistance);
   void handleStats(void);
   void handleLed(const unsigned long n);
   void handleMpuData(void);
@@ -114,7 +114,6 @@ private:
   const boolean handleCcCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleCsCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleTcsCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleFxCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleQcCmd(const unsigned long time, const String& topic, const String& args);
 
   /*
@@ -189,21 +188,19 @@ private:
   }
 
   /**
-       Configures feedback motor controller
-       @param p the feedback motor controller parameters
-       @param left true for left motor controller
+       Configures left tcs motor controller
+       @param p the tcs motor controller parameters
     */
-  void configFeedbackMotorController(const long* p, const boolean left) {
-    (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).muConfig(p);
+  void configLeftTcsMotorController(const tcsParams_t& p) {
+    _motionCtrl.leftMotor().tcs(p);
   }
 
   /**
-       Configures tcs motor controller
+       Configures right tcs motor controller
        @param p the tcs motor controller parameters
-       @param left true for left motor controller
     */
-  void configTcsMotorController(const int* p, const boolean left) {
-    (left ? _motionCtrl.leftMotor() : _motionCtrl.rightMotor()).tcsConfig(p);
+  void configRightTcsMotorController(const tcsParams_t& p) {
+    _motionCtrl.rightMotor().tcs(p);
   }
 
   /**

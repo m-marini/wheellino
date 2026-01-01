@@ -82,7 +82,7 @@ void setup() {
   // Initialize MQTT
   ESP_LOGI(TAG, "Initialise mqtt client");
   ConfigRecord mqttConfig = {
-    .mqttBrokerHost = "192.168.1.253",
+    .mqttBrokerHost = "192.168.1.145",
     .mqttBrokerPort = 1883,
     .mqttUser = "wheelly",
     .mqttPsw = "wheelly",
