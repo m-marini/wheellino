@@ -51,7 +51,7 @@ static int MAX_PWM = 255;
 static int REFERENCE_SPEED = 120;
 static long ASR_SCALE = 1000;
 static long ALPHA_SCALE = 100;
-static long FEEDBACK_SCALE = 1000000;
+static long FEEDBACK_SCALE = 1000;
 
 /*
    Creates the motor controller
@@ -172,59 +172,6 @@ void MotorCtrl::polling(const unsigned long timestamp) {
     voltage(vf);
   }
 }
-
-/*
-   Polls motor controller
-*/
-/*
-static void polling1(const unsigned long timestamp) {
-  _sensor.polling(timestamp);
-  const long dt = (long)(timestamp - _prevTimestamp);
-  if (_automatic && dt > MIN_INTERVAL) {
-    _prevTimestamp = timestamp;
-
-    // Computes the power
-    const int realSpeed = round(_sensor.pps());
-
-    ESP_LOGD(TAG, "MotorCtrl::polling 0x%lx dt: %ld, _speed: %d, realSpeed: %d, _power: %d",
-             (const unsigned long)this, dt, _speed, realSpeed, _power);
-    int pwr = 0;
-    if (_speed > 0) {
-      // Move forward
-      const int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
-      //const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
-      const long fx = (long)_pxForw * _speed / MAX_SPEED;
-      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
-
-      const long dpf = _muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      ESP_LOGD(TAG, "  dpf: %ld", dpf);
-
-      const int dp = asr(dpt + dpf, dt);
-      pwr = clip(_power + dp, pth, MAX_POWER);
-
-      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
-
-    } else if (_speed < 0) {
-      // Move backward
-      const int pth = realSpeed == 0 ? _p1Back : _p0Back;
-      //const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
-      const long fx = -(long)_pxBack * _speed / MAX_SPEED;
-      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
-
-      const long dpf = _muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      ESP_LOGD(TAG, "  dpf: %ld", dpf);
-
-      const int dp = asr(dpt + dpf, dt);
-      pwr = clip(_power + dp, -MAX_POWER, pth);
-
-      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
-    }
-    power(pwr);
-  }
-}
-*/
 
 /**
     Set the motor voltage

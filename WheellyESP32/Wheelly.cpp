@@ -754,15 +754,15 @@ const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topi
 
   // Validate parameters
   if (!(params.fi0 >= 0 && params.fi0 <= 4095
-        && params.fix >= 0 && params.fix <= 4095
+        && params.fix >= 0 && params.fix <= 16383
         && params.fd0 >= 0 && params.fd0 <= 4095
-        && params.fdx >= 0 && params.fdx <= 4095
+        && params.fdx >= 0 && params.fdx <= 16383
         && params.bi0 >= -4095 && params.bi0 <= 0
-        && params.bix >= 0 && params.bix <= 4095
+        && params.bix >= 0 && params.bix <= 16383
         && params.bd0 >= -4095 && params.bd0 <= 0
-        && params.bdx >= 0 && params.bdx <= 4095
-        && params.muForw >= 0 && params.muForw <= 2000000L
-        && params.muBack >= 0 && params.muBack <= 2000000L
+        && params.bdx >= 0 && params.bdx <= 16383
+        && params.muForw >= 0 && params.muForw <= 3000000L
+        && params.muBack >= 0 && params.muBack <= 3000000L
         && params.alpha >= 0 && params.alpha <= 100
         && params.ax >= 0 && params.bdx <= 16383)) {
     ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());

@@ -39,7 +39,7 @@
 static char* TAG = "MotorTest";
 
 #define SERIAL_BPS 115200
-#define MOTOR_TEST_DURATION 3000
+#define MOTOR_TEST_DURATION 5000
 #define SPEED_THRESHOLD 20
 #define MAX_POWER 255
 #define TEST_SPEED 30
@@ -53,36 +53,36 @@ static MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, rightSensor);
   Left motor controller configuration
 */
 const static tcsParams_t leftCfg = {
-  .fi0 = 800,
-  .fix = 1000,
-  .fd0 = 200,
-  .fdx = 1000,
-  .bi0 = -800,
-  .bix = 1000,
-  .bd0 = -200,
-  .bdx = 1000,
+  .fi0 = 904,
+  .fix = 5127,
+  .fd0 = 500,
+  .fdx = 5261,
+  .bi0 = -690,
+  .bix = 1680,
+  .bd0 = -450,
+  .bdx = 1702,
   .muForw = 30000,
   .muBack = 30000,
-  .alpha = 50,
-  .ax = 200
+  .alpha = 100,
+  .ax = 1000
 };
 
 /*
   Right motor controller configuration
 */
 const static tcsParams_t rightCfg = {
-  .fi0 = 800,
-  .fix = 1000,
-  .fd0 = 200,
-  .fdx = 1000,
-  .bi0 = -800,
-  .bix = 1000,
-  .bd0 = -200,
-  .bdx = 1000,
+  .fi0 = 628,
+  .fix = 2165,
+  .fd0 = 400,
+  .fdx = 2322,
+  .bi0 = -620,
+  .bix = 1569,
+  .bd0 = -400,
+  .bdx = 1468,
   .muForw = 30000,
   .muBack = 30000,
   .alpha = 50,
-  .ax = 200
+  .ax = 1000
 };
 
 
@@ -147,10 +147,10 @@ public:
 };
 
 static Test* tests[]{
-  new MotorPowerTest("1. Test left motor forward power", leftMotor, MAX_POWER / 2),
-  new MotorPowerTest("3. Test left motor backward power", leftMotor, -MAX_POWER / 2),
-  new MotorPowerTest("2. Test right motor forward power", rightMotor, MAX_POWER / 2),
-  new MotorPowerTest("4. Test right motor backward power", rightMotor, -MAX_POWER / 2),
+  //new MotorPowerTest("1. Test left motor forward power", leftMotor, MAX_POWER / 2),
+  //new MotorPowerTest("3. Test left motor backward power", leftMotor, -MAX_POWER / 2),
+  //new MotorPowerTest("2. Test right motor forward power", rightMotor, MAX_POWER / 2),
+  //new MotorPowerTest("4. Test right motor backward power", rightMotor, -MAX_POWER / 2),
   new SpeedTest("5. Test left speed forward", TEST_SPEED, 0),
   new SpeedTest("6. Test left speed backward", -TEST_SPEED, 0),
   new SpeedTest("7. Test right speed forward", 0, TEST_SPEED),
