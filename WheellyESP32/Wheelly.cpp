@@ -234,7 +234,8 @@ void Wheelly::polling(const unsigned long t0) {
   if (t0 >= _supplySampleTimeout) {
     /* Polls for supplier sensor sample */
     sampleSupply();
-    _supplySampleTimeout = t0 + SUPPLY_SAMPLE_INTERVAL;
+    int supply =
+      _supplySampleTimeout = t0 + SUPPLY_SAMPLE_INTERVAL;
   }
 
   if (t0 >= _supplyTimeout) {
@@ -423,6 +424,10 @@ void Wheelly::sampleSupply(void) {
     _supplyTotal += sample;
     _supplySamples++;
   }
+  int supply = (int)(_supplyTotal / _supplySamples);
+  // Update motor supplies
+  _motionCtrl.leftMotor().supply(supply);
+  _motionCtrl.rightMotor().supply(supply);
 }
 
 /*
@@ -484,8 +489,8 @@ void Wheelly::sendMotion(const unsigned long t0) {
           _motionCtrl.speed(),
           _motionCtrl.leftMotor().speed(),
           _motionCtrl.rightMotor().speed(),
-          _motionCtrl.leftMotor().power(),
-          _motionCtrl.rightMotor().power());
+          _motionCtrl.leftMotor().pwm(),
+          _motionCtrl.rightMotor().pwm());
   sendSensorData("mt", bfr);
   _lastSend = t0;
 }
@@ -543,33 +548,37 @@ const boolean Wheelly::canMoveBackward() const {
 const boolean Wheelly::handleQcCmd(const unsigned long time, const String& topic, const String& args) {
   char bfr[512];
 
-  MotorCtrl& leftMotor = _motionCtrl.leftMotor();
-  MotorCtrl& rightMotor = _motionCtrl.leftMotor();
-  sprintf(bfr, "%d,%d,%d,%lu,%d,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld",
+  const tcsParams_t& leftMotor = _motionCtrl.leftMotor().tcs();
+  const tcsParams_t& rightMotor = _motionCtrl.rightMotor().tcs();
+  sprintf(bfr, "%d,%d,%d,%lu,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%d,%d",
           _motionCtrl.minRotRange(),
           _motionCtrl.maxRotRange(),
           _motionCtrl.maxRotPps(),
           _motionCtrl.sensors().tau(),
-          leftMotor.p0Forw(),
-          leftMotor.p1Forw(),
-          leftMotor.pxForw(),
-          leftMotor.p0Back(),
-          leftMotor.p1Back(),
-          leftMotor.pxBack(),
-          leftMotor.ax(),
-          leftMotor.alpha(),
-          leftMotor.muForw(),
-          leftMotor.muBack(),
-          rightMotor.p0Forw(),
-          rightMotor.p1Forw(),
-          rightMotor.pxForw(),
-          rightMotor.p0Back(),
-          rightMotor.p1Back(),
-          rightMotor.pxBack(),
-          rightMotor.ax(),
-          rightMotor.alpha(),
-          rightMotor.muForw(),
-          rightMotor.muBack());
+          leftMotor.fi0,
+          leftMotor.fix,
+          leftMotor.fd0,
+          leftMotor.fdx,
+          leftMotor.bi0,
+          leftMotor.bix,
+          leftMotor.bd0,
+          leftMotor.bdx,
+          leftMotor.muForw,
+          leftMotor.muBack,
+          leftMotor.alpha,
+          leftMotor.ax,
+          rightMotor.fi0,
+          rightMotor.fix,
+          rightMotor.fd0,
+          rightMotor.fdx,
+          rightMotor.bi0,
+          rightMotor.bix,
+          rightMotor.bd0,
+          rightMotor.bdx,
+          rightMotor.muForw,
+          rightMotor.muBack,
+          rightMotor.alpha,
+          rightMotor.ax);
   sendCommandReply(topic + "/res", bfr);
   return true;
 }
@@ -605,10 +614,6 @@ const boolean Wheelly::execute(const unsigned long t0, const String& topic, cons
     return handleTcsCmd(t0, topic, args);
   } else if (topic.endsWith("/tcsr")) {
     return handleTcsCmd(t0, topic, args);
-  } else if (topic.endsWith("/fl")) {
-    return handleFxCmd(t0, topic, args);
-  } else if (topic.endsWith("/fr")) {
-    return handleFxCmd(t0, topic, args);
   } else if (topic.endsWith("/rs")) {
     reset();
     sendCommandReply(topic + "/res", args);
@@ -643,7 +648,7 @@ const boolean Wheelly::handleScanCmd(const unsigned long time, const String& top
   }
 
   scan(direction, time);
- sendCommandReply(topic + "/res", args);
+  sendCommandReply(topic + "/res", args);
   return true;
 }
 
@@ -732,6 +737,49 @@ const boolean Wheelly::handleCsCmd(const unsigned long time, const String& topic
 }
 
 const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topic, const String& args) {
+  tcsParams_t params;
+  int count;
+
+  if (sscanf(args.c_str(), "%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%d,%d%n",
+             &params.fi0, &params.fix, &params.fd0, &params.fdx,
+             &params.bi0, &params.bix, &params.bd0, &params.bdx,
+             &params.muForw, &params.muBack, &params.alpha, &params.ax,
+             &count)
+        != 12
+      || count != args.length()) {
+    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  // Validate parameters
+  if (!(params.fi0 >= 0 && params.fi0 <= 4095
+        && params.fix >= 0 && params.fix <= 16383
+        && params.fd0 >= 0 && params.fd0 <= 4095
+        && params.fdx >= 0 && params.fdx <= 16383
+        && params.bi0 >= -4095 && params.bi0 <= 0
+        && params.bix >= 0 && params.bix <= 16383
+        && params.bd0 >= -4095 && params.bd0 <= 0
+        && params.bdx >= 0 && params.bdx <= 16383
+        && params.muForw >= 0 && params.muForw <= 3000000L
+        && params.muBack >= 0 && params.muBack <= 3000000L
+        && params.alpha >= 0 && params.alpha <= 100
+        && params.ax >= 0 && params.bdx <= 16383)) {
+    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+  if (topic.endsWith("/tcsl")) {
+    configLeftTcsMotorController(params);
+  } else {
+    configRightTcsMotorController(params);
+  }
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+/*
+const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topic, const String& args) {
   int params[8];
   int count;
 
@@ -762,25 +810,4 @@ const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topi
   sendCommandReply(topic + "/res", args);
   return true;
 }
-
-const boolean Wheelly::handleFxCmd(const unsigned long time, const String& topic, const String& args) {
-  long params[2];
-  int count;
-
-  if (sscanf(args.c_str(), "%ld,%ld%n", &params[0], &params[1], &count) != 2 || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-
-  if (!(params[0] >= 0 && params[0] <= 2000000L
-        && params[1] >= 0 && params[1] <= 2000000L)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-
-  configFeedbackMotorController(params, topic.endsWith("/fl"));
-  sendCommandReply(topic + "/res", args);
-  return true;
-}
+*/

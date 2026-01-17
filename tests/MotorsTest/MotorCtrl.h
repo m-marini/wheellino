@@ -162,6 +162,60 @@ public:
   }
 };
 
+/**
+  Traction control system parameters
+*/
+typedef struct {
+  /**
+    Forward increment threshold voltage
+  */
+  int fi0;
+  /**
+    Forward increment voltage
+  */
+  int fix;
+  /**
+    Forward decrement threshold voltage
+  */
+  int fd0;
+  /**
+    Forward decrement voltage
+  */
+  int fdx;
+  /**
+    Backward increment threshold voltage
+  */
+  int bi0;
+  /**
+    Backward increment voltage
+  */
+  int bix;
+  /**
+    Backward decrement threshold voltage
+  */
+  int bd0;
+  /**
+    Backward decrement voltage
+  */
+  int bdx;
+  /**
+    Forward feedback factor
+  */
+  long muForw;
+  /**
+    Backward feedback factor
+  */
+  long muBack;
+  /**
+    Voltage integration facotr
+  */
+  int alpha;
+  /**
+    ASR factor
+  */
+  int ax;
+} tcsParams_t;
+
 /*
   Motor ontroller
 */
@@ -171,21 +225,22 @@ private:
   const uint8_t _backPin;
   boolean _automatic;
   MotorSensor& _sensor;
-  int _p0Forw;
-  int _p1Forw;
-  int _pxForw;
-  long _muForw;
-  int _p0Back;
-  int _p1Back;
-  int _pxBack;
-  long _muBack;
-  int _alpha;
-  int _ax;
+  tcsParams_t _tcs;
   unsigned long _prevTimestamp;
   int _speed;
-  int _power;
+  int _voltage;
+  int _supply;
+  int _pwm;
 
-  const long asr(const long dp, const long dt) const;
+  /**
+  * Returns the ASR  (Anti Slip Regulation) voltage
+  */
+  const long asr(const long dv, const long dt) const;
+
+  /**
+    Set the motor voltage
+  */
+  void voltage(const int v);
 
 public:
   /*
@@ -204,37 +259,51 @@ public:
   void speed(const int value);
 
   /**
-       Sets the tcs parameters
-       [
-         p0Forw, p1Forw, pxForw
-         p0Back, p1Back, pxBack
-         ax, alpha
-       ]
-       p0Forw, p0Back: power for dynamic friction (min power for moving motor)
-       p1Forw, p1Back: power for static friction (min power for stopped motor)
-       pxForw, pxBack: max theoretical power to run max speed
-       ax: asr acceleration value
-       alpha: alpha mix value
-    */
-  void tcsConfig(const int* parms);
+    Sets the supply voltage
+  */
+  void supply(const int supply) {
+    _supply = supply;
+  }
 
   /**
-       Sets the feedback parameters
-       [
-         muForw, muBack
-       ]
-      muForw, muBack: delta power by delta speed by dt (power correction for speed difference)
+       Sets the tcs parameters
     */
-  void muConfig(const long* parms);
+  void tcs(const tcsParams_t& tcs) {
+    _tcs = tcs;
+  }
+
+  /**
+       Returns the tcs parameters
+    */
+  const tcsParams_t& tcs(void) const {
+    return _tcs;
+  }
 
   /*
        Returns the speed
     */
-  const int speed() const {
+  const int speed(void) const {
     return _speed;
   }
 
-  void power(const int pwr);
+  /**
+    Return the pwm
+  */
+  const int pwm(void) const {
+    return _pwm;
+  }
+
+  /**
+    Returns the voltage
+  */
+  const int voltage(void) const {
+    return _voltage;
+  }
+
+  /**
+   Sets the pwm factor
+  */
+  void pwm(const int pwm);
 
   /*
        Polls the motor controller
@@ -254,84 +323,6 @@ public:
     */
   MotorSensor& sensor(void) const {
     return _sensor;
-  }
-
-  /**
-       Returns the power applied to motor
-    */
-  const int power(void) const {
-    return _power;
-  }
-
-  /**
-       Returns the p0Forw parameter
-    */
-  const int p0Forw(void) const {
-    return _p0Forw;
-  }
-
-  /**
-       Returns the p1Forw parameter
-    */
-  const int p1Forw(void) const {
-    return _p1Forw;
-  }
-
-  /**
-       Returns the pxForw parameter
-    */
-  const int pxForw(void) const {
-    return _pxForw;
-  }
-
-  /**
-       Returns the muForw parameter
-    */
-  const long muForw(void) const {
-    return _muForw;
-  }
-
-  /**
-       Returns the p0Back parameter
-    */
-  const int p0Back(void) const {
-    return _p0Back;
-  }
-
-  /**
-       Returns the p1Back parameter
-    */
-  const int p1Back(void) const {
-    return _p1Back;
-  }
-
-  /**
-       Returns the pxBack parameter
-    */
-  const int pxBack(void) const {
-    return _pxBack;
-  }
-
-  /**
-       Returns the muBack parameter
-    */
-  const long muBack(void) const {
-    return _muBack;
-  }
-
-  /**
-       Returns the ax parameter
-    */
-  const int ax(void) const {
-    return _ax;
-  }
-
-
-  /**
-       Returns the ax parameter
-    */
-  const int alpha(void) const {
-    return _alpha;
   }
 };
 

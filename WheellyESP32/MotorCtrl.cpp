@@ -37,22 +37,21 @@ static char* TAG = "MotorCtrl";
 #include "pins.h"
 
 
-#define DEFAULT_P0 59
-#define DEFAULT_P1 73
-#define DEFAULT_PX 255
-//#define DEFAULT_MU    0
+#define DEFAULT_VI0 560
+#define DEFAULT_VD0 100
+#define DEFAULT_VX 800
 #define DEFAULT_MU 20000
-//#define DEFAULT_MU    10000
 #define DEFAULT_AX 200
-#define DEFAULT_ALPHA 25
+#define DEFAULT_ALPHA 50
 #define DEFAULT_TAU 300ul
+#define DEFAULT_VOLTAGE 2500
 
 static unsigned long MIN_INTERVAL = 100ul;
-static int MAX_POWER = 255;
-static int MAX_SPEED = 120;
+static int MAX_PWM = 255;
+static int REFERENCE_SPEED = 120;
 static long ASR_SCALE = 1000;
 static long ALPHA_SCALE = 100;
-static long FEEDBACK_SCALE = 1000000;
+static long FEEDBACK_SCALE = 1000;
 
 /*
    Creates the motor controller
@@ -61,17 +60,20 @@ MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& 
   : _forwPin(forwPin),
     _backPin(backPin),
     _sensor(sensor),
+    _supply(DEFAULT_VOLTAGE),
     _automatic(true),
-    _ax(DEFAULT_AX),
-    _alpha(DEFAULT_ALPHA),
-    _p0Forw(DEFAULT_P0),
-    _p1Forw(DEFAULT_P1),
-    _pxForw(DEFAULT_PX),
-    _muForw(DEFAULT_MU),
-    _p0Back(-DEFAULT_P0),
-    _p1Back(-DEFAULT_P1),
-    _pxBack(-DEFAULT_PX),
-    _muBack(DEFAULT_MU) {
+    _tcs({ .fi0 = DEFAULT_VI0,
+           .fix = DEFAULT_VX,
+           .fd0 = DEFAULT_VD0,
+           .fdx = DEFAULT_VX,
+           .bi0 = -DEFAULT_VI0,
+           .bix = DEFAULT_VX,
+           .bd0 = -DEFAULT_VD0,
+           .bdx = DEFAULT_VX,
+           .muForw = DEFAULT_MU,
+           .muBack = DEFAULT_MU,
+           .alpha = DEFAULT_ALPHA,
+           .ax = DEFAULT_AX }) {
 }
 
 /*
@@ -85,47 +87,11 @@ void MotorCtrl::begin() {
 }
 
 /**
-   Sets the tcs parameters
-   [
-     p0Forw, p1Forw, pxForw
-     p0Back, p1Back, pxBack
-     ax, alpha
-   ]
-   p0Forw, p0Back: power for dynamic friction (min power for moving motor)
-   p1Forw, p1Back: power for static friction (min power for stopped motor)
-   pxForw, pxBack: max theoretical power to run max speed
-   ax: asr acceleration value
-   alpha: alpha mix value
-*/
-void MotorCtrl::tcsConfig(const int* parms) {
-  _p0Forw = parms[0];
-  _p1Forw = parms[1];
-  _pxForw = parms[2];
-  _p0Back = parms[3];
-  _p1Back = parms[4];
-  _pxBack = parms[5];
-  _ax = parms[6];
-  _alpha = parms[7];
-}
-
-/**
-   Sets the feedback parameters
-   [
-     muForw, muBack
-   ]
-  muForw, muBack: delta power by delta speed by dt (power correction for speed difference)
-*/
-void MotorCtrl::muConfig(const long* parms) {
-  _muForw = parms[0];
-  _muBack = parms[1];
-}
-
-/**
    ASR function
 */
-const long MotorCtrl::asr(const long dPower, const long dt) const {
-  const long px = _ax * dt / ASR_SCALE;
-  return clip(dPower, -px, px);
+const long MotorCtrl::asr(const long dV, const long dt) const {
+  const long px = _tcs.ax * dt / ASR_SCALE;
+  return clip(dV, -px, px);
 }
 
 /*
@@ -135,7 +101,7 @@ void MotorCtrl::speed(const int value) {
   if (value == 0
       || _speed < 0 && value > 0
       || _speed > 0 && value < 0) {
-    power(0);
+    pwm(0);
   }
   _speed = value;
 }
@@ -144,71 +110,97 @@ void MotorCtrl::speed(const int value) {
    Polls motor controller
 */
 void MotorCtrl::polling(const unsigned long timestamp) {
+  // Polling motor sensor
   _sensor.polling(timestamp);
+  // Compute time interval from last tcs check
   const long dt = (long)(timestamp - _prevTimestamp);
+  // Check for traction control system active and tcs reaction time
   if (_automatic && dt > MIN_INTERVAL) {
+    // TCS check
+    // Store tcs instant
     _prevTimestamp = timestamp;
-
-    // Computes the power
+    // Computes the real speed
     const int realSpeed = round(_sensor.pps());
+    ESP_LOGD(TAG, "ctrl=0x%lx dt=%ld speed=%d, realSpeed=%d supply=%d voltage=%d",
+             (const unsigned long)this, dt, _speed, realSpeed, _supply, _voltage);
 
-    ESP_LOGD(TAG, "MotorCtrl::polling 0x%lx dt: %ld, _speed: %d, realSpeed: %d, _power: %d",
-             (const unsigned long)this, dt, _speed, realSpeed, _power);
-    int pwr = 0;
+    int vf = 0;
+    // Check for motor direction
     if (_speed > 0) {
       // Move forward
-      const int pth = realSpeed == 0 ? _p1Forw : _p0Forw;
-      //const long fx = pth + (long)(_pxForw - pth) * _speed / MAX_SPEED;
-      const long fx = (long)_pxForw * _speed / MAX_SPEED;
-      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
-
-      const long dpf = _muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      ESP_LOGD(TAG, "  dpf: %ld", dpf);
-
-      const int dp = asr(dpt + dpf, dt);
-      pwr = clip(_power + dp, pth, MAX_POWER);
-
-      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
-
+      // Check for stationary or moving  motor
+      const int vx = realSpeed == 0 ? _tcs.fix : _tcs.fdx;
+      // Computes the theoretical voltage
+      const long vt = (long)_speed * vx / REFERENCE_SPEED;
+      // Compute the theoretical differential voltage
+      const long dvt = vt - _voltage;
+      // Computes the feedback differential voltage
+      const long dvf = (long)_tcs.muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
+      // Compute the differential voltage
+      const long dv1 = ((long)(100 - _tcs.alpha) * dvt + _tcs.alpha * dvf) / 100;
+      // Compute the asr differential voltage
+      const long dv = asr(dv1, dt);
+      // Check for stationary or moving  motor
+      const int v0 = realSpeed == 0 ? _tcs.fi0 : _tcs.fd0;
+      // Compute the final voltage
+      int vf1 = _voltage + dv;
+      vf = max(vf1, v0);
+      ESP_LOGD(TAG, "v0=%d vx=%d vt=%ld dvt=%ld dvf=%ld dv1=%ld dv=%ld vf1=%d vf=%d",
+               v0, vx, vt, dvt, dvf, dv1, dv, vf1, vf);
     } else if (_speed < 0) {
       // Move backward
-      const int pth = realSpeed == 0 ? _p1Back : _p0Back;
-      //const long fx = pth - (long)(_pxBack - pth) * _speed / MAX_SPEED;
-      const long fx = -(long)_pxBack * _speed / MAX_SPEED;
-      const int dpt = _alpha * (fx - _power) / ALPHA_SCALE;
-      ESP_LOGD(TAG, "  fx: %ld, dpt: %d", fx, dpt);
-
-      const long dpf = _muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      ESP_LOGD(TAG, "  dpf: %ld", dpf);
-
-      const int dp = asr(dpt + dpf, dt);
-      pwr = clip(_power + dp, -MAX_POWER, pth);
-
-      ESP_LOGD(TAG, "  dp: %d, pth: %d, pwr: %d", dp, pth, pwr);
+      // Check for stationary or moving  motor
+      const int vx = realSpeed == 0 ? _tcs.bix : _tcs.bdx;
+      // Computes the theoretical voltage
+      const long vt = (long)_speed * vx / REFERENCE_SPEED;
+      // Compute the theoretical differential voltage
+      const long dvt = vt - _voltage;
+      // Computes the feedback differential voltage
+      const long dvf = (long)_tcs.muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
+      // Compute the differential voltage
+      const long dv1 = ((long)(100 - _tcs.alpha) * dvt + _tcs.alpha * dvf) / 100;
+      // Compute the asr differential voltage
+      const long dv = asr(dv1, dt);
+      // Check for stationary or moving  motor
+      const int v0 = realSpeed == 0 ? _tcs.bi0 : _tcs.bd0;
+      // Compute the final voltage
+      int vf1 = _voltage + dv;
+      vf = min(vf1, v0);
+      ESP_LOGD(TAG, "v0=%d vx=%d vt=%ld dvt=%ld dvf=%ld dv1=%ld dv=%ld vf1=%d vf=%d",
+               v0, vx, vt, dvt, dvf, dv1, dv, vf1, vf);
     }
-    power(pwr);
+    voltage(vf);
   }
 }
+
+/**
+    Set the motor voltage
+  */
+void MotorCtrl::voltage(const int v) {
+  _voltage = v;
+  pwm(clip(MAX_PWM * v / _supply, -MAX_PWM, MAX_PWM));
+}
+
 
 /*
    Applies the power to the motor
    @param pwr the power -255 ... 255
 */
-void MotorCtrl::power(const int pwr) {
+void MotorCtrl::pwm(const int pwm) {
+  ESP_LOGD(TAG, "pwm=%d", pwm);
+  _pwm = pwm;
   // Applies the power
-  _power = pwr;
-  if (_power == 0) {
+  if (pwm == 0) {
     analogWrite(_forwPin, 0);
     analogWrite(_backPin, 0);
-  } else if (_power > 0) {
-    analogWrite(_forwPin, _power);
+  } else if (pwm > 0) {
+    analogWrite(_forwPin, pwm);
     analogWrite(_backPin, 0);
   } else {
     analogWrite(_forwPin, 0);
-    analogWrite(_backPin, -_power);
+    analogWrite(_backPin, -pwm);
   }
-  _sensor.direction(_power);
+  _sensor.direction(pwm);
 }
 
 /*

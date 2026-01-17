@@ -1,7 +1,7 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 
-#include "ConfStore.h"
+#include "SDConfStore.h"
 #include "MqttClient.h"
 #include "Camera.h"
 
@@ -12,17 +12,11 @@ static const char* TAG = "CameraDevice";
 #define CONNECTION_INTERVAL 1000
 #define WATCHDOG_INTERVAL 30000
 #define LOOP_INTERVAL 10
-#define DOT_MILLIS 80 // 80 ms =  15 WPM
+#define DOT_MILLIS 80  // 80 ms =  15 WPM
 
 static const char* WHEELLY_MESSAGES_VERSION = "v0";
 
-// ===========================
-// Enter your WiFi credentials
-// ===========================
-const char* ssid = "Wind3 HUB-D4E831";
-const char* password = "50n08u8uL0r54cch10770";
-
-ConfStore confStore;
+SDConfStore confStore;
 
 static boolean mqttConnected = false;
 static String pubSensorTopicPrefix;
@@ -41,8 +35,8 @@ static void flashingError(void);
 
 void setup() {
   Serial.begin(115200);
-  Serial.setDebugOutput(true);
   Serial.println();
+  while (!Serial) {}
   delay(500);
   ESP_LOGI(TAG, "Start sequence.");
 
@@ -60,8 +54,9 @@ void setup() {
   flashingStart();
 
   // Start Wifi
-  ESP_LOGI(TAG, "Connecting WiFi...");
-  WiFi.begin(ssid, password);
+  const char* ssid = confStore.config().wifiSsid.c_str();
+  ESP_LOGI(TAG, "Connecting WiFi %s ...", ssid);
+  WiFi.begin(ssid, confStore.config().wifiPassword.c_str());
   WiFi.setSleep(false);
 
   // Wait for connection
@@ -81,17 +76,13 @@ void setup() {
 
   // Initialize MQTT
   ESP_LOGI(TAG, "Initialise mqtt client");
-  ConfigRecord mqttConfig = {
-    .mqttBrokerHost = "192.168.1.253",
-    .mqttBrokerPort = 1883,
-    .mqttUser = "wheelly",
-    .mqttPsw = "wheelly",
-  };
+  const SDConfigRecord& mqttConfig = confStore.config();
   const String id = macId();
   pubSensorTopicPrefix = "sens/wheellycam/" + id + "/" + WHEELLY_MESSAGES_VERSION;
   subCommandTopics = "cmd/wheellycam/" + id + "/" + WHEELLY_MESSAGES_VERSION + "/+";
   ESP_LOGD(TAG, "Subtopics = %s", subCommandTopics.c_str());
-  mqttClient.begin(mqttConfig.mqttBrokerHost, mqttConfig.mqttBrokerPort, "wheellycam", mqttConfig.mqttUser, mqttConfig.mqttPsw,
+  mqttClient.begin(mqttConfig.mqttBrokerHost, mqttConfig.mqttBrokerPort,
+                   "wheellycam", mqttConfig.mqttUser, mqttConfig.mqttPsw,
                    subCommandTopics, 3000);
   mqttClient.onMessage(onMessage);
 

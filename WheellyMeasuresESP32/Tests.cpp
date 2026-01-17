@@ -49,74 +49,80 @@ void MotorTest::stop(void) {
   Poolling the test
   */
 void MotorTest::pooling(const unsigned long t0) {
-  if (_isTesting) {
-    if (_isWaitingForEnd) {
-      if (t0 >= _nextStepInstant) {
-        // End test
-        _power = 0;
-        changePower();
-        _isTesting = false;
-        ESP_LOGI(TAG, "End test");
-        changePower();
+  if (!_isTesting) {
+    return;
+  }
+  // Test is running
+  if (_isWaitingForEnd) {
+    // Is waiting for end test
+    if (t0 >= _nextStepInstant) {
+      // End test
+      _power = 0;
+      changePower();
+      _isTesting = false;
+      ESP_LOGI(TAG, "End test");
+      changePower();
+      return;
+    }
+  }
+  // Is moving
+  if (t0 < _nextStepInstant) {
+    return;
+  }
+  // next step elapsed
+  changePower();
+  if (_maxPower > 0) {
+    // forward testing
+    if (_isSteppingUp) {
+      // Stepping up
+      _power += _accelerationPower;
+      if (_power >= _maxPower) {
+        // Step up completed
+        _power = _maxPower;
+        _isSteppingUp = false;
+        _nextStepInstant = t0 + _decelerationInterval;
+      } else {
+        _nextStepInstant = t0 + _accelerationInterval;
       }
     } else {
-      if (t0 >= _nextStepInstant) {
-        changePower();
-        if (_maxPower > 0) {
-          // forward testing
-          if (_isSteppingUp) {
-            // Stepping up
-            _power += _accelerationPower;
-            if (_power >= _maxPower) {
-              // Step up completed
-              _power = _maxPower;
-              _isSteppingUp = false;
-              _nextStepInstant = t0 + _decelerationInterval;
-            } else {
-              _nextStepInstant = t0 + _accelerationInterval;
-            }
-          } else {
-            // Stepping down
-            _power -= _decelerationPower;
-            if (_power <= 0) {
-              // Step down completed
-              _power = 0;
-              _isWaitingForEnd = true;
-              _nextStepInstant = t0 + END_TEST_INTERVAL;
-            } else {
-              _nextStepInstant = t0 + _decelerationInterval;
-            }
-          }
-        } else {
-          // backward testing
-          if (_isSteppingUp) {
-            // Stepping up
-            _power -= _accelerationPower;
-            if (_power < _maxPower) {
-              // Step up completed
-              _power = _maxPower;
-              _isSteppingUp = false;
-              _nextStepInstant = t0 + _decelerationInterval;
-            } else {
-              _nextStepInstant = t0 + _accelerationInterval;
-            }
-          } else {
-            // Stepping down
-            _power += _decelerationPower;
-            if (_power >= 0) {
-              // Step down completed
-              _power = 0;
-              _isWaitingForEnd = true;
-              _nextStepInstant = t0 + END_TEST_INTERVAL;
-            } else {
-              _nextStepInstant = t0 + _decelerationInterval;
-            }
-          }
-        }
-        changePower();
+      // Stepping down
+      _power -= _decelerationPower;
+      if (_power <= 0) {
+        // Step down completed
+        _power = 0;
+        _isWaitingForEnd = true;
+        _nextStepInstant = t0 + END_TEST_INTERVAL;
+      } else {
+        _nextStepInstant = t0 + _decelerationInterval;
+      }
+    }
+  } else {
+    // backward testing
+    if (_isSteppingUp) {
+      // Stepping up
+      _power -= _accelerationPower;
+      if (_power < _maxPower) {
+        // Step up completed
+        _power = _maxPower;
+        _isSteppingUp = false;
+        _nextStepInstant = t0 + _decelerationInterval;
+      } else {
+        _nextStepInstant = t0 + _accelerationInterval;
+      }
+    } else {
+      // Stepping down
+      _power += _decelerationPower;
+      if (_power >= 0) {
+        // Step down completed
+        _power = 0;
+        _isWaitingForEnd = true;
+        _nextStepInstant = t0 + END_TEST_INTERVAL;
+      } else {
+        _nextStepInstant = t0 + _decelerationInterval;
       }
     }
   }
+  changePower();
 }
 
 /**
