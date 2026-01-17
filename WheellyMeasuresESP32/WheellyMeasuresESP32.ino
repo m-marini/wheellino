@@ -147,7 +147,9 @@ static Timer statusTimer;
 */
 void setup() {
   Serial.begin(115200);
-  Serial.setTimeout(SERIAL_TIMEOUT);
+  while (!Serial) {
+    delay(10);
+  }
 
   Wire.begin();
   Wire.setClock(WIRE_CLOCK);  // 400kHz I2C clock. Comment this line if having compilation difficulties
@@ -286,7 +288,7 @@ static void supplyPolling(const unsigned long t0) {
 Returns true if test is running
 */
 static bool isTesting(void) {
-  return leftMotorTest.testing() || leftMotorTest.testing();
+  return leftMotorTest.testing() || rightMotorTest.testing();
 }
 
 /**
