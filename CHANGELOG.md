@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue [#124](https://github.com/m-marini/wheellino/issues/124): Add wheelly measure end test record
 - Issue [#126](https://github.com/m-marini/wheellino/issues/126): Add supply measure in wheelly measures
 - Issue [#128](https://github.com/m-marini/wheellino/issues/128): Add SD Camera Card and change motor controller by voltage
+- Issue [#131](https://github.com/m-marini/wheellino/issues/131): Add Head rotation limits
 
 
 ### Changed

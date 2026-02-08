@@ -45,26 +45,15 @@ private:
   Servo _servo;
   int _direction;
   int _toDirection;
+  int _fromDirection;
   int _offset;
-  boolean _moving;
+  bool _moving;
   unsigned long _lastPoll;
-  unsigned long _positionTime;
+  unsigned long _toTime;
+  unsigned long _fromTime;
   unsigned long _resetTime;
-  float _a;
-  float _b;
   OnPositionCallBack_t _onPosition;
   void *_context;
-
-  /**
-       Moves the servo to position the sensor
-    */
-  void moveServo(const unsigned long t0);
-
-  /**
-       Returns the interpolated direction (DEG) at dt time to position
-       @param dt the time to position (ms)
-    */
-  const int direction(const unsigned long dt);
 
 public:
   LidarServo(const uint8_t servoPin);

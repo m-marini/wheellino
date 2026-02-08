@@ -64,10 +64,6 @@ static const unsigned long STATS_INTERVAL = 10000ul;
    Proximity sensor
    Proximity distance scanner
 */
-//static const unsigned long STOP_ECHO_TIME = (20ul * 5887 / 100);  // 20 cm
-//static const unsigned long MAX_ECHO_TIME = (400ul * 5887 / 100);  // 400 cm
-//static const unsigned long MIN_ECHO_TIME = (3ul * 5887 / 100);    // 3 cm
-//static const int DISTANCE_TICK = 5;
 static const uint16_t STOP_DISTANCE = 200;  // 200 mm
 
 /*
@@ -77,6 +73,7 @@ static const unsigned long DEFAULT_SCAN_INTERVAL = 1000ul;
 static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
 static const int SERVO_OFFSET = 0;
+static const int SERVO_DIRECTION_LIMIT = 90;
 
 /*
    Voltage levels
@@ -100,6 +97,8 @@ Wheelly::Wheelly()
     _sendInterval(DEFAULT_SEND_INTERVAL),
     _contactSensors(FRONT_CONTACTS_PIN, REAR_CONTACTS_PIN),
     _lidar(FRONT_LIDAR_PIN, REAR_LIDAR_PIN),
+    _minHeadDir(-SERVO_DIRECTION_LIMIT),
+    _maxHeadDir(SERVO_DIRECTION_LIMIT),
     _servo(SERVO_PIN) {
   // Computes device id from mac address
   uint64_t mac = ESP.getEfuseMac();
@@ -532,7 +531,7 @@ void Wheelly::sendLidar(void) {
    Returns true if can move forward
 */
 const boolean Wheelly::canMoveForward() const {
-  return !(_frontDistance > 0 && _frontDistance <= STOP_DISTANCE) && _contactSensors.frontClear();
+  return _contactSensors.frontClear() && (_frontDistance == 0 || _frontDistance > STOP_DISTANCE);
 }
 
 /*
@@ -604,6 +603,8 @@ const boolean Wheelly::execute(const unsigned long t0, const String& topic, cons
     return handleScanCmd(t0, topic, args);
   } else if (topic.endsWith("/mv")) {
     return handleMoveCmd(t0, topic, args);
+  } else if (topic.endsWith("/ch")) {
+    return handleChCmd(t0, topic, args);
   } else if (topic.endsWith("/ci")) {
     return handleCiCmd(t0, topic, args);
   } else if (topic.endsWith("/cc")) {
@@ -641,7 +642,7 @@ const boolean Wheelly::handleScanCmd(const unsigned long time, const String& top
     sendCommandReply(topic + "/err", "Wrong args " + args);
     return false;
   }
-  if (!(direction >= -90 && direction <= 90)) {
+  if (!(direction >= _minHeadDir && direction <= _maxHeadDir)) {
     ESP_LOGD(TAG, "Wrong args %s %s", topic.c_str(), args.c_str());
     sendCommandReply(topic + "/err", "Wrong args " + args);
     return false;
@@ -688,6 +689,27 @@ const boolean Wheelly::handleCiCmd(const unsigned long time, const String& topic
   }
 
   configIntervals(params);
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
+const boolean Wheelly::handleChCmd(const unsigned long time, const String& topic, const String& args) {
+  int minHeadDir, maxHeadDir;
+  int count;
+  if (sscanf(args.c_str(), "%d,%d%n", &minHeadDir, &maxHeadDir, &count) != 2 || count != args.length()) {
+    ESP_LOGD(TAG, "Wrong message %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong message " + args);
+    return false;
+  }
+
+  if (!(minHeadDir >= -90 && maxHeadDir <= 90 && minHeadDir < maxHeadDir)) {
+    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+
+  _minHeadDir = minHeadDir;
+  _maxHeadDir = maxHeadDir;
   sendCommandReply(topic + "/res", args);
   return true;
 }
