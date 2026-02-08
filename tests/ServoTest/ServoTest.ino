@@ -60,9 +60,9 @@ void setup() {
   sensor.onPosition(handleDataReady);
   sensor.offset(-5);
   sensor.begin();
-  ESP_LOGI(TAG, "Start.");
   timeout = millis() + TEST_DURATION;
   sensor.direction(0, millis());
+  ESP_LOGI(TAG, "Start.");
 }
 
 void loop() {

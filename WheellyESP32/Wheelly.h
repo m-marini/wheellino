@@ -95,6 +95,8 @@ private:
   int _supplyVoltage;
   long _supplyTotal;
   int _supplySamples;
+  int _minHeadDir;
+  int _maxHeadDir;
 
   void (*_onReply)(void* context, const String& topic, const String& data);
   void* _context;
@@ -113,6 +115,7 @@ private:
   const boolean handleCiCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleCcCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleCsCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleChCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleTcsCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleQcCmd(const unsigned long time, const String& topic, const String& args);
 
