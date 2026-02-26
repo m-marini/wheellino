@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.10.0] 2026-02-26
+
 ### Added
 
 - Issue [#117](https://github.com/m-marini/wheellino/issues/117): Add Lidar sensors
