@@ -36,44 +36,41 @@ static char* TAG = "MotorCtrl";
 #include "num.h"
 #include "pins.h"
 
-
-#define DEFAULT_VI0 560
-#define DEFAULT_VD0 100
-#define DEFAULT_VX 800
-#define DEFAULT_MU 20000
-#define DEFAULT_AX 200
-#define DEFAULT_ALPHA 50
+//#define DEFAULT_VOLTAGE 2500
 #define DEFAULT_TAU 300ul
-#define DEFAULT_VOLTAGE 2500
+#define DEFAULT_ASR 200
+#define DEFAULT_PWM_FACTOR 1400
+#define DEFAULT_MAX_PULSE_INTERVAL 1000
+#define DEFAULT_LAMBDA_FACTOR 10
+#define DEFAULT_DELAYED_INTERVAL 10
 
-static unsigned long MIN_INTERVAL = 100ul;
 static int MAX_PWM = 255;
-static int REFERENCE_SPEED = 120;
 static long ASR_SCALE = 1000;
-static long ALPHA_SCALE = 100;
-static long FEEDBACK_SCALE = 1000;
+
+/**
+Handles the pulse from sensor
+*/
+void handlePulses(void* context, const int pulses, const unsigned long t, MotorSensor* sensor) {
+  MotorCtrl* controller = (MotorCtrl*)context;
+  controller->onPulses(pulses, t);
+}
 
 /*
    Creates the motor controller
 */
-MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& sensor)
+MotorCtrl::MotorCtrl(const uint8_t forwPin, const uint8_t backPin, const uint8_t sensorPin)
   : _forwPin(forwPin),
     _backPin(backPin),
-    _sensor(sensor),
-    _supply(DEFAULT_VOLTAGE),
+    _status(MOTOR_HALT),
+    _sensor(sensorPin),
     _automatic(true),
-    _tcs({ .fi0 = DEFAULT_VI0,
-           .fix = DEFAULT_VX,
-           .fd0 = DEFAULT_VD0,
-           .fdx = DEFAULT_VX,
-           .bi0 = -DEFAULT_VI0,
-           .bix = DEFAULT_VX,
-           .bd0 = -DEFAULT_VD0,
-           .bdx = DEFAULT_VX,
-           .muForw = DEFAULT_MU,
-           .muBack = DEFAULT_MU,
-           .alpha = DEFAULT_ALPHA,
-           .ax = DEFAULT_AX }) {
+    _asr(true),
+    _fPwmFactor(DEFAULT_PWM_FACTOR),
+    _bPwmFactor(-DEFAULT_PWM_FACTOR),
+    _tcs({ .asr = DEFAULT_ASR,
+           .maxPulseInterval = DEFAULT_MAX_PULSE_INTERVAL,
+           .lambdaFactor = DEFAULT_LAMBDA_FACTOR,
+           .delayedInterval = DEFAULT_DELAYED_INTERVAL }) {
 }
 
 /*
@@ -84,111 +81,68 @@ void MotorCtrl::begin() {
   pinMode(_forwPin, OUTPUT);
   pinMode(_backPin, OUTPUT);
   _sensor.begin();
-}
-
-/**
-   ASR function
-*/
-const long MotorCtrl::asr(const long dV, const long dt) const {
-  const long px = _tcs.ax * dt / ASR_SCALE;
-  return clip(dV, -px, px);
+  _sensor.onSample(handlePulses, this);
 }
 
 /*
-   Sets the motor speed
-*/
-void MotorCtrl::speed(const int value) {
-  if (value == 0
-      || _speed < 0 && value > 0
-      || _speed > 0 && value < 0) {
-    pwm(0);
-  }
-  _speed = value;
-}
-
-/*
-   Polls motor controller
-*/
-void MotorCtrl::polling(const unsigned long timestamp) {
-  // Polling motor sensor
-  _sensor.polling(timestamp);
-  // Compute time interval from last tcs check
-  const long dt = (long)(timestamp - _prevTimestamp);
-  // Check for traction control system active and tcs reaction time
-  if (_automatic && dt > MIN_INTERVAL) {
-    // TCS check
-    // Store tcs instant
-    _prevTimestamp = timestamp;
-    // Computes the real speed
-    const int realSpeed = round(_sensor.pps());
-    ESP_LOGD(TAG, "ctrl=0x%lx dt=%ld speed=%d, realSpeed=%d supply=%d voltage=%d",
-             (const unsigned long)this, dt, _speed, realSpeed, _supply, _voltage);
-
-    int vf = 0;
-    // Check for motor direction
-    if (_speed > 0) {
-      // Move forward
-      // Check for stationary or moving  motor
-      const int vx = realSpeed == 0 ? _tcs.fix : _tcs.fdx;
-      // Computes the theoretical voltage
-      const long vt = (long)_speed * vx / REFERENCE_SPEED;
-      // Compute the theoretical differential voltage
-      const long dvt = vt - _voltage;
-      // Computes the feedback differential voltage
-      const long dvf = (long)_tcs.muForw * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      // Compute the differential voltage
-      const long dv1 = ((long)(100 - _tcs.alpha) * dvt + _tcs.alpha * dvf) / 100;
-      // Compute the asr differential voltage
-      const long dv = asr(dv1, dt);
-      // Check for stationary or moving  motor
-      const int v0 = realSpeed == 0 ? _tcs.fi0 : _tcs.fd0;
-      // Compute the final voltage
-      int vf1 = _voltage + dv;
-      vf = max(vf1, v0);
-      ESP_LOGD(TAG, "v0=%d vx=%d vt=%ld dvt=%ld dvf=%ld dv1=%ld dv=%ld vf1=%d vf=%d",
-               v0, vx, vt, dvt, dvf, dv1, dv, vf1, vf);
-    } else if (_speed < 0) {
-      // Move backward
-      // Check for stationary or moving  motor
-      const int vx = realSpeed == 0 ? _tcs.bix : _tcs.bdx;
-      // Computes the theoretical voltage
-      const long vt = (long)_speed * vx / REFERENCE_SPEED;
-      // Compute the theoretical differential voltage
-      const long dvt = vt - _voltage;
-      // Computes the feedback differential voltage
-      const long dvf = (long)_tcs.muBack * (_speed - realSpeed) * dt / FEEDBACK_SCALE;
-      // Compute the differential voltage
-      const long dv1 = ((long)(100 - _tcs.alpha) * dvt + _tcs.alpha * dvf) / 100;
-      // Compute the asr differential voltage
-      const long dv = asr(dv1, dt);
-      // Check for stationary or moving  motor
-      const int v0 = realSpeed == 0 ? _tcs.bi0 : _tcs.bd0;
-      // Compute the final voltage
-      int vf1 = _voltage + dv;
-      vf = min(vf1, v0);
-      ESP_LOGD(TAG, "v0=%d vx=%d vt=%ld dvt=%ld dvf=%ld dv1=%ld dv=%ld vf1=%d vf=%d",
-               v0, vx, vt, dvt, dvf, dv1, dv, vf1, vf);
-    }
-    voltage(vf);
-  }
-}
-
-/**
-    Set the motor voltage
+  Returns the target pwm
   */
-void MotorCtrl::voltage(const int v) {
-  _voltage = v;
-  pwm(clip(MAX_PWM * v / _supply, -MAX_PWM, MAX_PWM));
+const int MotorCtrl::computePwm(void) const {
+  int pwm = (_speed > 0
+               ? _fPwmFactor
+             : _speed < 0
+               ? _bPwmFactor
+               : 0)
+            / (long)_pulseInterval;
+  return constrain(pwm, -MAX_PWM, MAX_PWM);
 }
 
+/**
+  Returns the power factor
+  @param pulseWidth the pulse width (ms)
+*/
+void MotorCtrl::updatePwmFactor(const long pulseWidth) {
+  // Compute factor with last pulse width
+  ESP_LOGD(TAG, "Update for pulse width %lu", pulseWidth);
+  long pwmFactor = pulseWidth > 0 ? _pwm * pulseWidth : _pwm;
+  if (pwmFactor == 0) {
+    pwmFactor = _pwm > 0 ? 1 : -1;
+  }
+  // Average with previous value
+  ESP_LOGD(TAG, "Update pwmFactor from %ld, %ld with %ld", _fPwmFactor, _bPwmFactor, pwmFactor);
+  if (_pwm > 0) {
+    _fPwmFactor = _fPwmFactor * (100 - _tcs.lambdaFactor) + pwmFactor * _tcs.lambdaFactor;
+    _fPwmFactor /= 100;
+  } else {
+    _bPwmFactor = _bPwmFactor * (100 - _tcs.lambdaFactor) + pwmFactor * _tcs.lambdaFactor;
+    _bPwmFactor /= 100;
+  }
+  ESP_LOGD(TAG, "                   to %ld, %ld", _fPwmFactor, _bPwmFactor);
+}
+
+/**
+   Sets the pwm factor
+  */
+void MotorCtrl::pwm(const int pwm, const unsigned long t) {
+  _targetPwm = pwm;
+  ESP_LOGD(TAG, "target pwm = %d", pwm);
+  if (!_asr || pwm == 0) {
+    // immediate pwm if no asr or motor halt
+    applyPwm(pwm, t);
+  }
+}
 
 /*
    Applies the power to the motor
    @param pwr the power -255 ... 255
 */
-void MotorCtrl::pwm(const int pwm) {
+void MotorCtrl::applyPwm(const int pwm, const unsigned long t0) {
   ESP_LOGD(TAG, "pwm=%d", pwm);
+  if (_pwm != pwm || pwm == 0) {
+    _lastPwmTime = t0;
+  }
   _pwm = pwm;
+  _sensor.direction(pwm);
   // Applies the power
   if (pwm == 0) {
     analogWrite(_forwPin, 0);
@@ -200,7 +154,142 @@ void MotorCtrl::pwm(const int pwm) {
     analogWrite(_forwPin, 0);
     analogWrite(_backPin, -pwm);
   }
-  _sensor.direction(pwm);
+}
+
+/*
+   Sets the motor speed
+*/
+void MotorCtrl::speed(const int value) {
+  ESP_LOGD(TAG, "speed(%d)", value);
+  const unsigned long t = millis();
+  if (value == 0
+      || _speed < 0 && value > 0
+      || _speed > 0 && value < 0) {
+    // Speed == 0 or speed direction != current speed: halt motor
+    _status = MOTOR_HALT;
+    _speed = 0;
+    pwm(0, t);
+    ESP_LOGD(TAG, "Stop motor");
+  } else if (_speed == 0) {
+    // motor stopped
+    _status = MOTOR_STARTING;
+    // set speed
+    _speed = value;
+    // set expected pulse interval
+    _pulseInterval = 1000 / abs(value);
+    // set last pulse time
+    _lastPulsesTime = t;
+    // Compute initial pwm and apply immediate
+    int pwm = computePwm();
+    ESP_LOGD(TAG, "Start pwm=%d pulseInterval=%lu", pwm, _pulseInterval);
+    this->pwm(pwm, t);
+  } else {
+    // Change speed and pulse interval
+    _speed = value;
+    _pulseInterval = 1000 / abs(value);
+    ESP_LOGD(TAG, "Change speed pulseInterval=%lu", _pulseInterval);
+  }
+}
+
+/*
+  Polls the motor controller
+*/
+void MotorCtrl::polling(const unsigned long t) {
+  _sensor.polling(t);
+
+  switch (_status) {
+    case MOTOR_STARTING:
+      starting(t);
+      break;
+    case MOTOR_RUNNING:
+      running(t);
+      break;
+  }
+  // Regulate pwm with anti-slip regulation
+  if (_targetPwm != _pwm) {
+    // computes the interval since last pwm
+    long dt = t - _lastPwmTime;
+    // Check for time elapsed
+    if (dt > 0) {
+      // compute the maximum pwm change
+      int dpMax = _tcs.asr * dt / ASR_SCALE;
+      // Compute the next pwm (absolute value)
+      int newAbsPwm = min(abs(_targetPwm), abs(_pwm) + dpMax);
+      if (dpMax > 0 && newAbsPwm != abs(_pwm)) {
+        ESP_LOGD(TAG, "ASR: dt=%lu dpMax=%d, newAbsPwm=%d targetPwm=%d", dt, dpMax, newAbsPwm, _targetPwm);
+        // pwm change valid
+        applyPwm(_targetPwm > 0 ? newAbsPwm : -newAbsPwm, t);
+        // store change pwm instant
+        _lastPwmTime = t;
+      }
+    }
+  }
+}
+
+/*
+  Handling polling during starting status
+*/
+void MotorCtrl::starting(const unsigned long t) {
+  long pulseInterval = t - _startTime;
+  if (pulseInterval > _pulseInterval) {
+    // no pulse detected (no motion)
+    // Incremet pwm
+    pwm(_speed > 0 ? MAX_PWM : -MAX_PWM, t);
+  }
+}
+
+/*
+  Handling polling during running status
+*/
+void MotorCtrl::running(const unsigned long t) {
+  long dt = t - _lastPulsesTime;
+  if (dt > _tcs.maxPulseInterval) {
+    // no pulse detected (no motion)
+    ESP_LOGD(TAG, "no pulses dt=%ul pulseInterval=%lu", dt, _pulseInterval);
+    // Incremet pwm
+    ESP_LOGD(TAG, "Starting motor");
+    _status = MOTOR_STARTING;
+    _startTime = t;
+    pwm(computePwm(), t);
+  } else if (dt > _pulseInterval && (t - _lastDelayedTime) > _tcs.delayedInterval) {
+    // Delayed pulse
+    ESP_LOGD(TAG, "delayed pulse dt=%ul pulseInterval=%lu", dt, _pulseInterval);
+    _lastDelayedTime = t;
+    updatePwmFactor(dt);
+    pwm(computePwm(), t);
+  }
+}
+
+/*
+  Handles pulses from sensor
+*/
+void MotorCtrl::onPulses(const int pulses, const unsigned long t) {
+  // Compute the time interval
+  const long dt = t - _lastPulsesTime;
+  _lastPulsesTime = t;
+  if (dt == 0) {
+    return;
+  }
+  // Compute the average pulse interval
+  const long pulseWidth = max(dt / abs(pulses), 1l);
+  ESP_LOGD(TAG, "pulse width=%ul, dt=%ul, pulses=%d", pulseWidth, dt, pulses);
+  switch (_status) {
+    case MOTOR_STARTING:
+      // Starting phase
+      ESP_LOGD(TAG, "Running motor");
+      _status = MOTOR_RUNNING;
+      ESP_LOGD(TAG, "Start at pwm=%d", _pwm);
+      break;
+    case MOTOR_RUNNING:
+      // Running phase
+      updatePwmFactor(pulseWidth);
+      int nextPwm = computePwm();
+      ESP_LOGD(TAG, "Running at pwm=%d", nextPwm);
+      pwm(nextPwm, t);
+  }
+  if (_onSample) {
+    _onSample(_context, pulses, t, &_sensor);
+  }
 }
 
 /*
@@ -278,8 +367,8 @@ void MotorSensor::update(void) {
 */
 void MotorSensor::update(const int dPulses, const unsigned long clockTime) {
   _speedometer.update(clockTime, dPulses);
-  if (_onSample != NULL && dPulses != 0) {
-    _onSample(_context, dPulses, clockTime, *this);
+  if (_onSample && dPulses) {
+    _onSample(_context, dPulses, clockTime, this);
   }
 }
 
@@ -296,7 +385,7 @@ Speedometer::Speedometer()
    @param dpulse the number of pulses
 */
 void Speedometer::update(const unsigned long clockTime, const int dpulse) {
-  const unsigned long dt = clockTime - _prevTime;
+  const long dt = clockTime - _prevTime;
   if (dt > _tau) {
     _pps = 1000.0 * dpulse / dt;
   } else {

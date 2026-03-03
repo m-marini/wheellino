@@ -44,47 +44,28 @@ static char* TAG = "MotorTest";
 #define MAX_POWER 255
 #define TEST_SPEED 30
 
-static MotorSensor leftSensor(LEFT_PIN);
-static MotorSensor rightSensor(RIGHT_PIN);
-static MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN, leftSensor);
-static MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, rightSensor);
+static MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN, LEFT_PIN);
+static MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, RIGHT_PIN);
 
 /*
   Left motor controller configuration
 */
 const static tcsParams_t leftCfg = {
-  .fi0 = 904,
-  .fix = 5127,
-  .fd0 = 500,
-  .fdx = 5261,
-  .bi0 = -690,
-  .bix = 1680,
-  .bd0 = -450,
-  .bdx = 1702,
-  .muForw = 30000,
-  .muBack = 30000,
-  .alpha = 100,
-  .ax = 1000
+  .asr = 200,
+  .maxPulseInterval = 1000,
+  .lambdaFactor = 10,
+  .delayedInterval = 10
 };
 
 /*
   Right motor controller configuration
 */
 const static tcsParams_t rightCfg = {
-  .fi0 = 628,
-  .fix = 2165,
-  .fd0 = 400,
-  .fdx = 2322,
-  .bi0 = -620,
-  .bix = 1569,
-  .bd0 = -400,
-  .bdx = 1468,
-  .muForw = 30000,
-  .muBack = 30000,
-  .alpha = 50,
-  .ax = 1000
+  .asr = 200,
+  .maxPulseInterval = 1000,
+  .lambdaFactor = 10,
+  .delayedInterval = 10
 };
-
 
 class Test {
 public:
@@ -147,10 +128,10 @@ public:
 };
 
 static Test* tests[]{
-  //new MotorPowerTest("1. Test left motor forward power", leftMotor, MAX_POWER / 2),
-  //new MotorPowerTest("3. Test left motor backward power", leftMotor, -MAX_POWER / 2),
-  //new MotorPowerTest("2. Test right motor forward power", rightMotor, MAX_POWER / 2),
-  //new MotorPowerTest("4. Test right motor backward power", rightMotor, -MAX_POWER / 2),
+  new MotorPowerTest("1. Test left motor forward power", leftMotor, MAX_POWER / 2),
+  new MotorPowerTest("3. Test left motor backward power", leftMotor, -MAX_POWER / 2),
+  new MotorPowerTest("2. Test right motor forward power", rightMotor, MAX_POWER / 2),
+  new MotorPowerTest("4. Test right motor backward power", rightMotor, -MAX_POWER / 2),
   new SpeedTest("5. Test left speed forward", TEST_SPEED, 0),
   new SpeedTest("6. Test left speed backward", -TEST_SPEED, 0),
   new SpeedTest("7. Test right speed forward", 0, TEST_SPEED),
@@ -183,10 +164,6 @@ unsigned long timeout;
 
 void loop() {
   static int currentTest = 0;
-  // Read motor supply voltage
-  int supply = analogRead(VOLTAGE_PIN);
-  leftMotor.supply(supply);
-  rightMotor.supply(supply);
   Test& test = *tests[currentTest];
   if (test.completed()) {
     ESP_LOGD(TAG, "Test completed");
@@ -211,20 +188,18 @@ void MotorPowerTest::begin(void) {
 }
 
 void MotorPowerTest::polling(const unsigned long t0) {
-  ESP_LOGD(TAG, "t0: %lu", t0);
-  MotorSensor& sensor = _motor.sensor();
   if (t0 < _timeout) {
     _motor.polling(t0);
-    const long pulses = sensor.pulses();
+    const long pulses = _motor.pulses();
     if (pulses != _oldPulses) {
       _oldPulses = pulses;
-      ESP_LOGD(TAG, "pulses: %ld, pps: %f", pulses, (double)sensor.pps());
+      ESP_LOGD(TAG, "pulses: %ld, pps: %f", pulses, (double)_motor.pps());
     }
   } else if (!_completed) {
     ESP_LOGD(TAG, "completed");
 
     _completed = true;
-    const int pps = sensor.pps();
+    const int pps = _motor.pps();
     _motor.pwm(0);
     _valid = true;
     if ((pps < 0 && _power > 0)
@@ -252,6 +227,7 @@ void SpeedTest::begin(void) {
   rightMotor.automatic(true);
   leftMotor.pwm(0);
   rightMotor.pwm(0);
+  ESP_LOGD(TAG, "Speed test %d, %d", _leftSpeed, _rightSpeed);
   leftMotor.speed(_leftSpeed);
   rightMotor.speed(_rightSpeed);
   _timeout = millis() + MOTOR_TEST_DURATION;
@@ -261,11 +237,11 @@ void SpeedTest::polling(const unsigned long t0) {
   if (t0 < _timeout) {
     leftMotor.polling(t0);
     rightMotor.polling(t0);
-    ESP_LOGD(TAG, "Speeds: %f, %f", (double)leftSensor.pps(), (double)rightSensor.pps());
+    //ESP_LOGD(TAG, "Speeds: %f, %f", (double)leftSensor.pps(), (double)rightSensor.pps());
   } else if (!_completed) {
     _completed = true;
-    const float leftSpeedMeasure = leftSensor.pps();
-    const float rightSpeedMeasure = rightSensor.pps();
+    const float leftSpeedMeasure = leftMotor.pps();
+    const float rightSpeedMeasure = rightMotor.pps();
     leftMotor.speed(0);
     rightMotor.speed(0);
     leftMotor.pwm(0);
@@ -313,21 +289,21 @@ void SummaryTest::polling(const unsigned long) {
 
 void SensorsTest::begin(void) {
   ESP_LOGI(TAG, "Testing sensors ...");
-  leftSensor.direction(1);
-  rightSensor.direction(1);
+  leftMotor.sensorDirection(1);
+  rightMotor.sensorDirection(1);
 }
 
 void SensorsTest::polling(const unsigned long t0) {
-  leftSensor.polling(t0);
-  rightSensor.polling(t0);
-  const long left = leftSensor.pulses();
+  leftMotor.polling(t0);
+  rightMotor.polling(t0);
+  const long left = leftMotor.pulses();
   if (left != _leftPulses) {
     _leftPulses = left;
-    ESP_LOGI(TAG, "Left pulses: %ld, pps: %f", left, (double)leftSensor.pps());
+    ESP_LOGI(TAG, "Left pulses: %ld, pps: %f", left, (double)leftMotor.pps());
   }
-  const long right = rightSensor.pulses();
+  const long right = rightMotor.pulses();
   if (right != _rightPulses) {
     _rightPulses = right;
-    ESP_LOGI(TAG, "Right pulses: %ld, pps: %f", right, (double)rightSensor.pps());
+    ESP_LOGI(TAG, "Right pulses: %ld, pps: %f", right, (double)leftMotor.pps());
   }
 }
