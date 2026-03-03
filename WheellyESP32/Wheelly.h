@@ -39,7 +39,7 @@
 #include "LidarServo.h"
 #include "Timer.h"
 
-#define WHEELLY_VERSION "0.10.0"
+#define WHEELLY_VERSION "0.11.0"
 #define WHEELLY_MESSAGES_VERSION "v0"
 
 /*
@@ -111,13 +111,14 @@ private:
   void handleChangedContacts(void);
 
   const boolean handleScanCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleMoveCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleRoCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleFwCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleBwCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleCiCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleCcCmd(const unsigned long time, const String& topic, const String& args);
+  const boolean handleCmCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleCsCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleChCmd(const unsigned long time, const String& topic, const String& args);
   const boolean handleTcsCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleQcCmd(const unsigned long time, const String& topic, const String& args);
 
   /*
        Sends the status of wheelly
@@ -154,13 +155,27 @@ private:
     */
   void scan(const int angle, const unsigned long t0 = millis());
 
-  /**
-       Moves the robot to the direction at speed
+  /**       Moves the robot to the direction at speed
 
        @param direction the direction (DEG)
-       @param speed the speed (pps)
     */
-  void move(const int direction, const int speed);
+  void rotate(const int direction);
+
+  /*
+   Moves forward the robot to the target position
+
+   @param xTarget the x target (pulses)
+   @param yTarget the y target (pulses)
+  */
+  void forward(const int xTarget, const int yTarget);
+
+  /*
+   Moves backward the robot to the target position
+
+   @param xTarget the x target (pulses)
+   @param yTarget the y target (pulses)
+  */
+  void backward(const int xTarget, const int yTarget);
 
   /**
        Moves the robot to the direction at speed
@@ -178,8 +193,8 @@ private:
        Configures motion controller
        @param params the motion controller parameters
     */
-  void configMotionController(const int* params) {
-    _motionCtrl.configController(params);
+  void configMotionController(const motionConfig_t& params) {
+    _motionCtrl.config(params);
   }
 
   /**

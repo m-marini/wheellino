@@ -130,7 +130,6 @@ void MotorTest::pooling(const unsigned long t0) {
   */
 void MotorTest::changePower(void) {
   ESP_LOGI(TAG, "Power %d @%lx", _power, (unsigned long)this);
-  _motorCtrl.power(_power);
   if (_onPowerChange) {
     _onPowerChange(_context);
   }

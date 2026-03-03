@@ -78,6 +78,10 @@ public:
   }
 };
 
+class MotorSensor;
+
+typedef void (*onSampleCallback_t)(void* context, const int pulses, const unsigned long t, MotorSensor* sensor);
+
 /*
    Motor sensor measures the movement of motor
 */
@@ -88,7 +92,7 @@ private:
   long _lastPulses;
   int _direction;
   void* _context;
-  void (*_onSample)(void*, const int, const unsigned long clockTime, MotorSensor&);
+  onSampleCallback_t _onSample;
   Speedometer _speedometer;
 
   void update(const int dPulse, const unsigned long clockTime);
@@ -135,7 +139,7 @@ public:
   /*
        Sets the callback on sample
     */
-  void onSample(void (*callback)(void* context, const int dPulse, const unsigned long clockTime, MotorSensor& sensor), void* context = NULL) {
+  void onSample(const onSampleCallback_t callback, void* context = NULL) {
     _onSample = callback;
     _context = context;
   }
@@ -166,55 +170,20 @@ public:
   Traction control system parameters
 */
 typedef struct {
-  /**
-    Forward increment threshold voltage
-  */
-  int fi0;
-  /**
-    Forward increment voltage
-  */
-  int fix;
-  /**
-    Forward decrement threshold voltage
-  */
-  int fd0;
-  /**
-    Forward decrement voltage
-  */
-  int fdx;
-  /**
-    Backward increment threshold voltage
-  */
-  int bi0;
-  /**
-    Backward increment voltage
-  */
-  int bix;
-  /**
-    Backward decrement threshold voltage
-  */
-  int bd0;
-  /**
-    Backward decrement voltage
-  */
-  int bdx;
-  /**
-    Forward feedback factor
-  */
-  long muForw;
-  /**
-    Backward feedback factor
-  */
-  long muBack;
-  /**
-    Voltage integration facotr
-  */
-  int alpha;
-  /**
-    ASR factor
-  */
-  int ax;
+  long asr;
+  long maxPulseInterval;
+  int lambdaFactor;
+  long delayedInterval;
 } tcsParams_t;
+
+/*
+  Motor controller states
+*/
+enum motorControllerStatus_t {
+  MOTOR_HALT = 0,
+  MOTOR_STARTING = 1,
+  MOTOR_RUNNING = 2,
+};
 
 /*
   Motor ontroller
@@ -223,53 +192,93 @@ class MotorCtrl {
 private:
   const uint8_t _forwPin;
   const uint8_t _backPin;
-  boolean _automatic;
-  MotorSensor& _sensor;
+  MotorSensor _sensor;
   tcsParams_t _tcs;
-  unsigned long _prevTimestamp;
+  motorControllerStatus_t _status;
+  bool _automatic;
+  bool _asr;
   int _speed;
-  int _voltage;
-  int _supply;
   int _pwm;
+  int _targetPwm;
+  long _fPwmFactor;
+  long _bPwmFactor;
 
-  /**
-  * Returns the ASR  (Anti Slip Regulation) voltage
-  */
-  const long asr(const long dv, const long dt) const;
+  int _pulseInterval;              // required pulse interval
+  unsigned long _startTime;        // start phase instant
+  unsigned long _lastPwmTime;      // last pwm set instant
+  unsigned long _lastPulsesTime;   // last notified pulses instant
+  unsigned long _lastDelayedTime;  // last pulse delayed check instant
 
-  /**
-    Set the motor voltage
+  void* _context;
+  onSampleCallback_t _onSample;
+
+  /*
+    Handling polling during starting status
   */
-  void voltage(const int v);
+  void starting(const unsigned long t);
+
+  /*
+    Handling polling during running status
+  */
+  void running(const unsigned long t);
+
+  /*
+  Applies the pwm to the motor
+  */
+  void applyPwm(const int pwm, const unsigned long t);
+
+  /*
+  Applies the pwm instant to the motor
+  */
+  void applyInstantPwm(const int pwm, const unsigned long t) {
+    _targetPwm = pwm;
+    applyPwm(pwm, t);
+  }
+
+  /*
+  Returns the target pwm
+  */
+  const int computePwm(void) const;
+
+  /*
+  Update pwm factor
+  @pulseWidth the pulse width (ms)
+  */
+  void updatePwmFactor(const long pulseWidth);
+
+  /*
+    Handles pulses from sensor
+  */
+  void onPulses(const int pulses, const unsigned long t);
+
+  // Friend functions
+  friend void handlePulses(void* context, const int pulses, const unsigned long t, MotorSensor* sensor);
 
 public:
   /*
        Creates the motor controller
     */
-  MotorCtrl(const uint8_t forwPin, const uint8_t backPin, MotorSensor& sensor);
+  MotorCtrl(const uint8_t forwPin, const uint8_t backPin, const uint8_t sensorPin);
 
   /*
-       Initializes the motor controller
-    */
-  void begin(void);
-
-  /*
-       Sets the motor speed
-    */
-  void speed(const int value);
-
-  /**
-    Sets the supply voltage
+    Returns the pulses
   */
-  void supply(const int supply) {
-    _supply = supply;
+  const long pulses() const {
+    return _sensor.pulses();
   }
 
-  /**
-       Sets the tcs parameters
-    */
-  void tcs(const tcsParams_t& tcs) {
-    _tcs = tcs;
+  /*
+    Returns the speed (pps)
+  */
+  const float pps(void) const {
+    return _sensor.pps();
+  }
+
+  /*
+    Returns the sensor tau parameter (pps)
+  */
+  const unsigned long tau(void) const {
+    return _sensor.pps();
   }
 
   /**
@@ -294,21 +303,37 @@ public:
   }
 
   /**
-    Returns the voltage
+    Return the pwm
   */
-  const int voltage(void) const {
-    return _voltage;
+  const int targetPwm(void) const {
+    return _targetPwm;
   }
 
+  /*
+       Initializes the motor controller
+    */
+  void begin(void);
+
+  /*
+       Sets the motor speed
+    */
+  void speed(const int value);
+
+  /**
+       Sets the tcs parameters
+    */
+  void tcs(const tcsParams_t& tcs) {
+    _tcs = tcs;
+  }
   /**
    Sets the pwm factor
   */
-  void pwm(const int pwm);
+  void pwm(const int pwm, const unsigned long t = millis());
 
   /*
        Polls the motor controller
     */
-  void polling(const unsigned long timestamp = millis());
+  void polling(const unsigned long timestamp);
 
   /*
        Sets automatic motor drive
@@ -318,11 +343,41 @@ public:
     _automatic = automatic;
   }
 
-  /*s
-       Returns the sensor
+  /*
+    Sets the direction
+    @param direction the direction (> 0 forward, < 0 backward)
     */
-  MotorSensor& sensor(void) const {
-    return _sensor;
+  void sensorDirection(const int direction) {
+    _sensor.direction(direction);
+  }
+
+  /*
+       Sets the callback on sample
+    */
+  void onSample(const onSampleCallback_t callback, void* context = NULL) {
+    _onSample = callback;
+    _context = context;
+  }
+
+  /*
+    Sets sensor tau paramiter
+  */
+  void tau(const unsigned long tau) {
+    _sensor.tau(tau);
+  }
+
+  /*
+    Reset the sensor
+  */
+  void reset(const unsigned long t) {
+    _sensor.reset(t);
+  }
+
+  /*
+    Set the anti-slip regulation
+*/
+  void asr(const bool active) {
+    _asr = active;
   }
 };
 

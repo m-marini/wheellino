@@ -73,16 +73,10 @@ static const unsigned long SERIAL_TIMEOUT = 2000ul;
 static WiFiModuleClass wiFiModule;
 
 /*
-   Motor sensors
-*/
-MotorSensor leftSensor(LEFT_PIN);
-MotorSensor rightSensor(RIGHT_PIN);
-
-/*
    Motor controllers
 */
-MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN, leftSensor);
-MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, rightSensor);
+MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN, LEFT_PIN);
+MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, RIGHT_PIN);
 
 /*
    Contact sensors
@@ -200,13 +194,15 @@ void setup() {
   wiFiModule.start();
   ESP_LOGI(TAG, "Startup sequence completed");
 
-  leftSensor.onSample(handleLeftSensor);
-  rightSensor.onSample(handleRightSensor);
+  leftMotor.onSample(handleLeftSensor);
+  rightMotor.onSample(handleRightSensor);
 
   leftMotor.automatic(false);
+  leftMotor.asr(false);
   leftMotor.begin();
 
   rightMotor.automatic(false);
+  rightMotor.asr(false);
   rightMotor.begin();
 
   contacts.onChanged(handleContacts);
@@ -222,7 +218,6 @@ void setup() {
   ESP_LOGI(TAG, "Init status led");
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, true);
-
 
   /* Setup lidar servo */
   ESP_LOGI(TAG, "Init head servo");
@@ -464,11 +459,11 @@ static void handleOnChange(void*, WiFiModuleClass& module) {
   Display.showWiFiInfo(bfr);
 }
 
-static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
+static void handleLeftSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor* sensor) {
   leftPulses += dPulse;
 }
 
-static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor& sensor) {
+static void handleRightSensor(void*, const int dPulse, const unsigned long clockTime, MotorSensor* sensor) {
   rightPulses += dPulse;
 }
 
