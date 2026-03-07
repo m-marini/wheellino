@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- Issue [#130](https://github.com/m-marini/wheellino/issues/117): Add goto commands
-- Issue [#134](https://github.com/m-marini/wheellino/issues/117): Motor controlled by time pulse
+- Issue [#130](https://github.com/m-marini/wheellino/issues/130): Add goto commands
+- Issue [#134](https://github.com/m-marini/wheellino/issues/134): Motor controlled by time pulse
 
 
 ## [0.10.0] 2026-02-26
