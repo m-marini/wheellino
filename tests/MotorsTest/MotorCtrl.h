@@ -45,6 +45,20 @@ public:
   Speedometer(void);
 
   /*
+       Returns the speed (pps)
+    */
+  const float pps(void) const {
+    return _pps;
+  }
+
+  /**
+       Returns the tau parameter
+    */
+  const unsigned long tau(void) const {
+    return _tau;
+  }
+
+  /*
        Updates the speedometer data
        @param time the instant
        @param step the number of step
@@ -61,20 +75,6 @@ public:
     */
   void tau(const unsigned long tau) {
     _tau = tau;
-  }
-
-  /*
-       Returns the speed (pps)
-    */
-  const float pps(void) const {
-    return _pps;
-  }
-
-  /**
-       Returns the tau parameter
-    */
-  const unsigned long tau(void) const {
-    return _tau;
   }
 };
 
@@ -102,6 +102,27 @@ public:
        Creates the sensor
     */
   MotorSensor(const uint8_t sensorPin);
+
+  /*
+       Returns the pulses
+    */
+  const long pulses(void) const {
+    return _pulses;
+  }
+
+  /*
+       Returns the speed (pps)
+    */
+  const float pps(void) const {
+    return _speedometer.pps();
+  }
+
+  /**
+       Returns the tau parameter
+    */
+  const unsigned long tau(void) const {
+    return _speedometer.tau();
+  }
 
   /*
        Initializes the sensor
@@ -142,27 +163,6 @@ public:
   void onSample(const onSampleCallback_t callback, void* context = NULL) {
     _onSample = callback;
     _context = context;
-  }
-
-  /*
-       Returns the pulses
-    */
-  const long pulses() const {
-    return _pulses;
-  }
-
-  /*
-       Returns the speed (pps)
-    */
-  const float pps(void) const {
-    return _speedometer.pps();
-  }
-
-  /**
-       Returns the tau parameter
-    */
-  const unsigned long tau(void) const {
-    return _speedometer.tau();
   }
 };
 
@@ -278,7 +278,7 @@ public:
     Returns the sensor tau parameter (pps)
   */
   const unsigned long tau(void) const {
-    return _sensor.pps();
+    return _sensor.tau();
   }
 
   /**
@@ -325,6 +325,7 @@ public:
   void tcs(const tcsParams_t& tcs) {
     _tcs = tcs;
   }
+
   /**
    Sets the pwm factor
   */

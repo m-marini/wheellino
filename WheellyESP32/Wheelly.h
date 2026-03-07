@@ -29,7 +29,8 @@
 #ifndef Wheelly_h
 #define Wheelly_h
 
-#include "Arduino.h"
+#include <Arduino.h>
+#include <ArduinoJson.h>
 
 #include "Contacts.h"
 #include "mpu6050mm.h"
@@ -40,7 +41,7 @@
 #include "Timer.h"
 
 #define WHEELLY_VERSION "0.11.0"
-#define WHEELLY_MESSAGES_VERSION "v0"
+#define WHEELLY_MESSAGES_VERSION "v1"
 
 /*
    Wheelly controller.
@@ -101,8 +102,8 @@ private:
   void (*_onReply)(void* context, const String& topic, const String& data);
   void* _context;
 
-  const boolean canMoveForward(void) const;
-  const boolean canMoveBackward(void) const;
+  const bool canMoveForward(void) const;
+  const bool canMoveBackward(void) const;
 
   void handleLidarRange(const uint16_t frontDistance, const uint16_t rearDistance);
   void handleStats(void);
@@ -110,15 +111,27 @@ private:
   void handleMpuData(void);
   void handleChangedContacts(void);
 
-  const boolean handleScanCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleRoCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleFwCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleBwCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleCiCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleCmCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleCsCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleChCmd(const unsigned long time, const String& topic, const String& args);
-  const boolean handleTcsCmd(const unsigned long time, const String& topic, const String& args);
+  /*
+    Validates a configuration parameter and return true if not valid
+  */
+  const bool validateCfg(JsonDocument& cfg, const JsonDocument& doc, const String& key, const int minValue, const int maxValue, const String& topic);
+
+  const bool handleScanCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleRoCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleFwCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleBwCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleQcCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleCfCmd(const unsigned long time, const String& topic, const String& args);
+
+  /*
+    Returns the json configuration
+  */
+  JsonDocument& jsonConfig(JsonDocument& doc);
+
+  /*
+    Applies the json configuration
+  */
+  void applyJsonConfig(const JsonDocument& doc);
 
   /*
        Sends the status of wheelly
@@ -188,44 +201,6 @@ private:
        Queries and sends the status
     */
   void queryStatus(void);
-
-  /**
-       Configures motion controller
-       @param params the motion controller parameters
-    */
-  void configMotionController(const motionConfig_t& params) {
-    _motionCtrl.config(params);
-  }
-
-  /**
-       Configures motor sensors
-       @param tau the decay value of motor sensors
-    */
-  void configMotorSensors(const int tau) {
-    _motionCtrl.tau(tau);
-  }
-
-  /**
-       Configures left tcs motor controller
-       @param p the tcs motor controller parameters
-    */
-  void configLeftTcsMotorController(const tcsParams_t& p) {
-    _motionCtrl.leftMotor().tcs(p);
-  }
-
-  /**
-       Configures right tcs motor controller
-       @param p the tcs motor controller parameters
-    */
-  void configRightTcsMotorController(const tcsParams_t& p) {
-    _motionCtrl.rightMotor().tcs(p);
-  }
-
-  /**
-       Configures intervals [send interval, scan interval]
-       @param p the right motor controller parameters
-    */
-  void configIntervals(const int* p);
 
   /**
        Returns the motion controller

@@ -36,11 +36,10 @@ static char* TAG = "MotorCtrl";
 #include "num.h"
 #include "pins.h"
 
-//#define DEFAULT_VOLTAGE 2500
 #define DEFAULT_TAU 300ul
 #define DEFAULT_ASR 200
 #define DEFAULT_PWM_FACTOR 1400
-#define DEFAULT_MAX_PULSE_INTERVAL 1000
+#define DEFAULT_MAX_PULSE_INTERVAL 200
 #define DEFAULT_LAMBDA_FACTOR 10
 #define DEFAULT_DELAYED_INTERVAL 10
 
