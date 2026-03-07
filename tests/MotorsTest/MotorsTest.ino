@@ -42,7 +42,7 @@ static char* TAG = "MotorTest";
 #define MOTOR_TEST_DURATION 5000
 #define SPEED_THRESHOLD 20
 #define MAX_POWER 255
-#define TEST_SPEED 30
+#define TEST_SPEED 15
 
 static MotorCtrl leftMotor(LEFT_FORW_PIN, LEFT_BACK_PIN, LEFT_PIN);
 static MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, RIGHT_PIN);
@@ -52,7 +52,7 @@ static MotorCtrl rightMotor(RIGHT_FORW_PIN, RIGHT_BACK_PIN, RIGHT_PIN);
 */
 const static tcsParams_t leftCfg = {
   .asr = 200,
-  .maxPulseInterval = 1000,
+  .maxPulseInterval = 200,
   .lambdaFactor = 10,
   .delayedInterval = 10
 };
@@ -62,7 +62,7 @@ const static tcsParams_t leftCfg = {
 */
 const static tcsParams_t rightCfg = {
   .asr = 200,
-  .maxPulseInterval = 1000,
+  .maxPulseInterval = 200,
   .lambdaFactor = 10,
   .delayedInterval = 10
 };

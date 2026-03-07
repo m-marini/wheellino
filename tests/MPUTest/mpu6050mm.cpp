@@ -33,11 +33,12 @@ static const char *TAG = "mpu6050mm";
 
 #include "mpu6050mm.h"
 
-
 #define REVALIDATION_SAMPLE_COUNT 1000
 //#define FIFO_BLOCK_SIZE 6
 #define STATUS_BLOCK_SIZE 14
 #define RESET_TIMEOUT 1
+
+static int CALIBRATION_INFO_INTERVAL = 1000;
 
 static const float GYRO_SCALE[] = {
   250.0 / 32768,
@@ -188,7 +189,7 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
 
   unsigned long timeout = millis() + warmup;
   _rc = 0;
-  ESP_LOGD(TAG, "MPU Warming up ...");
+  ESP_LOGI(TAG, "MPU Warming up ...");
   // Waits for warmup duration just polling the MPU
   while (millis() <= timeout) {
     getGyro(_gyroOffset);
@@ -201,13 +202,18 @@ const uint8_t MPU6050Class::calibrate(unsigned int minNoSamples, unsigned long w
   int numSamples = 0;
   int numAccSamples = 0;
   Vector3 acc;
-  ESP_LOGD(TAG, "MPU Start calibration ...");
+  ESP_LOGI(TAG, "MPU Start calibration ...");
+  unsigned long to = millis() + CALIBRATION_INFO_INTERVAL;
   while (_rc == 0 && !(numAccSamples >= minNoSamples)) {
     // Processes gyro samples
     Vector3 gyro;
     while (getGyro(gyro)) {
       numSamples++;
       _gyroOffset += gyro;
+      if (millis() > to) {
+        ESP_LOGI(TAG, "MPU Calibration samples %d ...", numAccSamples + numSamples);
+        to += CALIBRATION_INFO_INTERVAL;
+      }
     }
     if (_rc) {
       break;

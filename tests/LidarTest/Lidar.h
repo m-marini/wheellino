@@ -73,6 +73,51 @@ public:
         const uint8_t rearAddr = REAR_LIDAR_ADDR);
 
   /**
+  * Return the measure interval
+  */
+  const unsigned long interval(void) const {
+    return _timer.interval();
+  }
+
+  /**
+    Returns true if has rear lidar
+  */
+  const boolean hasRear(void) const {
+    return _rearXShutPin > 0;
+  }
+
+  /**
+  * Returns the front measure
+  */
+  const VL53L0X_RangingMeasurementData_t& frontMeasure(void) const {
+    return _frontMeasure;
+  }
+
+  /**
+  * Returns the rear measure
+  */
+  const VL53L0X_RangingMeasurementData_t& rearMeasure(void) const {
+    return _rearMeasure;
+  }
+
+  /**
+  * Returns the front distance (mm)
+  */
+  const uint16_t frontDistance(void) const;
+
+  /**
+  * Returns the rear distance (mm)
+  */
+  const uint16_t rearDistance(void) const;
+
+  /**
+  * Returns true if the lidar is active
+  */
+  const bool active(void) const {
+    return _active;
+  }
+
+  /**
     Begins the controller returning true if success
   */
   const boolean begin(void);
@@ -118,42 +163,6 @@ public:
     Polls the controller
   */
   void polling(const unsigned long t0 = millis());
-
-  /**
-    Returns true if has rear lidar
-  */
-  const boolean hasRear(void) const {
-    return _rearXShutPin > 0;
-  }
-
-  /**
-  * Returns the front measure
-  */
-  const VL53L0X_RangingMeasurementData_t& frontMeasure(void) const {
-    return _frontMeasure;
-  }
-
-  /**
-  * Returns the rear measure
-  */
-  const VL53L0X_RangingMeasurementData_t& rearMeasure(void) const {
-    return _rearMeasure;
-  }
-
-  /**
-  * Returns the front distance (mm)
-  */
-  const uint16_t frontDistance(void) const;
-
-  /**
-  * Returns the rear distance (mm)
-  */
-  const uint16_t rearDistance(void) const;
-
-  /**
-  * Returns true if the lidar is active
-  */
-  const bool active(void) const {return _active;}
 };
 
 #endif

@@ -61,59 +61,6 @@ public:
     */
   MotionSensor(MotorCtrl& leftMotor, MotorCtrl& rightMotor);
 
-  /*
-       Initializes the sensor
-    */
-  void begin(void) {}
-
-  /*
-       Polls the sensor
-    */
-  void polling(const unsigned long clockTime);
-
-  /*
-       Set the motor directions
-       @param leftForward left speed
-       @param rightForward left speed
-    */
-  void direction(const int leftForward, const int rightForward);
-
-  /*
-       Set the callback on change
-    */
-  void setOnChange(void (*callback)(void* context, const unsigned long clockTime, MotionSensor& sensor), void* context = NULL);
-
-  /*
-       Sets the tau parameter
-    */
-  void tau(const unsigned long tau);
-
-  /*
-       Sets the direction angle
-    */
-  void angle(const int angle) {
-    _angle = angle;
-  }
-  /*
-       Resets the sensor
-    */
-  void reset(const unsigned long timestamp);
-
-  /*
-       Sets left pulses
-       @param dPulse the number of pulse
-    */
-  void setLeftPulses(const int dPulse) {
-    _dl = dPulse;
-  }
-
-  /*
-       Sets left pulses
-       @param dPulse the number of pulse
-    */
-  void setRightPulses(const int dPulse) {
-    _dr = dPulse;
-  }
 
   /*
        Returns the direction (DEG)
@@ -172,7 +119,63 @@ public:
     _updateAngle = updateAngle;
   }
 
-  const unsigned long tau(void) const;
+  const unsigned long tau(void) const{
+    return _leftMotor.tau();
+  }
+
+  /*
+       Initializes the sensor
+    */
+  void begin(void) {}
+
+  /*
+       Polls the sensor
+    */
+  void polling(const unsigned long clockTime);
+
+  /*
+       Set the motor directions
+       @param leftForward left speed
+       @param rightForward left speed
+    */
+  void direction(const int leftForward, const int rightForward);
+
+  /*
+       Set the callback on change
+    */
+  void setOnChange(void (*callback)(void* context, const unsigned long clockTime, MotionSensor& sensor), void* context = NULL);
+
+  /*
+       Sets the tau parameter
+    */
+  void tau(const unsigned long tau);
+
+  /*
+       Sets the direction angle
+    */
+  void angle(const int angle) {
+    _angle = angle;
+  }
+  /*
+       Resets the sensor
+    */
+  void reset(const unsigned long timestamp);
+
+  /*
+       Sets left pulses
+       @param dPulse the number of pulse
+    */
+  void setLeftPulses(const int dPulse) {
+    _dl = dPulse;
+  }
+
+  /*
+       Sets left pulses
+       @param dPulse the number of pulse
+    */
+  void setRightPulses(const int dPulse) {
+    _dr = dPulse;
+  }
 };
 
 enum MotionStatus {
@@ -186,12 +189,12 @@ enum MotionStatus {
  Motion configuration parameters
 */
 typedef struct {
-  unsigned int minRotRange;
-  unsigned int maxRotRange;
-  unsigned int maxRotPps;
-  unsigned int maxSpeed;
-  unsigned int haltDistance;
-  unsigned int decelerateDistance;
+  int minRotRange;
+  int maxRotRange;
+  int maxRotPps;
+  int maxSpeed;
+  int haltDistance;        // (pulses)
+  int decelerateDistance;  // (pulses)
 } motionConfig_t;
 
 /*
@@ -243,63 +246,19 @@ public:
                   const uint8_t rightForwPin, const uint8_t rightBackPin,
                   const uint8_t leftSensorPin, const uint8_t rightSensorPin);
 
-  /*
-       Initializes the motion controller
-    */
-  void begin(void);
-
-  /*
-       Polls the controller
-    */
-  void polling(const unsigned long clockTime = millis());
-
-  /*
-       Resets the controller
-    */
-  void reset(const unsigned long timestamp);
-
-  /*
-    Halts the motion
-    */
-  void halt(void);
-
-  /*
-   Moves the robot forward to the target position
-   @param xTarget the x target (pulses)
-   @param yTarget the y target (pulses)
-  */
-  void forward(const int xTarget, const int yTarget);
-
-  /*
-   Moves the robot backward to the target position
-   @param xTarget the x target (pulses)
-   @param yTarget the y target (pulses)
-  */
-  void backward(const int xTarget, const int yTarget);
-
-  /*
-       Moves to given direction at given speed
-       @param direction the direction (DEG)
-    */
-  void rotate(const int direction);
-
-  /*
-       Sets the configuration parameters
-    */
-  void config(const motionConfig_t& config);
-
-  /*
-       Sets the tau parameter
-    */
-  void tau(const unsigned long tau) {
-    _sensors.tau(tau);
-  }
 
   /*
    Returns the status
   */
   const MotionStatus status(void) const {
     return _status;
+  }
+
+  /*
+    Returns the tau sensor parameter
+  */
+  const unsigned long tau(void) const {
+    return _sensors.tau();
   }
 
   /*
@@ -369,21 +328,6 @@ public:
   }
 
   /*
-       Sets current direction angle (DEG)
-       (used with MPU)
-    */
-  void angle(const int angle) {
-    _sensors.angle(angle);
-  }
-
-  /*
-       Returns the expected direction (DEG)
-    */
-  const int direction(void) const {
-    return _direction;
-  }
-
-  /*
        Returns the left motor controller
     */
   MotorCtrl& leftMotor(void) {
@@ -409,6 +353,73 @@ public:
     */
   MotionSensor& sensors() {
     return _sensors;
+  }
+
+  /*
+       Returns the expected direction (DEG)
+    */
+  const int direction(void) const {
+    return _direction;
+  }
+
+  /*
+       Initializes the motion controller
+    */
+  void begin(void);
+
+  /*
+       Polls the controller
+    */
+  void polling(const unsigned long clockTime = millis());
+
+  /*
+       Resets the controller
+    */
+  void reset(const unsigned long timestamp);
+
+  /*
+    Halts the motion
+    */
+  void halt(void);
+
+  /*
+   Moves the robot forward to the target position
+   @param xTarget the x target (pulses)
+   @param yTarget the y target (pulses)
+  */
+  void forward(const int xTarget, const int yTarget);
+
+  /*
+   Moves the robot backward to the target position
+   @param xTarget the x target (pulses)
+   @param yTarget the y target (pulses)
+  */
+  void backward(const int xTarget, const int yTarget);
+
+  /*
+       Moves to given direction at given speed
+       @param direction the direction (DEG)
+    */
+  void rotate(const int direction);
+
+  /*
+       Sets the configuration parameters
+    */
+  void config(const motionConfig_t& config);
+
+  /*
+       Sets the tau parameter
+    */
+  void tau(const unsigned long tau) {
+    _sensors.tau(tau);
+  }
+
+  /*
+       Sets current direction angle (DEG)
+       (used with MPU)
+    */
+  void angle(const int angle) {
+    _sensors.angle(angle);
   }
 };
 

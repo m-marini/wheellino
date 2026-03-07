@@ -34,6 +34,16 @@
 static const char* TAG = "Wheelly";
 
 /*
+   Send Interval
+*/
+#define DEFAULT_SEND_INTERVAL 500ul
+
+/*
+   Proxy sensor servo
+*/
+#define DEFAULT_SCAN_INTERVAL 1000ul
+
+/*
    Current version
 */
 static const char version[] = WHEELLY_VERSION;
@@ -51,11 +61,6 @@ static const unsigned long FAST_LED_INTERVAL = 100;
 static const unsigned long SLOW_LED_INTERVAL = 300;
 
 /*
-   Send Interval
-*/
-static const unsigned long DEFAULT_SEND_INTERVAL = 500ul;
-
-/*
    Statistics
 */
 static const unsigned long STATS_INTERVAL = 10000ul;
@@ -69,7 +74,6 @@ static const uint16_t STOP_DISTANCE = 200;  // 200 mm
 /*
    Proxy sensor servo
 */
-static const unsigned long DEFAULT_SCAN_INTERVAL = 1000ul;
 static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
 static const int SERVO_OFFSET = 0;
@@ -154,7 +158,7 @@ boolean Wheelly::begin(void) {
   _servo.begin();
 
   // Setup lidar
-  _lidar.interval(_sendInterval);
+  _lidar.interval(DEFAULT_SCAN_INTERVAL);
   _lidar.onRange([](void* context, Lidar& lidar, const uint16_t frontDistance, const uint16_t rearDistance) {
     ((Wheelly*)context)->handleLidarRange(frontDistance, rearDistance);
   },
@@ -320,15 +324,6 @@ void Wheelly::backward(const int xTarget, const int yTarget) {
       || _motionCtrl.isBackward() && !canMoveBackward()) {
     _motionCtrl.halt();
   }
-}
-
-/**
-   Configures intervals [send interval, scan interval]
-   @param p the intervals
-*/
-void Wheelly::configIntervals(const int* intervals) {
-  _sendInterval = intervals[0];
-  _lidar.interval(intervals[1]);
 }
 
 /*
@@ -591,18 +586,8 @@ const boolean Wheelly::execute(const unsigned long t0, const String& topic, cons
     return handleFwCmd(t0, topic, args);
   } else if (topic.endsWith("/bw")) {
     return handleBwCmd(t0, topic, args);
-  } else if (topic.endsWith("/ch")) {
-    return handleChCmd(t0, topic, args);
-  } else if (topic.endsWith("/ci")) {
-    return handleCiCmd(t0, topic, args);
-  } else if (topic.endsWith("/cm")) {
-    return handleCmCmd(t0, topic, args);
-  } else if (topic.endsWith("/cs")) {
-    return handleCsCmd(t0, topic, args);
-  } else if (topic.endsWith("/tcsl")) {
-    return handleTcsCmd(t0, topic, args);
-  } else if (topic.endsWith("/tcsr")) {
-    return handleTcsCmd(t0, topic, args);
+  } else if (topic.endsWith("/cf")) {
+    return handleCfCmd(t0, topic, args);
   } else if (topic.endsWith("/rs")) {
     reset();
     sendCommandReply(topic + "/res", args);
@@ -610,6 +595,8 @@ const boolean Wheelly::execute(const unsigned long t0, const String& topic, cons
   } else if (topic.endsWith("/vr")) {
     sendCommandReply(topic + "/res", version);
     return true;
+  } else if (topic.endsWith("/qc")) {
+    return handleQcCmd(t0, topic, args);
   } else if (topic.endsWith("/qs")) {
     queryStatus();
     sendCommandReply(topic + "/res", args);
@@ -688,132 +675,132 @@ const boolean Wheelly::handleBwCmd(const unsigned long time, const String& topic
   return true;
 }
 
-const boolean Wheelly::handleCiCmd(const unsigned long time, const String& topic, const String& args) {
-  int params[2];
-  int count;
-  if (sscanf(args.c_str(), "%d,%d%n", &params[0], &params[1], &count) != 2 || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
+/*handleCf
+  Returns the json configuration
+*/
+JsonDocument& Wheelly::jsonConfig(JsonDocument& doc) {
+  const motionConfig_t& cfg = _motionCtrl.config();
+  const tcsParams_t& motorCfg = _motionCtrl.leftMotor().tcs();
+  doc["asr"] = motorCfg.asr;
+  doc["lambdaFactor"] = motorCfg.lambdaFactor;
+  doc["maxPulseInterval"] = motorCfg.maxPulseInterval;
+  doc["delayedInterval"] = motorCfg.delayedInterval;
+  doc["tau"] = _motionCtrl.tau();
+  doc["minRotRange"] = cfg.minRotRange;
+  doc["maxRotRange"] = cfg.maxRotRange;
+  doc["maxRotPps"] = cfg.maxRotPps;
+  doc["maxSpeed"] = cfg.maxSpeed;
+  doc["haltDistance"] = cfg.haltDistance;
+  doc["decelerateDistance"] = cfg.decelerateDistance;
+  doc["minHeadDir"] = _minHeadDir;
+  doc["maxHeadDir"] = _maxHeadDir;
+  doc["sendInterval"] = _sendInterval;
+  doc["scanInterval"] = _lidar.interval();
 
-  if (!(params[0] >= 1 && params[0] <= 60000 && params[1] >= 1 && params[1] <= 60000)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
+  return doc;
+}
 
-  configIntervals(params);
-  sendCommandReply(topic + "/res", args);
+/*
+  Applies the json configuration
+*/
+void Wheelly::applyJsonConfig(const JsonDocument& doc) {
+  const motionConfig_t cfg = {
+    .minRotRange = doc["minRotRange"],
+    .maxRotRange = doc["maxRotRange"],
+    .maxRotPps = doc["maxRotPps"],
+    .maxSpeed = doc["maxSpeed"],
+    .haltDistance = doc["haltDistance"],
+    .decelerateDistance = doc["decelerateDistance"]
+  };
+  _motionCtrl.config(cfg);
+
+  const tcsParams_t tcs = {
+    .asr = doc["asr"],
+    .maxPulseInterval = doc["maxPulseInterval"],
+    .lambdaFactor = doc["lambdaFactor"],
+    .delayedInterval = doc["delayedInterval"]
+  };
+  _motionCtrl.leftMotor().tcs(tcs);
+  _motionCtrl.rightMotor().tcs(tcs);
+
+  _motionCtrl.tau(doc["tau"]);
+  _minHeadDir = doc["minHeadDir"];
+  _maxHeadDir = doc["maxHeadDir"];
+  _sendInterval = doc["sendInterval"];
+  _lidar.interval(doc["scanInterval"]);
+}
+
+/*
+  Handle qc command (query config)
+*/
+const boolean Wheelly::handleQcCmd(const unsigned long time, const String& topic, const String& args) {
+  StaticJsonDocument<256> doc;
+  jsonConfig(doc);
+
+  String json;
+  serializeJson(doc, json);
+  sendCommandReply(topic + "/res", json);
   return true;
 }
 
-const boolean Wheelly::handleChCmd(const unsigned long time, const String& topic, const String& args) {
-  int minHeadDir, maxHeadDir;
-  int count;
-  if (sscanf(args.c_str(), "%d,%d%n", &minHeadDir, &maxHeadDir, &count) != 2 || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong message %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong message " + args);
-    return false;
+/*
+  Validates a configuration parameter and return true if valid
+*/
+const bool Wheelly::validateCfg(JsonDocument& cfg, const JsonDocument& doc, const String& key, const int minValue, const int maxValue, const String& topic) {
+  if (doc[key].is<int>()) {
+    int value = doc[key];
+    if (!(value >= minValue && value <= maxValue)) {
+      char msg[256];
+      sprintf(msg, "Wrong %s %d", key.c_str(), value);
+      ESP_LOGE(TAG, "%s", msg);
+      sendCommandReply(topic + "/err", msg);
+      return false;
+    }
+    cfg[key] = doc[key];
   }
-
-  if (!(minHeadDir >= -90 && maxHeadDir <= 90 && minHeadDir < maxHeadDir)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-
-  _minHeadDir = minHeadDir;
-  _maxHeadDir = maxHeadDir;
-  sendCommandReply(topic + "/res", args);
   return true;
 }
 
-const boolean Wheelly::handleCmCmd(const unsigned long time, const String& topic, const String& args) {
-  motionConfig_t cfg;
+/*
+  Handle cf command (config)
+*/
+const boolean Wheelly::handleCfCmd(const unsigned long time, const String& topic, const String& args) {
+  StaticJsonDocument<256> doc;
   int count;
+  // Read current configuration
+  StaticJsonDocument<256> cfg;
+  jsonConfig(cfg);
 
-  int minRotRange;
-
-  if (sscanf(args.c_str(), "%u,%u,%u,%u,%u,%u%n",
-             &cfg.minRotRange,
-             &cfg.maxRotRange,
-             &cfg.maxRotPps,
-             &cfg.maxSpeed,
-             &cfg.haltDistance,
-             &cfg.decelerateDistance,
-             &count)
-        != 6
-      || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
+  // Parse json argument
+  auto error = deserializeJson(doc, args);
+  if (error) {
+    ESP_LOGE(TAG, "Wrong json %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong json " + args);
     return false;
   }
 
-  if (!(cfg.minRotRange <= 180
-        && cfg.maxRotRange <= 180
-        && cfg.maxRotPps <= 20
-        && cfg.maxSpeed <= MAX_SPEED
-        && cfg.haltDistance <= 4095
-        && cfg.decelerateDistance <= 4095)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
+  // Validate configuration
+  if (!(validateCfg(cfg, doc, "tau", 1, 10000, topic)
+        && validateCfg(cfg, doc, "asr", 1, 16383, topic)
+        && validateCfg(cfg, doc, "lambdaFactor", 0, 100, topic)
+        && validateCfg(cfg, doc, "maxPulseInterval", 1, 10000, topic)
+        && validateCfg(cfg, doc, "delayedInterval", 1, 10000, topic)
+        && validateCfg(cfg, doc, "minRotRange", 0, 180, topic)
+        && validateCfg(cfg, doc, "maxRotRange", 0, 180, topic)
+        && validateCfg(cfg, doc, "maxRotPps", 0, 20, topic)
+        && validateCfg(cfg, doc, "maxSpeed", 0, 60, topic)
+        && validateCfg(cfg, doc, "haltDistance", 0, 1000, topic)
+        && validateCfg(cfg, doc, "decelerateDistance", 0, 1000, topic)
+        && validateCfg(cfg, doc, "sendInterval", 1, 60000, topic)
+        && validateCfg(cfg, doc, "scanInterval", 1, 60000, topic)
+        && validateCfg(cfg, doc, "minHeadDir", -90, 90, topic)
+        && validateCfg(cfg, doc, "maxHeadDir", -90, 90, topic))) {
     return false;
   }
 
-  configMotionController(cfg);
+  // Applies changed configuration
+  applyJsonConfig(cfg);
   sendCommandReply(topic + "/res", args);
-  return true;
-}
-
-const boolean Wheelly::handleCsCmd(const unsigned long time, const String& topic, const String& args) {
-  int tau;
-  int count;
-
-  if (sscanf(args.c_str(), "%d%n", &tau, &count) != 1 || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-
-  if (!(tau >= 1 && tau <= 10000)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-
-  configMotorSensors(tau);
-  sendCommandReply(topic + "/res", args);
-  return true;
-}
-
-const boolean Wheelly::handleTcsCmd(const unsigned long time, const String& topic, const String& args) {
-  tcsParams_t params;
-  int count;
-
-  if (sscanf(args.c_str(), "%ld,%ld,%d,%ld%n",
-             &params.asr, &params.maxPulseInterval, &params.lambdaFactor, &params.delayedInterval,
-             &count)
-        != 4
-      || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-      }
-  // Validate parameters
-  if (!(params.asr >= 1 && params.asr <= 16383
-        && params.maxPulseInterval >= 1 && params.maxPulseInterval <= 10000
-        && params.delayedInterval >= 1 && params.delayedInterval <= 10000
-        && params.lambdaFactor >= 0 && params.lambdaFactor <= 10)) {
-    ESP_LOGD(TAG, "Wrong args values %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
-  }
-  if (topic.endsWith("/tcsl")) {
-    configLeftTcsMotorController(params);
-  } else {
-    configRightTcsMotorController(params);
-  }
-  sendCommandReply(topic + "/res", args);
+  ESP_LOGI(TAG, "Configuration %s", args.c_str());
   return true;
 }
