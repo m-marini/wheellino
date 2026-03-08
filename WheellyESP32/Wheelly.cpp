@@ -319,6 +319,7 @@ void Wheelly::forward(const int xTarget, const int yTarget) {
    @param yTarget the y target (pulses)
 */
 void Wheelly::backward(const int xTarget, const int yTarget) {
+  ESP_LOGD(TAG, "target %d,%d", xTarget, yTarget);
   _motionCtrl.backward(xTarget, yTarget);
   if (_motionCtrl.isForward() && !canMoveForward()
       || _motionCtrl.isBackward() && !canMoveBackward()) {
