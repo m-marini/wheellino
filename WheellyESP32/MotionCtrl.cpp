@@ -160,6 +160,7 @@ void MotionCtrlClass::forward(const int xTarget, const int yTarget) {
     _checkTimer.start();
     handleMotion(millis());
   } else {
+    _status = FORWARD;
     _stopTimer.restart();
   }
 }
@@ -168,7 +169,7 @@ void MotionCtrlClass::forward(const int xTarget, const int yTarget) {
   Sets the backward movement
 */
 void MotionCtrlClass::backward(const int xTarget, const int yTarget) {
-  ESP_LOGD(TAG, "Backward to %d, %d", xTarget, yTarget);
+  ESP_LOGD(TAG, "Backward to %d,%d", xTarget, yTarget);
   _xTarget = xTarget;
   _yTarget = yTarget;
   if (isHalt()) {
@@ -177,8 +178,10 @@ void MotionCtrlClass::backward(const int xTarget, const int yTarget) {
     _checkTimer.start();
     handleMotion(millis());
   } else {
+    _status = BACKWARD;
     _stopTimer.restart();
   }
+  ESP_LOGD(TAG, "  status=%d", _status);
 }
 
 /*
@@ -222,8 +225,8 @@ const boolean MotionCtrlClass::isBackward() const {
 void MotionCtrlClass::handleMotion(const unsigned long clockTime) {
   unsigned long dt = clockTime - _prevTime;
   _prevTime = clockTime;
-  ESP_LOGD(TAG, "handleMotion %lu", clockTime);
   if (dt > 0) {
+    ESP_LOGD(TAG, "handleMotion %lu status=%d", clockTime, _status);
     // motion not yet handled
     switch (_status) {
       case FORWARD:
@@ -286,41 +289,40 @@ void MotionCtrlClass::handleForward(void) {
   float dx = _xTarget - xRobot;
   float dy = _yTarget - yRobot;
   int d = round(sqrt(dx * dx + dy * dy));
-  ESP_LOGI(TAG, "Target at D%d", d);
-  ESP_LOGI(TAG, " Robot at (%f, %f) head R%d", (double)xRobot, (double)yRobot, angle());
   if (d <= _config.haltDistance) {
     // Reached target position
     ESP_LOGI(TAG, " Reached target position");
     halt();
+    return;
   }
   // Compute the direction to the target
   int toDir = round(atan2f(dx, dy) * 180 / PI);
   int dir1 = angle();
   int turn = normalDeg(toDir - dir1);
   int absTurn = abs(turn);
-  ESP_LOGI(TAG, " Target at R%d, turn by %d DEG", toDir, turn);
+  ESP_LOGD(TAG, " Target at R%d, turn by %d DEG", toDir, turn);
   // Compute motor speeds
   int linSpeed;
   if (absTurn > _config.maxRotRange) {
     // Rotate to target position
     linSpeed = 0;
-    ESP_LOGI(TAG, " Rotate by %d", turn);
+    ESP_LOGD(TAG, " Rotate by %d", turn);
   } else if (d < _config.decelerateDistance) {
     // decelerate to target position
-    ESP_LOGI(TAG, " Decelerate");
+    ESP_LOGD(TAG, " Decelerate");
     linSpeed = _config.maxSpeed * d / _config.decelerateDistance;
   } else {
-    ESP_LOGI(TAG, " Move");
+    ESP_LOGD(TAG, " Move");
     // move at max speed
     linSpeed = _config.maxSpeed;
   }
   const int rotSpeed = computeRotSpeed(turn, _config);
-  ESP_LOGI(TAG, " Speed lin=%d, rot=%d", linSpeed, rotSpeed);
+  ESP_LOGD(TAG, " Speed lin=%d, rot=%d", linSpeed, rotSpeed);
   int leftSpeed;
   int rightSpeed;
   computeMotorSpeed(leftSpeed, rightSpeed, linSpeed, rotSpeed);
   motorSpeed(leftSpeed, rightSpeed);
-  ESP_LOGI(TAG, " Speed %d, %d", leftSpeed, rightSpeed);
+  ESP_LOGD(TAG, " Speed %d, %d", leftSpeed, rightSpeed);
 }
 
 /*
@@ -334,30 +336,31 @@ void MotionCtrlClass::handleBackward(void) {
     // Reached target position
     ESP_LOGI(TAG, "Reached target position");
     halt();
+    return;
   }
   // Compute the direction from the target
-  int toDir = round(atan2f(-dx, -dy) * 180 / PI);
+  int toDir = round(atan2f(dx, dy) * 180 / PI);
   int dir1 = angle();
-  int turn = normalDeg(toDir - dir1);
+  int turn = normalDeg(toDir - dir1 - 180);
   int absTurn = abs(turn);
-  ESP_LOGI(TAG, "Target R%d D%d", toDir, d);
+  ESP_LOGD(TAG, "Target R%d D%d", toDir, d);
   // Compute motor speeds
   int linSpeed;
   if (absTurn > _config.maxRotRange) {
     // Rotate to target position
-    ESP_LOGI(TAG, "Rotate");
+    ESP_LOGD(TAG, "Rotate");
     linSpeed = 0;
   } else if (d < _config.decelerateDistance) {
     // decelerate to target position
-    ESP_LOGI(TAG, "Decelerate");
+    ESP_LOGD(TAG, "Decelerate");
     linSpeed = -_config.maxSpeed * d / _config.decelerateDistance;
   } else {
-    ESP_LOGI(TAG, "Move");
+    ESP_LOGD(TAG, "Move");
     // move at max speed
     linSpeed = -_config.maxSpeed;
   }
   const int rotSpeed = computeRotSpeed(turn, _config);
-  ESP_LOGI(TAG, "Speed %d, %d", linSpeed, rotSpeed);
+  ESP_LOGD(TAG, "Speed %d, %d", linSpeed, rotSpeed);
   int leftSpeed;
   int rightSpeed;
   computeMotorSpeed(leftSpeed, rightSpeed, linSpeed, rotSpeed);
