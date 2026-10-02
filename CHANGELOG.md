@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/m-marini/wheellino/releases/tag/v0.11.0)  2026-10-01
+
 ### Changed
 
 - Issue [#130](https://github.com/m-marini/wheellino/issues/130): Add goto commands
@@ -16,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue [#139](https://github.com/m-marini/wheellino/issues/139): Robot does not stop at target
 
-## [0.10.0] 2026-02-26
+## [0.10.0](https://github.com/m-marini/wheellino/releases/tag/v0.10.0) 2026-02-26
 
 ### Added
 
