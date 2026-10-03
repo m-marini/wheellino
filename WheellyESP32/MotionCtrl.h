@@ -211,8 +211,8 @@ private:
 
   MotionStatus _status;
   int _direction;
-  int _xTarget;
-  int _yTarget;
+  float _xTarget;
+  float _yTarget;
 
   unsigned long _prevTime;
 
@@ -316,14 +316,14 @@ public:
   /*
        Returns the x target position
    */
-  const int xTarget(void) const {
+  const float xTarget(void) const {
     return _xTarget;
   }
 
   /*
       Returns the y target position
    */
-  const int yTarget(void) const {
+  const float yTarget(void) const {
     return _yTarget;
   }
 
@@ -387,14 +387,14 @@ public:
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
   */
-  void forward(const int xTarget, const int yTarget);
+  void forward(const float xTarget, const float yTarget);
 
   /*
    Moves the robot backward to the target position
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
   */
-  void backward(const int xTarget, const int yTarget);
+  void backward(const float xTarget, const float yTarget);
 
   /*
        Moves to given direction at given speed

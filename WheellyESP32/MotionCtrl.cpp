@@ -150,8 +150,8 @@ void MotionCtrlClass::rotate(const int direction) {
 /*
   Sets the forward movement
 */
-void MotionCtrlClass::forward(const int xTarget, const int yTarget) {
-  ESP_LOGD(TAG, "Forward to %d, %d", xTarget, yTarget);
+void MotionCtrlClass::forward(const float xTarget, const float yTarget) {
+  ESP_LOGD(TAG, "Forward to %.1f, %.1f", xTarget, yTarget);
   _xTarget = xTarget;
   _yTarget = yTarget;
   if (isHalt()) {
@@ -168,8 +168,8 @@ void MotionCtrlClass::forward(const int xTarget, const int yTarget) {
 /*
   Sets the backward movement
 */
-void MotionCtrlClass::backward(const int xTarget, const int yTarget) {
-  ESP_LOGD(TAG, "Backward to %d,%d", xTarget, yTarget);
+void MotionCtrlClass::backward(const float xTarget, const float yTarget) {
+  ESP_LOGD(TAG, "Backward to %.1f,%.1f", xTarget, yTarget);
   _xTarget = xTarget;
   _yTarget = yTarget;
   if (isHalt()) {

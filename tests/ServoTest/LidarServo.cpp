@@ -59,28 +59,19 @@ void LidarServo::begin(void) {
 */
 void LidarServo::polling(const unsigned long t0) {
   if (t0 > _lastPoll) {
-    /* Checks for reset timeout*/
-    if (_resetTime > 0 && t0 >= _resetTime) {
-      /* reset timed out */
-      ESP_LOGD(TAG, "Resetting ...");
-      direction(0, t0);
-      _resetTime = 0;
-    } else if (t0 >= _toTime) {
-      // Head in position
-      if (_moving) {
-        // Head reached the position
-        ESP_LOGD(TAG, "Position reached");
-        _direction = _toDirection;
-        _moving = false;
-        if (_onPosition) {
-          _onPosition(_context, *this);
-        }
-      }
-    } else {
+    if (t0 < _toTime) {
       // Head not in position
       // Computes current position
       int ox = _direction;
       _direction = _toTime > _fromTime ? map(t0, _fromTime, _toTime, _fromDirection, _toDirection) : _toDirection;
+    } else if (_moving) {
+      // Head reached the position
+      ESP_LOGD(TAG, "Position reached");
+      _direction = _toDirection;
+      _moving = false;
+      if (_onPosition) {
+        _onPosition(_context, *this);
+      }
     }
     _lastPoll = t0;
   }
@@ -92,7 +83,6 @@ void LidarServo::polling(const unsigned long t0) {
 */
 void LidarServo::direction(const int angle, const unsigned long t0) {
   ESP_LOGD(TAG, "direction=%d", angle);
-  _resetTime = t0 + RESET_INTERVAL;
   _moving = true;
   if (_direction != angle) {
     // Compute the time to reach the target

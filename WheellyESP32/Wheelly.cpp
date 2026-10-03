@@ -44,6 +44,11 @@ static const char* TAG = "Wheelly";
 #define DEFAULT_SCAN_INTERVAL 1000ul
 
 /*
+   Proxy sensor servo
+*/
+#define DEFAULT_ANTI_GIMBAL_RADIUS 20
+
+/*
    Current version
 */
 static const char version[] = WHEELLY_VERSION;
@@ -71,13 +76,16 @@ static const unsigned long STATS_INTERVAL = 10000ul;
 */
 static const uint16_t STOP_DISTANCE = 200;  // 200 mm
 
+
 /*
    Proxy sensor servo
 */
-static const unsigned long SCANNER_RESET_INTERVAL = 1000ul;
 static const int NO_SCAN_DIRECTIONS = 10;
 static const int SERVO_OFFSET = 0;
 static const int SERVO_DIRECTION_LIMIT = 90;
+static const unsigned long HEAD_COMMAND_TIMEOUT = 3000ul;
+static const unsigned long HEAD_TRACKING_INTERVAL = 100ul;
+static const int HEAD_DISTANCE = 6;  // 30mm = 5.7 pulses
 
 /*
    Voltage levels
@@ -103,7 +111,8 @@ Wheelly::Wheelly()
     _lidar(FRONT_LIDAR_PIN, REAR_LIDAR_PIN),
     _minHeadDir(-SERVO_DIRECTION_LIMIT),
     _maxHeadDir(SERVO_DIRECTION_LIMIT),
-    _servo(SERVO_PIN) {
+    _servo(SERVO_PIN),
+    _antiGimbalRadius(DEFAULT_ANTI_GIMBAL_RADIUS) {
   // Computes device id from mac address
   uint64_t mac = ESP.getEfuseMac();
   uint64_t mac1 = 0;
@@ -156,6 +165,23 @@ boolean Wheelly::begin(void) {
   /* Setup lidar servo */
   _servo.offset(SERVO_OFFSET);
   _servo.begin();
+
+  // Setup head tracking timer
+  _headTrackingTimer.onNext([](void* context, const unsigned long n) {
+    ((Wheelly*)context)->trackingHead();
+  },
+                            this);
+  _headTrackingTimer.interval(HEAD_TRACKING_INTERVAL);
+  _headTrackingTimer.continuous(true);
+  _headTrackingTimer.start();
+
+  // Setup head command timer
+  _headCmdTimer.onNext([](void* context, const unsigned long n) {
+    ((Wheelly*)context)->handleHeadTimeout();
+  },
+                       this);
+  _headCmdTimer.interval(HEAD_COMMAND_TIMEOUT);
+  _headCmdTimer.continuous(false);
 
   // Setup lidar
   _lidar.interval(DEFAULT_SCAN_INTERVAL);
@@ -219,6 +245,8 @@ void Wheelly::polling(const unsigned long t0) {
   }
 
   /* Polls sensors */
+  _headCmdTimer.polling(t0);
+  _headTrackingTimer.polling(t0);
   _lidar.polling(t0);
   _servo.polling(t0);
   _contactSensors.polling(t0);
@@ -237,8 +265,7 @@ void Wheelly::polling(const unsigned long t0) {
   if (t0 >= _supplySampleTimeout) {
     /* Polls for supplier sensor sample */
     sampleSupply();
-    int supply =
-      _supplySampleTimeout = t0 + SUPPLY_SAMPLE_INTERVAL;
+    _supplySampleTimeout = t0 + SUPPLY_SAMPLE_INTERVAL;
   }
 
   if (t0 >= _supplyTimeout) {
@@ -273,7 +300,6 @@ void Wheelly::onLine(boolean onLine) {
   }
 }
 
-
 /**
    Queries and sends the status
 */
@@ -292,8 +318,8 @@ void Wheelly::queryStatus(void) {
 */
 void Wheelly::rotate(const int direction) {
   _motionCtrl.rotate(direction);
-  if (_motionCtrl.isForward() && !canMoveForward()
-      || _motionCtrl.isBackward() && !canMoveBackward()) {
+  if ((_motionCtrl.isForward() && !canMoveForward())
+      || (_motionCtrl.isBackward() && !canMoveBackward())) {
     _motionCtrl.halt();
   }
 }
@@ -304,7 +330,7 @@ void Wheelly::rotate(const int direction) {
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
 */
-void Wheelly::forward(const int xTarget, const int yTarget) {
+void Wheelly::forward(const float xTarget, const float yTarget) {
   _motionCtrl.forward(xTarget, yTarget);
   if (_motionCtrl.isForward() && !canMoveForward()
       || _motionCtrl.isBackward() && !canMoveBackward()) {
@@ -318,7 +344,7 @@ void Wheelly::forward(const int xTarget, const int yTarget) {
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
 */
-void Wheelly::backward(const int xTarget, const int yTarget) {
+void Wheelly::backward(const float xTarget, const float yTarget) {
   ESP_LOGD(TAG, "target %d,%d", xTarget, yTarget);
   _motionCtrl.backward(xTarget, yTarget);
   if (_motionCtrl.isForward() && !canMoveForward()
@@ -394,8 +420,77 @@ void Wheelly::handleChangedContacts(void) {
    @param t0 the scanning instant
 */
 void Wheelly::scan(const int angle, const unsigned long t0) {
+  _headStatus = HeadStatus::FIX_DIRECTION;
+  _lidarTargetDirection = angle;
   _servo.direction(angle, t0);
+  _headCmdTimer.start();
 }
+
+/**
+  Start head tracking
+*/
+void Wheelly::headTrack(const boolean frontTrack, const float xTarget, const float yTarget, const unsigned long t0) {
+  _headStatus = frontTrack ? HeadStatus::FRONT_TRACKING : HeadStatus::REAR_TRACKING;
+  _xHeadTarget = xTarget;
+  _yHeadTarget = yTarget;
+  _headCmdTimer.start();
+}
+
+/**
+  Handle head command timeout
+*/
+void Wheelly::handleHeadTimeout(void) {
+  ESP_LOGD(TAG, "Wheelly::handleHeadTimeout");
+  _headStatus = HeadStatus::FIX_DIRECTION;
+  _lidarTargetDirection = 0;
+  _servo.direction(0, millis());
+}
+
+/**
+  Handles polling for head track
+
+  @param t0 current time
+*/
+void Wheelly::trackingHead(void) {
+  if (_headStatus == FIX_DIRECTION) {
+    return;
+  }
+  ESP_LOGD(TAG, "Wheelly::trackingHead");
+  // _yaw = robot direction
+  // _servo.direction() = head direction
+  // _motionCtrl.xPulses() = robot x position
+  // _motionCtrl.yPulses() = robot y position
+
+  float robotRad = (float)M_PI * _yaw / 180;
+  // Compute head position
+
+  float xHead = _motionCtrl.xPulses() + HEAD_DISTANCE * sinf(robotRad);
+  float yHead = _motionCtrl.yPulses() + HEAD_DISTANCE * cosf(robotRad);
+  ESP_LOGD(TAG, "  head=(%.1f, %.1f", xHead, yHead);
+
+  float dx = _xHeadTarget - xHead;
+  float dy = _yHeadTarget - yHead;
+
+  float distance2 = dx * dx + dy * dy;
+
+  ESP_LOGD(TAG, "  target=(%.1f, %.1)f", dx, dy);
+  ESP_LOGD(TAG, "  d2=(%.1f, %.1f)", distance2);
+
+  if (distance2 <= _antiGimbalRadius * _antiGimbalRadius) {
+    // target too near do nothing
+    return;
+  }
+  // compute direction
+  float headRad = _headStatus == REAR_TRACKING ? atan2f(-dx, -dy) : atan2f(dx, dy);
+  int headDeg = normalDeg((int)roundf(180 * (headRad - robotRad) / (float)M_PI));
+
+  headDeg = clip(headDeg, _minHeadDir, _maxHeadDir);
+
+  ESP_LOGD(TAG, "  head %d DEG", headDeg);
+
+  _servo.direction(headDeg, millis());
+}
+
 
 /*
   Handles timeout event from statistics timer
@@ -495,8 +590,8 @@ void Wheelly::sendSupply(void) {
 */
 void Wheelly::sendMotion(const unsigned long t0) {
   char bfr[256];
-  /* st time x y yaw lpps rpps err halt dir speed lspeed rspeed lpwr rpw */
-  sprintf(bfr, "%ld,%.1f,%.1f,%d,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d",
+  /* st time x y yaw lpps rpps err stat dir speed lspeed rspeed lpwr rpw xtarget ytarget */
+  sprintf(bfr, "%ld,%.1f,%.1f,%d,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%.1f",
           millis(),
           (double)_motionCtrl.xPulses(),
           (double)_motionCtrl.yPulses(),
@@ -504,13 +599,15 @@ void Wheelly::sendMotion(const unsigned long t0) {
           (double)_motionCtrl.leftPps(),
           (double)_motionCtrl.rightPps(),
           (const unsigned short)_mpuError,
-          _motionCtrl.isHalt() ? 1 : 0,
+          _motionCtrl.status(),
           _motionCtrl.direction(),
           0,
           _motionCtrl.leftMotor().speed(),
           _motionCtrl.rightMotor().speed(),
           _motionCtrl.leftMotor().pwm(),
-          _motionCtrl.rightMotor().pwm());
+          _motionCtrl.rightMotor().pwm(),
+          _motionCtrl.xTarget(),
+          _motionCtrl.yTarget());
   sendSensorData("mt", bfr);
   _lastSend = t0;
 }
@@ -537,14 +634,18 @@ void Wheelly::sendContacts(void) {
 void Wheelly::sendLidar(void) {
   char bfr[256];
   /* rg time frontDistance rearDistance x y yaw lidarDirection*/
-  sprintf(bfr, "%ld,%u,%u,%.1f,%.1f,%d,%d",
+  sprintf(bfr, "%ld,%u,%u,%.1f,%.1f,%d,%d,%d,%d,%.1f,%.1f",
           _lidarTime,
           _frontDistance,
           _rearDistance,
           _lidarXPulses,
           _lidarYPulses,
           _lidarYaw,
-          _lidarDirection);
+          _lidarDirection,
+          _lidarTargetDirection,
+          _headStatus,
+          _xHeadTarget,
+          _yHeadTarget);
   sendSensorData("rg", bfr);
 }
 
@@ -581,12 +682,12 @@ const boolean Wheelly::execute(const unsigned long t0, const String& topic, cons
     return true;
   } else if (topic.endsWith("/sc")) {
     return handleScanCmd(t0, topic, args);
+  } else if (topic.endsWith("/ht")) {
+    return handleHtCmd(t0, topic, args);
   } else if (topic.endsWith("/ro")) {
     return handleRoCmd(t0, topic, args);
-  } else if (topic.endsWith("/fw")) {
-    return handleFwCmd(t0, topic, args);
-  } else if (topic.endsWith("/bw")) {
-    return handleBwCmd(t0, topic, args);
+  } else if (topic.endsWith("/mv")) {
+    return handleMvCmd(t0, topic, args);
   } else if (topic.endsWith("/cf")) {
     return handleCfCmd(t0, topic, args);
   } else if (topic.endsWith("/rs")) {
@@ -627,6 +728,22 @@ const boolean Wheelly::handleScanCmd(const unsigned long time, const String& top
   return true;
 }
 
+const boolean Wheelly::handleHtCmd(const unsigned long time, const String& topic, const String& args) {
+  int mode;
+  float xTarget;
+  float yTarget;
+  int count;
+  if (sscanf(args.c_str(), "%d,%f,%f%n", &mode, &xTarget, &yTarget, &count) != 3 || count != args.length()) {
+    ESP_LOGD(TAG, "Wrong parse args %s %s", topic.c_str(), args.c_str());
+    sendCommandReply(topic + "/err", "Wrong args " + args);
+    return false;
+  }
+  headTrack(mode == 0, xTarget, yTarget, time);
+
+  sendCommandReply(topic + "/res", args);
+  return true;
+}
+
 const boolean Wheelly::handleRoCmd(const unsigned long time, const String& topic, const String& args) {
   int direction;
   int count;
@@ -646,32 +763,21 @@ const boolean Wheelly::handleRoCmd(const unsigned long time, const String& topic
   return true;
 }
 
-const boolean Wheelly::handleFwCmd(const unsigned long time, const String& topic, const String& args) {
-  int xTarget;
-  int yTarget;
+const boolean Wheelly::handleMvCmd(const unsigned long time, const String& topic, const String& args) {
+  int mode;
+  float xTarget;
+  float yTarget;
   int count;
-  if (sscanf(args.c_str(), "%d,%d%n", &xTarget, &yTarget, &count) != 2 || count != args.length()) {
+  if (sscanf(args.c_str(), "%d,%f,%f%n", &mode, &xTarget, &yTarget, &count) != 3 || count != args.length()) {
     ESP_LOGD(TAG, "Wrong parse args %s %s", topic.c_str(), args.c_str());
     sendCommandReply(topic + "/err", "Wrong args " + args);
     return false;
   }
-
-  forward(xTarget, yTarget);
-  sendCommandReply(topic + "/res", args);
-  return true;
-}
-
-const boolean Wheelly::handleBwCmd(const unsigned long time, const String& topic, const String& args) {
-  int xTarget;
-  int yTarget;
-  int count;
-  if (sscanf(args.c_str(), "%d,%d%n", &xTarget, &yTarget, &count) != 2 || count != args.length()) {
-    ESP_LOGD(TAG, "Wrong parse args %s %s", topic.c_str(), args.c_str());
-    sendCommandReply(topic + "/err", "Wrong args " + args);
-    return false;
+  if (mode == 0) {
+    forward(xTarget, yTarget);
+  } else {
+    backward(xTarget, yTarget);
   }
-
-  backward(xTarget, yTarget);
   sendCommandReply(topic + "/res", args);
   return true;
 }
@@ -697,6 +803,7 @@ JsonDocument& Wheelly::jsonConfig(JsonDocument& doc) {
   doc["maxHeadDir"] = _maxHeadDir;
   doc["sendInterval"] = _sendInterval;
   doc["scanInterval"] = _lidar.interval();
+  doc["antiGimbalRadius"] = _antiGimbalRadius;
 
   return doc;
 }
@@ -729,6 +836,7 @@ void Wheelly::applyJsonConfig(const JsonDocument& doc) {
   _maxHeadDir = doc["maxHeadDir"];
   _sendInterval = doc["sendInterval"];
   _lidar.interval(doc["scanInterval"]);
+  _antiGimbalRadius = doc["antiGimbalRadius"];
 }
 
 /*
@@ -795,7 +903,8 @@ const boolean Wheelly::handleCfCmd(const unsigned long time, const String& topic
         && validateCfg(cfg, doc, "sendInterval", 1, 60000, topic)
         && validateCfg(cfg, doc, "scanInterval", 1, 60000, topic)
         && validateCfg(cfg, doc, "minHeadDir", -90, 90, topic)
-        && validateCfg(cfg, doc, "maxHeadDir", -90, 90, topic))) {
+        && validateCfg(cfg, doc, "maxHeadDir", -90, 90, topic)
+        && validateCfg(cfg, doc, "antiGimbalRadius", 1, 60000, topic))) {
     return false;
   }
 

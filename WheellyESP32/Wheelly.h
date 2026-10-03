@@ -40,8 +40,14 @@
 #include "LidarServo.h"
 #include "Timer.h"
 
-#define WHEELLY_VERSION "0.11.0"
-#define WHEELLY_MESSAGES_VERSION "v1"
+#define WHEELLY_VERSION "0.12.0"
+#define WHEELLY_MESSAGES_VERSION "v2"
+
+enum HeadStatus {
+  FIX_DIRECTION = 0,
+  FRONT_TRACKING = 1,
+  REAR_TRACKING = 2,
+};
 
 /*
    Wheelly controller.
@@ -87,8 +93,15 @@ private:
   uint16_t _rearDistance;
   int _lidarYaw;
   int _lidarDirection;
+  int _lidarTargetDirection;
   float _lidarXPulses;
   float _lidarYPulses;
+  HeadStatus _headStatus;
+  float _xHeadTarget;
+  float _yHeadTarget;
+  int _antiGimbalRadius;
+  Timer _headTrackingTimer;
+  Timer _headCmdTimer;
 
   unsigned long _supplyTimeout;
   unsigned long _supplySampleTimeout;
@@ -108,6 +121,7 @@ private:
   void handleLidarRange(const uint16_t frontDistance, const uint16_t rearDistance);
   void handleStats(void);
   void handleLed(const unsigned long n);
+  void handleHeadTimeout(void);
   void handleMpuData(void);
   void handleChangedContacts(void);
 
@@ -117,9 +131,9 @@ private:
   const bool validateCfg(JsonDocument& cfg, const JsonDocument& doc, const String& key, const int minValue, const int maxValue, const String& topic);
 
   const bool handleScanCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleHtCmd(const unsigned long time, const String& topic, const String& args);
   const bool handleRoCmd(const unsigned long time, const String& topic, const String& args);
-  const bool handleFwCmd(const unsigned long time, const String& topic, const String& args);
-  const bool handleBwCmd(const unsigned long time, const String& topic, const String& args);
+  const bool handleMvCmd(const unsigned long time, const String& topic, const String& args);
   const bool handleQcCmd(const unsigned long time, const String& topic, const String& args);
   const bool handleCfCmd(const unsigned long time, const String& topic, const String& args);
 
@@ -141,6 +155,7 @@ private:
   void sendContacts(void);
   void sendSupply(void);
   void sampleSupply(void);
+
   /**
        Averages the supply measures
     */
@@ -168,7 +183,23 @@ private:
     */
   void scan(const int angle, const unsigned long t0 = millis());
 
-  /**       Moves the robot to the direction at speed
+  /**
+    Start tracking the head to the target point
+  
+    @param frontTrack true if front track otherwise rear track
+    @param xTarget the x target coordinate (pulses)
+    @param yTarget the y target coordinate (pulses)
+    @param t0 the scanning instant
+  */
+  void headTrack(const boolean frontTrack, const float xTarget, const float yTarget, const unsigned long t0);
+
+  /**
+    Tracks the head toward the target
+  */
+  void trackingHead(void);
+
+  /**
+       Rotate the robot to the given direction
 
        @param direction the direction (DEG)
     */
@@ -180,7 +211,7 @@ private:
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
   */
-  void forward(const int xTarget, const int yTarget);
+  void forward(const float xTarget, const float yTarget);
 
   /*
    Moves backward the robot to the target position
@@ -188,7 +219,7 @@ private:
    @param xTarget the x target (pulses)
    @param yTarget the y target (pulses)
   */
-  void backward(const int xTarget, const int yTarget);
+  void backward(const float xTarget, const float yTarget);
 
   /**
        Moves the robot to the direction at speed
@@ -225,6 +256,34 @@ public:
     */
   const String& id(void) const {
     return _id;
+  }
+
+  /**
+  * Returns true if head is traking a target
+  */
+  const HeadStatus headStatus(void) const {
+    return _headStatus;
+  }
+
+  /*
+  * Returns the x head target (pulses)
+  */
+  const float xHeadTarget(void) const {
+    return _xHeadTarget;
+  }
+
+  /*
+  * Returns the y head target (pulses)
+  */
+  const float yHeadTarget(void) const {
+    return _yHeadTarget;
+  }
+
+  /**
+  * Returns the head anti gimbal radius (pulses)
+  */
+  const int antiGimbalRadius(void) const {
+    return _antiGimbalRadius;
   }
 
   /**
