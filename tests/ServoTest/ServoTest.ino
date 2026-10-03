@@ -86,5 +86,6 @@ static void handleDataReady(void*, LidarServo& sensor) {
   } else if (!completed) {
     completed = true;
     ESP_LOGI(TAG, "Completed.");
+    sensor.direction(0, t0);
   }
 }

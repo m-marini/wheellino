@@ -51,7 +51,6 @@ private:
   unsigned long _lastPoll;
   unsigned long _toTime;
   unsigned long _fromTime;
-  unsigned long _resetTime;
   OnPositionCallBack_t _onPosition;
   void *_context;
 
