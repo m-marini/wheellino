@@ -1,6 +1,8 @@
 #ifndef _Camera_h_
 #define _Camera_h_
 
+#include "esp_camera.h"
+
 /**
  * Send and receive text messages from a broker
  */
