@@ -1,0 +1,10 @@
+{
+    "version": "2",
+    "wifiActive": true,
+    "wifiSsid": "wifiSsid",
+    "wifiPassword": "wifiPassword",
+    "mqttBrokerHost": "mqttBrokerHost",
+    "mqttBrokerPort": 1883,
+    "mqttUser": "mqttUser",
+    "mqttPassword": "mqttPassword"
+}

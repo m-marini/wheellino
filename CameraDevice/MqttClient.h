@@ -44,14 +44,14 @@ class MqttClient {
 private:
   WiFiClient _wiFiClient;
   PubSubClient _client;
-  String _clientId;
-  String _user;
-  String _password;
-  String _subTopics;
+  const char* _clientId;
+  const char* _user;
+  const char* _password;
+  const char* _subTopics;
   unsigned long _retryInterval;
   unsigned long _retryTimeout;
   bool _init;
-  void (*_onMessage)(const String& topic, const String& message);
+  void (*_onMessage)(const char* topic, const char* message);
 
 public:
   MqttClient();
@@ -59,7 +59,7 @@ public:
   /**
   * Initializes client
   */
-  void begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password, const String& supTopics, const unsigned long retryInterval);
+  void begin(const char* brokerHost, const int brokerPort, const char* clientId, const char* user, const char* password, const char* supTopics, const unsigned long retryInterval);
 
   /**
   * Connects the client
@@ -81,17 +81,17 @@ public:
   /**
   * Sends a string to the outTopic
   */
-  void send(const String& topic, const String& data);
+  void send(const char* topic, const char* data);
 
   /**
   * Sends a byte array to the outTopic
   */
-  void send(const String& topic, const byte* msg, const size_t len);
+  void send(const char* topic, const byte* msg, const size_t len);
 
   /**
   * Dispatches the message
   */
-  void dispatch(const String& topic, const String& message) {
+  void dispatch(const char* topic, const char* message) {
     if (_onMessage) {
       _onMessage(topic, message);
     }
@@ -100,7 +100,7 @@ public:
   /**
   * Sets the message callback
   */
-  void onMessage(void (*callback)(const String& topic, const String& message)) {
+  void onMessage(void (*callback)(const char* topic, const char* message)) {
     _onMessage = callback;
   }
 };
