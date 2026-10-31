@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2026  Marco Marini, marco.marini@mmarini.org
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ *    END OF TERMS AND CONDITIONS
+ *
+ */
+
 #include "SDConfStore.h"
 #include <ArduinoJson.h>
 
@@ -22,15 +50,15 @@ SDConfStore::SDConfStore(void) {
   */
 SDConfigRecord& SDConfStore::defaultConfig(SDConfigRecord& config) {
   config = {
-    .version = CURRENT_VERSION,
     .wifiActive = false,
-    .wifiSsid = "Wheelly",
-    .wifiPassword = "",
-    .mqttBrokerHost = "brokerHost",
     .mqttBrokerPort = 1883,
-    .mqttUser = "wheelly",
-    .mqttPsw = "",
   };
+  strcpy(config.version, CURRENT_VERSION);
+  strcpy(config.wifiSsid, "Wheelly");
+  strcpy(config.mqttBrokerHost, "brokerHost");
+  strcpy(config.mqttUser, "wheelly");
+  config.wifiPassword[0] = '\0';
+  config.mqttPsw[0] = '\0';
   return config;
 }
 
@@ -43,18 +71,19 @@ const SDConfStoreRetCode SDConfStore::fromJson(SDConfigRecord& config, const Jso
   ESP_LOGD(TAG, "Json file %s", doc);
 
   defaultConfig(config);
-  config.version = doc["version"] | config.version;
   config.wifiActive = doc["wifiActive"] | config.wifiActive;
-  config.wifiSsid = doc["wifiSsid"] | config.wifiSsid;
-  config.wifiPassword = doc["wifiPassword"] | config.wifiPassword;
-  config.mqttBrokerHost = doc["mqttBrokerHost"] | config.mqttBrokerHost;
   config.mqttBrokerPort = doc["mqttBrokerPort"] | config.mqttBrokerPort;
-  config.mqttUser = doc["mqttUser"] | config.mqttUser;
-  config.mqttPsw = doc["mqttPassword"] | config.mqttPsw;
+
+  snprintf(config.version, sizeof(config.version), "%s", doc["version"] | config.version);
+  snprintf(config.wifiSsid, sizeof(config.wifiSsid), "%s", doc["wifiSsid"] | config.wifiSsid);
+  snprintf(config.wifiPassword, sizeof(config.wifiPassword), "%s", doc["wifiPassword"] | config.wifiPassword);
+  snprintf(config.mqttBrokerHost, sizeof(config.mqttBrokerHost), "%s", doc["mqttBrokerHost"] | config.mqttBrokerHost);
+  snprintf(config.mqttUser, sizeof(config.mqttUser), "%s", doc["mqttUser"] | config.mqttUser);
+  snprintf(config.mqttPsw, sizeof(config.mqttPsw), "%s", doc["mqttPassword"] | config.mqttPsw);
 
   // Validates json fields
-  if (config.version != CURRENT_VERSION) {
-    ESP_LOGE(TAG, "Bad config file");
+  if (strcmp(config.version, CURRENT_VERSION)) {
+    ESP_LOGE(TAG, "Bad config file version [%s]", config.version);
     return BAD_CONFIG_VERSION;
   }
   return SUCCESS;
@@ -64,17 +93,12 @@ const SDConfStoreRetCode SDConfStore::fromJson(SDConfigRecord& config, const Jso
   * Initializes the config store
   */
 void SDConfStore::begin(void) {
-  ESP_LOGD(TAG, "Mounting MicroSD Card");
-  if (!SD_MMC.begin()) {
-    ESP_LOGE(TAG, "MicroSD Card Mount Failed");
-    return;
-  }
   uint8_t cardType = SD_MMC.cardType();
   if (cardType == CARD_NONE) {
     ESP_LOGE(TAG, "No MicroSD Card found");
     return;
   }
-  ESP_LOGD(TAG, "Mounted MicroSD Card");
+  ESP_LOGI(TAG, "Mounted MicroSD Card");
   loadConfig();
 }
 
