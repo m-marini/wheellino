@@ -10,10 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Add
 
 - Issue [#141](https://github.com/m-marini/wheellino/issues/141): Head absolute target command
+- Issue [#148](https://github.com/m-marini/wheellino/issues/148): Add http image capture and fix unexpected flash activation 
 
 ## Fixed
 
-- Issue [#146](https://github.com/m-marini/wheellino/issues/146):Camera blocked after reboot
+- Issue [#146](https://github.com/m-marini/wheellino/issues/146): Camera blocked after reboot
 
 ## [0.11.0](https://github.com/m-marini/wheellino/releases/tag/v0.11.0)  2026-10-01
 
