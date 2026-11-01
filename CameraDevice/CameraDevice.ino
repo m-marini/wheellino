@@ -41,7 +41,7 @@ static const char* TAG = "CameraWebServer";
 #define CONNECTION_INTERVAL 1000
 #define RETRY_INTERVAL 3000
 #define LOOP_INTERVAL 10
-#define WATCHDOG_INTERVAL 30000
+#define HEARTBEAT_INTERVAL 1000
 
 #define WHEELLY_MESSAGES_VERSION "v0"
 
@@ -56,7 +56,7 @@ static char pubSensorTopic[64];
 static char subCommandTopics[64];
 
 static boolean mqttConnected = false;
-static unsigned long watchdogTime;
+static unsigned long heartbeatTime;
 
 static const uint64_t macId(void) {
   uint64_t mac = ESP.getEfuseMac();
@@ -155,14 +155,14 @@ void loop() {
     mqttConnected = conn;
     if (conn) {
       ESP_LOGI(TAG, "Mqtt client connected");
-      watchdogTime = t0;
+      heartbeatTime = t0;
     } else {
       ESP_LOGI(TAG, "Mqtt client disconnected");
     }
   }
-  if (conn && t0 >= watchdogTime) {
+  if (conn && t0 >= heartbeatTime) {
     mqttClient.send(pubSensorTopic, webUrl());
-    watchdogTime = t0 + WATCHDOG_INTERVAL;
+    heartbeatTime = t0 + HEARTBEAT_INTERVAL;
   }
   vTaskDelay(LOOP_INTERVAL / portTICK_PERIOD_MS);
 }

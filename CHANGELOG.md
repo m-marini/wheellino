@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Issue [#141](https://github.com/m-marini/wheellino/issues/141): Head absolute target command
 - Issue [#148](https://github.com/m-marini/wheellino/issues/148): Add http image capture and fix unexpected flash activation 
 
+### Changed
+
+- Issue [#150](https://github.com/m-marini/wheellino/issues/150): Reduce CameraDevice heartbeat interval
+
 ## Fixed
 
 - Issue [#146](https://github.com/m-marini/wheellino/issues/146): Camera blocked after reboot
