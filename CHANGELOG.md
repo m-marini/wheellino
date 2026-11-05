@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [[0.12.0](https://github.com/m-marini/wheellino/releases/tag/v0.12.0)] 2026-11-05
+
 ### Add
 
 - Issue [#141](https://github.com/m-marini/wheellino/issues/141): Head absolute target command
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue [#146](https://github.com/m-marini/wheellino/issues/146): Camera blocked after reboot
 
-## [0.11.0](https://github.com/m-marini/wheellino/releases/tag/v0.11.0)  2026-10-01
+## [[0.11.0](https://github.com/m-marini/wheellino/releases/tag/v0.11.0)] 2026-10-01
 
 ### Changed
 
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Issue [#139](https://github.com/m-marini/wheellino/issues/139): Robot does not stop at target
 
-## [0.10.0](https://github.com/m-marini/wheellino/releases/tag/v0.10.0) 2026-02-26
+## [[0.10.0](https://github.com/m-marini/wheellino/releases/tag/v0.10.0)] 2026-02-26
 
 ### Added
 
