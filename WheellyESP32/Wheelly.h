@@ -40,7 +40,7 @@
 #include "LidarServo.h"
 #include "Timer.h"
 
-#define WHEELLY_VERSION "0.12.0"
+#define WHEELLY_VERSION "1.0.0"
 #define WHEELLY_MESSAGES_VERSION "v2"
 
 enum HeadStatus {
