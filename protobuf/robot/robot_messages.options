@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.mmarini.wheelly.protobuf.robot";
+
+package wheelly.protobuf.robot;
+
+message ContactsTelemetry {
+  int64 timestamp = 1;
+  bool frontSensor = 2;
+  bool rearSensor = 3;
+  bool canMoveForward = 4;
+  bool canMoveBackward = 5;
+}
+
+enum HeadStatusId {
+  FIX_DIRECTION = 0;
+  FRONT_TRACK = 1;
+  REAR_TRACK = 2;
+}
+
+message LidarTelemetry {
+  int64 timestamp = 1;
+  int32 frontDistance = 2;
+  int32 rearDistance = 3;
+  float x = 4;
+  float y = 5;
+  sint32 robotYaw = 6;
+  sint32 headDirection = 7;
+  HeadStatusId headStatus = 8;
+  sint32 headTarget = 9;
+  float xTarget = 10;
+  float yTarget = 11;
+}
+
+enum MotionStatusId {
+  HALT = 0;
+  FORWARD = 1;
+  BACKWARD = 2;
+  ROTATE = 3;
+}
+
+message MotionTelemetry {
+  int64 timestamp = 1;
+  float x = 2;
+  float y = 3;
+  sint32 robotDeg = 4;
+  float leftPps = 5;
+  float rightPps = 6;
+  sint32 imuFailure = 7;
+  MotionStatusId statusId = 8;
+  sint32 targetDeg = 9;
+  float xTarget = 10;
+  float yTarget = 11;
+  sint32 leftTargetPps = 12;
+  sint32 rightTargetPps = 13;
+  sint32 leftPower = 14;
+  sint32 rightPower = 15;
+}
+
+message SupplyTelemetry {
+  int64 timestamp = 1;
+  uint32 voltage = 2;
+}
+
+message CameraEvent{
+  int64 timestamp = 1;
+  int32 markerId = 2;
+  int32 width = 3;
+  int32 height = 4;
+  repeated float coords = 5;
+}
+
+message MoveCommand {
+bool frontMove = 1;
+    sint32 x = 2;
+sint32 y = 3;
+    }
+
+message HaltCommand {
+    }
+
+message RotateCommand {
+sint32 direction = 1;
+    }
+
+message ScanCommand {
+sint32 direction = 1;
+    }
+
+message TrackCommand {
+bool frontTrack = 1;
+    sint32 x = 2;
+sint32 y = 3;
+    }

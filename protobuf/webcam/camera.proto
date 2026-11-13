@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.mmarini.wheelly.protobuf.webcam";
+
+package wheelly.protobuf.webcam;
+
+message CameraHiMessage {
+  string url = 1;
+}
