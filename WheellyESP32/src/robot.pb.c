@@ -18,6 +18,9 @@ PB_BIND(wheelly_protobuf_robot_MotionTelemetry, wheelly_protobuf_robot_MotionTel
 PB_BIND(wheelly_protobuf_robot_SupplyTelemetry, wheelly_protobuf_robot_SupplyTelemetry, AUTO)
 
 
+PB_BIND(wheelly_protobuf_robot_StatsTelemetry, wheelly_protobuf_robot_StatsTelemetry, AUTO)
+
+
 PB_BIND(wheelly_protobuf_robot_MoveCommand, wheelly_protobuf_robot_MoveCommand, AUTO)
 
 
@@ -31,6 +34,9 @@ PB_BIND(wheelly_protobuf_robot_ScanCommand, wheelly_protobuf_robot_ScanCommand, 
 
 
 PB_BIND(wheelly_protobuf_robot_TrackCommand, wheelly_protobuf_robot_TrackCommand, AUTO)
+
+
+PB_BIND(wheelly_protobuf_robot_CommandResponse, wheelly_protobuf_robot_CommandResponse, AUTO)
 
 
 

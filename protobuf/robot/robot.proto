@@ -6,7 +6,7 @@ option java_package = "org.mmarini.wheelly.protobuf.robot";
 package wheelly.protobuf.robot;
 
 message ContactsTelemetry {
-  int64 timestamp = 1;
+  uint64 timestamp = 1;
   bool frontSensor = 2;
   bool rearSensor = 3;
   bool canMoveForward = 4;
@@ -20,9 +20,9 @@ enum HeadStatusId {
 }
 
 message LidarTelemetry {
-  int64 timestamp = 1;
-  int32 frontDistance = 2;
-  int32 rearDistance = 3;
+  uint64 timestamp = 1;
+  uint32 frontDistance = 2;
+  uint32 rearDistance = 3;
   float x = 4;
   float y = 5;
   sint32 robotYaw = 6;
@@ -41,7 +41,7 @@ enum MotionStatusId {
 }
 
 message MotionTelemetry {
-  int64 timestamp = 1;
+  uint64 timestamp = 1;
   float x = 2;
   float y = 3;
   sint32 robotDeg = 4;
@@ -59,29 +59,44 @@ message MotionTelemetry {
 }
 
 message SupplyTelemetry {
-  int64 timestamp = 1;
+  uint64 timestamp = 1;
   uint32 voltage = 2;
 }
 
+message StatsTelemetry {
+  uint64 timestamp = 1;
+  uint64 stats = 2;
+}
+
 message MoveCommand {
-bool frontMove = 1;
-    sint32 x = 2;
-sint32 y = 3;
-    }
+  uint64 id = 1;
+  bool frontMove = 2;
+  sint32 x = 3;
+  sint32 y = 4;
+}
 
 message HaltCommand {
-    }
+  uint64 id = 1;
+}
 
 message RotateCommand {
-sint32 direction = 1;
-    }
+  uint64 id = 1;
+  sint32 direction = 2;
+}
 
 message ScanCommand {
-sint32 direction = 1;
-    }
+  uint64 id = 1;
+  sint32 direction = 2;
+}
 
 message TrackCommand {
-bool frontTrack = 1;
-    sint32 x = 2;
-sint32 y = 3;
-    }
+  uint64 id = 1;
+  bool frontTrack = 2;
+  sint32 x = 3;
+  sint32 y = 4;
+}
+
+message CommandResponse {
+  uint64 command_id = 1;
+  sint32 rc = 2;
+}

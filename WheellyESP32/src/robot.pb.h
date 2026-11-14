@@ -25,7 +25,7 @@ typedef enum _wheelly_protobuf_robot_MotionStatusId {
 
 /* Struct definitions */
 typedef struct _wheelly_protobuf_robot_ContactsTelemetry {
-    int64_t timestamp;
+    uint64_t timestamp;
     bool frontSensor;
     bool rearSensor;
     bool canMoveForward;
@@ -33,9 +33,9 @@ typedef struct _wheelly_protobuf_robot_ContactsTelemetry {
 } wheelly_protobuf_robot_ContactsTelemetry;
 
 typedef struct _wheelly_protobuf_robot_LidarTelemetry {
-    int64_t timestamp;
-    int32_t frontDistance;
-    int32_t rearDistance;
+    uint64_t timestamp;
+    uint32_t frontDistance;
+    uint32_t rearDistance;
     float x;
     float y;
     int32_t robotYaw;
@@ -47,7 +47,7 @@ typedef struct _wheelly_protobuf_robot_LidarTelemetry {
 } wheelly_protobuf_robot_LidarTelemetry;
 
 typedef struct _wheelly_protobuf_robot_MotionTelemetry {
-    int64_t timestamp;
+    uint64_t timestamp;
     float x;
     float y;
     int32_t robotDeg;
@@ -65,33 +65,47 @@ typedef struct _wheelly_protobuf_robot_MotionTelemetry {
 } wheelly_protobuf_robot_MotionTelemetry;
 
 typedef struct _wheelly_protobuf_robot_SupplyTelemetry {
-    int64_t timestamp;
+    uint64_t timestamp;
     uint32_t voltage;
 } wheelly_protobuf_robot_SupplyTelemetry;
 
+typedef struct _wheelly_protobuf_robot_StatsTelemetry {
+    uint64_t timestamp;
+    uint64_t stats;
+} wheelly_protobuf_robot_StatsTelemetry;
+
 typedef struct _wheelly_protobuf_robot_MoveCommand {
+    uint64_t id;
     bool frontMove;
     int32_t x;
     int32_t y;
 } wheelly_protobuf_robot_MoveCommand;
 
 typedef struct _wheelly_protobuf_robot_HaltCommand {
-    char dummy_field;
+    uint64_t id;
 } wheelly_protobuf_robot_HaltCommand;
 
 typedef struct _wheelly_protobuf_robot_RotateCommand {
+    uint64_t id;
     int32_t direction;
 } wheelly_protobuf_robot_RotateCommand;
 
 typedef struct _wheelly_protobuf_robot_ScanCommand {
+    uint64_t id;
     int32_t direction;
 } wheelly_protobuf_robot_ScanCommand;
 
 typedef struct _wheelly_protobuf_robot_TrackCommand {
+    uint64_t id;
     bool frontTrack;
     int32_t x;
     int32_t y;
 } wheelly_protobuf_robot_TrackCommand;
+
+typedef struct _wheelly_protobuf_robot_CommandResponse {
+    uint64_t command_id;
+    int32_t rc;
+} wheelly_protobuf_robot_CommandResponse;
 
 
 #ifdef __cplusplus
@@ -119,25 +133,31 @@ extern "C" {
 
 
 
+
+
 /* Initializer values for message structs */
 #define wheelly_protobuf_robot_ContactsTelemetry_init_default {0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_LidarTelemetry_init_default {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_HeadStatusId_MIN, 0, 0, 0}
 #define wheelly_protobuf_robot_MotionTelemetry_init_default {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_MotionStatusId_MIN, 0, 0, 0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_SupplyTelemetry_init_default {0, 0}
-#define wheelly_protobuf_robot_MoveCommand_init_default {0, 0, 0}
+#define wheelly_protobuf_robot_StatsTelemetry_init_default {0, 0}
+#define wheelly_protobuf_robot_MoveCommand_init_default {0, 0, 0, 0}
 #define wheelly_protobuf_robot_HaltCommand_init_default {0}
-#define wheelly_protobuf_robot_RotateCommand_init_default {0}
-#define wheelly_protobuf_robot_ScanCommand_init_default {0}
-#define wheelly_protobuf_robot_TrackCommand_init_default {0, 0, 0}
+#define wheelly_protobuf_robot_RotateCommand_init_default {0, 0}
+#define wheelly_protobuf_robot_ScanCommand_init_default {0, 0}
+#define wheelly_protobuf_robot_TrackCommand_init_default {0, 0, 0, 0}
+#define wheelly_protobuf_robot_CommandResponse_init_default {0, 0}
 #define wheelly_protobuf_robot_ContactsTelemetry_init_zero {0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_LidarTelemetry_init_zero {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_HeadStatusId_MIN, 0, 0, 0}
 #define wheelly_protobuf_robot_MotionTelemetry_init_zero {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_MotionStatusId_MIN, 0, 0, 0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_SupplyTelemetry_init_zero {0, 0}
-#define wheelly_protobuf_robot_MoveCommand_init_zero {0, 0, 0}
+#define wheelly_protobuf_robot_StatsTelemetry_init_zero {0, 0}
+#define wheelly_protobuf_robot_MoveCommand_init_zero {0, 0, 0, 0}
 #define wheelly_protobuf_robot_HaltCommand_init_zero {0}
-#define wheelly_protobuf_robot_RotateCommand_init_zero {0}
-#define wheelly_protobuf_robot_ScanCommand_init_zero {0}
-#define wheelly_protobuf_robot_TrackCommand_init_zero {0, 0, 0}
+#define wheelly_protobuf_robot_RotateCommand_init_zero {0, 0}
+#define wheelly_protobuf_robot_ScanCommand_init_zero {0, 0}
+#define wheelly_protobuf_robot_TrackCommand_init_zero {0, 0, 0, 0}
+#define wheelly_protobuf_robot_CommandResponse_init_zero {0, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define wheelly_protobuf_robot_ContactsTelemetry_timestamp_tag 1
@@ -173,18 +193,27 @@ extern "C" {
 #define wheelly_protobuf_robot_MotionTelemetry_rightPower_tag 15
 #define wheelly_protobuf_robot_SupplyTelemetry_timestamp_tag 1
 #define wheelly_protobuf_robot_SupplyTelemetry_voltage_tag 2
-#define wheelly_protobuf_robot_MoveCommand_frontMove_tag 1
-#define wheelly_protobuf_robot_MoveCommand_x_tag 2
-#define wheelly_protobuf_robot_MoveCommand_y_tag 3
-#define wheelly_protobuf_robot_RotateCommand_direction_tag 1
-#define wheelly_protobuf_robot_ScanCommand_direction_tag 1
-#define wheelly_protobuf_robot_TrackCommand_frontTrack_tag 1
-#define wheelly_protobuf_robot_TrackCommand_x_tag 2
-#define wheelly_protobuf_robot_TrackCommand_y_tag 3
+#define wheelly_protobuf_robot_StatsTelemetry_timestamp_tag 1
+#define wheelly_protobuf_robot_StatsTelemetry_stats_tag 2
+#define wheelly_protobuf_robot_MoveCommand_id_tag 1
+#define wheelly_protobuf_robot_MoveCommand_frontMove_tag 2
+#define wheelly_protobuf_robot_MoveCommand_x_tag 3
+#define wheelly_protobuf_robot_MoveCommand_y_tag 4
+#define wheelly_protobuf_robot_HaltCommand_id_tag 1
+#define wheelly_protobuf_robot_RotateCommand_id_tag 1
+#define wheelly_protobuf_robot_RotateCommand_direction_tag 2
+#define wheelly_protobuf_robot_ScanCommand_id_tag 1
+#define wheelly_protobuf_robot_ScanCommand_direction_tag 2
+#define wheelly_protobuf_robot_TrackCommand_id_tag 1
+#define wheelly_protobuf_robot_TrackCommand_frontTrack_tag 2
+#define wheelly_protobuf_robot_TrackCommand_x_tag 3
+#define wheelly_protobuf_robot_TrackCommand_y_tag 4
+#define wheelly_protobuf_robot_CommandResponse_command_id_tag 1
+#define wheelly_protobuf_robot_CommandResponse_rc_tag 2
 
 /* Struct field encoding specification for nanopb */
 #define wheelly_protobuf_robot_ContactsTelemetry_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, INT64,    timestamp,         1) \
+X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
 X(a, STATIC,   SINGULAR, BOOL,     frontSensor,       2) \
 X(a, STATIC,   SINGULAR, BOOL,     rearSensor,        3) \
 X(a, STATIC,   SINGULAR, BOOL,     canMoveForward,    4) \
@@ -193,9 +222,9 @@ X(a, STATIC,   SINGULAR, BOOL,     canMoveBackward,   5)
 #define wheelly_protobuf_robot_ContactsTelemetry_DEFAULT NULL
 
 #define wheelly_protobuf_robot_LidarTelemetry_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, INT64,    timestamp,         1) \
-X(a, STATIC,   SINGULAR, INT32,    frontDistance,     2) \
-X(a, STATIC,   SINGULAR, INT32,    rearDistance,      3) \
+X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
+X(a, STATIC,   SINGULAR, UINT32,   frontDistance,     2) \
+X(a, STATIC,   SINGULAR, UINT32,   rearDistance,      3) \
 X(a, STATIC,   SINGULAR, FLOAT,    x,                 4) \
 X(a, STATIC,   SINGULAR, FLOAT,    y,                 5) \
 X(a, STATIC,   SINGULAR, SINT32,   robotYaw,          6) \
@@ -208,7 +237,7 @@ X(a, STATIC,   SINGULAR, FLOAT,    yTarget,          11)
 #define wheelly_protobuf_robot_LidarTelemetry_DEFAULT NULL
 
 #define wheelly_protobuf_robot_MotionTelemetry_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, INT64,    timestamp,         1) \
+X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
 X(a, STATIC,   SINGULAR, FLOAT,    x,                 2) \
 X(a, STATIC,   SINGULAR, FLOAT,    y,                 3) \
 X(a, STATIC,   SINGULAR, SINT32,   robotDeg,          4) \
@@ -227,72 +256,94 @@ X(a, STATIC,   SINGULAR, SINT32,   rightPower,       15)
 #define wheelly_protobuf_robot_MotionTelemetry_DEFAULT NULL
 
 #define wheelly_protobuf_robot_SupplyTelemetry_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, INT64,    timestamp,         1) \
+X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
 X(a, STATIC,   SINGULAR, UINT32,   voltage,           2)
 #define wheelly_protobuf_robot_SupplyTelemetry_CALLBACK NULL
 #define wheelly_protobuf_robot_SupplyTelemetry_DEFAULT NULL
 
+#define wheelly_protobuf_robot_StatsTelemetry_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
+X(a, STATIC,   SINGULAR, UINT64,   stats,             2)
+#define wheelly_protobuf_robot_StatsTelemetry_CALLBACK NULL
+#define wheelly_protobuf_robot_StatsTelemetry_DEFAULT NULL
+
 #define wheelly_protobuf_robot_MoveCommand_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, BOOL,     frontMove,         1) \
-X(a, STATIC,   SINGULAR, SINT32,   x,                 2) \
-X(a, STATIC,   SINGULAR, SINT32,   y,                 3)
+X(a, STATIC,   SINGULAR, UINT64,   id,                1) \
+X(a, STATIC,   SINGULAR, BOOL,     frontMove,         2) \
+X(a, STATIC,   SINGULAR, SINT32,   x,                 3) \
+X(a, STATIC,   SINGULAR, SINT32,   y,                 4)
 #define wheelly_protobuf_robot_MoveCommand_CALLBACK NULL
 #define wheelly_protobuf_robot_MoveCommand_DEFAULT NULL
 
 #define wheelly_protobuf_robot_HaltCommand_FIELDLIST(X, a) \
-
+X(a, STATIC,   SINGULAR, UINT64,   id,                1)
 #define wheelly_protobuf_robot_HaltCommand_CALLBACK NULL
 #define wheelly_protobuf_robot_HaltCommand_DEFAULT NULL
 
 #define wheelly_protobuf_robot_RotateCommand_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, SINT32,   direction,         1)
+X(a, STATIC,   SINGULAR, UINT64,   id,                1) \
+X(a, STATIC,   SINGULAR, SINT32,   direction,         2)
 #define wheelly_protobuf_robot_RotateCommand_CALLBACK NULL
 #define wheelly_protobuf_robot_RotateCommand_DEFAULT NULL
 
 #define wheelly_protobuf_robot_ScanCommand_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, SINT32,   direction,         1)
+X(a, STATIC,   SINGULAR, UINT64,   id,                1) \
+X(a, STATIC,   SINGULAR, SINT32,   direction,         2)
 #define wheelly_protobuf_robot_ScanCommand_CALLBACK NULL
 #define wheelly_protobuf_robot_ScanCommand_DEFAULT NULL
 
 #define wheelly_protobuf_robot_TrackCommand_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, BOOL,     frontTrack,        1) \
-X(a, STATIC,   SINGULAR, SINT32,   x,                 2) \
-X(a, STATIC,   SINGULAR, SINT32,   y,                 3)
+X(a, STATIC,   SINGULAR, UINT64,   id,                1) \
+X(a, STATIC,   SINGULAR, BOOL,     frontTrack,        2) \
+X(a, STATIC,   SINGULAR, SINT32,   x,                 3) \
+X(a, STATIC,   SINGULAR, SINT32,   y,                 4)
 #define wheelly_protobuf_robot_TrackCommand_CALLBACK NULL
 #define wheelly_protobuf_robot_TrackCommand_DEFAULT NULL
+
+#define wheelly_protobuf_robot_CommandResponse_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UINT64,   command_id,        1) \
+X(a, STATIC,   SINGULAR, SINT32,   rc,                2)
+#define wheelly_protobuf_robot_CommandResponse_CALLBACK NULL
+#define wheelly_protobuf_robot_CommandResponse_DEFAULT NULL
 
 extern const pb_msgdesc_t wheelly_protobuf_robot_ContactsTelemetry_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_LidarTelemetry_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_MotionTelemetry_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_SupplyTelemetry_msg;
+extern const pb_msgdesc_t wheelly_protobuf_robot_StatsTelemetry_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_MoveCommand_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_HaltCommand_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_RotateCommand_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_ScanCommand_msg;
 extern const pb_msgdesc_t wheelly_protobuf_robot_TrackCommand_msg;
+extern const pb_msgdesc_t wheelly_protobuf_robot_CommandResponse_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
 #define wheelly_protobuf_robot_ContactsTelemetry_fields &wheelly_protobuf_robot_ContactsTelemetry_msg
 #define wheelly_protobuf_robot_LidarTelemetry_fields &wheelly_protobuf_robot_LidarTelemetry_msg
 #define wheelly_protobuf_robot_MotionTelemetry_fields &wheelly_protobuf_robot_MotionTelemetry_msg
 #define wheelly_protobuf_robot_SupplyTelemetry_fields &wheelly_protobuf_robot_SupplyTelemetry_msg
+#define wheelly_protobuf_robot_StatsTelemetry_fields &wheelly_protobuf_robot_StatsTelemetry_msg
 #define wheelly_protobuf_robot_MoveCommand_fields &wheelly_protobuf_robot_MoveCommand_msg
 #define wheelly_protobuf_robot_HaltCommand_fields &wheelly_protobuf_robot_HaltCommand_msg
 #define wheelly_protobuf_robot_RotateCommand_fields &wheelly_protobuf_robot_RotateCommand_msg
 #define wheelly_protobuf_robot_ScanCommand_fields &wheelly_protobuf_robot_ScanCommand_msg
 #define wheelly_protobuf_robot_TrackCommand_fields &wheelly_protobuf_robot_TrackCommand_msg
+#define wheelly_protobuf_robot_CommandResponse_fields &wheelly_protobuf_robot_CommandResponse_msg
 
 /* Maximum encoded size of messages (where known) */
 #define WHEELLY_PROTOBUF_ROBOT_ROBOT_PB_H_MAX_SIZE wheelly_protobuf_robot_MotionTelemetry_size
+#define wheelly_protobuf_robot_CommandResponse_size 17
 #define wheelly_protobuf_robot_ContactsTelemetry_size 19
-#define wheelly_protobuf_robot_HaltCommand_size  0
-#define wheelly_protobuf_robot_LidarTelemetry_size 73
+#define wheelly_protobuf_robot_HaltCommand_size  11
+#define wheelly_protobuf_robot_LidarTelemetry_size 63
 #define wheelly_protobuf_robot_MotionTelemetry_size 85
-#define wheelly_protobuf_robot_MoveCommand_size  14
-#define wheelly_protobuf_robot_RotateCommand_size 6
-#define wheelly_protobuf_robot_ScanCommand_size  6
+#define wheelly_protobuf_robot_MoveCommand_size  25
+#define wheelly_protobuf_robot_RotateCommand_size 17
+#define wheelly_protobuf_robot_ScanCommand_size  17
+#define wheelly_protobuf_robot_StatsTelemetry_size 22
 #define wheelly_protobuf_robot_SupplyTelemetry_size 17
-#define wheelly_protobuf_robot_TrackCommand_size 14
+#define wheelly_protobuf_robot_TrackCommand_size 25
 
 #ifdef __cplusplus
 } /* extern "C" */

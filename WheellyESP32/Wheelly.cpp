@@ -96,8 +96,10 @@ static const int HEAD_DISTANCE = 6;  // 30mm = 5.7 pulses
 static const unsigned long SUPPLY_SAMPLE_INTERVAL = 100;
 static const unsigned long SUPPLY_INTERVAL = 5000;
 static const int SAMPLE_BATCH = 5;
-static const int MIN_VOLTAGE_VALUE = 1896;
-static const int MAX_VOLTAGE_VALUE = 2621;
+//static const int MIN_VOLTAGE_VALUE = 1896;
+//static const int MAX_VOLTAGE_VALUE = 2621;
+static const int MIN_VOLTAGE_VALUE = 790;
+static const int MAX_VOLTAGE_VALUE = 1092;
 
 /*
    Motion
@@ -504,9 +506,30 @@ void Wheelly::handleStats(void) {
   const unsigned long tps = _counter * 1000 / dt;
   _statsTime = t0;
   _counter = 0;
+
+  wheelly_protobuf_robot_StatsTelemetry message = {
+    .timestamp = t0,
+    .stats = tps
+  };
+
+  uint8_t buffer[32];
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Encode message
+  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_StatsTelemetry_fields, &message);
+  if (!status) {
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  sendSensorData("cs", buffer, len);
+
+/*
   char bfr[256];
   sprintf(bfr, "%ld %ld", t0, tps);
   sendSensorData("cs", bfr);
+  */
 }
 
 /*
@@ -562,11 +585,8 @@ void Wheelly::averageSupply(void) {
     _supplySamples = 0;
     _supplyTotal = 0;
 
-    /* Computes the charging level */
-    const int hLevel = min(max(
-                             (int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10),
-                             0),
-                           9);
+    /* Computes the charging level (6 levels) */
+    const int hLevel = constrain((int)map(_supplyVoltage, MIN_VOLTAGE_VALUE, MAX_VOLTAGE_VALUE, 0, 10), 0, 10);
     const int level = (hLevel + 1) / 2;
 
     ESP_LOGD(TAG, "hlevel=%d, level=%d", hLevel, level);
@@ -580,38 +600,58 @@ void Wheelly::averageSupply(void) {
    Sends the status of supply
 */
 void Wheelly::sendSupply(void) {
-  char bfr[256];
-  /* sv time volt */
-  sprintf(bfr, "%ld,%d",
-          _supplyTime,
-          _supplyVoltage);
-  sendSensorData("sv", bfr);
+  wheelly_protobuf_robot_SupplyTelemetry message = {
+    .timestamp = _supplyTime,
+    .voltage = _supplyVoltage
+  };
+
+  uint8_t buffer[32];
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Encode message
+  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_SupplyTelemetry_fields, &message);
+  if (!status) {
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  sendSensorData("sv", buffer, len);
 }
 
 /*
    Sends the motion of wheelly
 */
 void Wheelly::sendMotion(const unsigned long t0) {
-  char bfr[256];
-  /* st time x y yaw lpps rpps err stat dir speed lspeed rspeed lpwr rpw xtarget ytarget */
-  sprintf(bfr, "%ld,%.1f,%.1f,%d,%.1f,%.1f,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%.1f",
-          millis(),
-          (double)_motionCtrl.xPulses(),
-          (double)_motionCtrl.yPulses(),
-          _yaw,
-          (double)_motionCtrl.leftPps(),
-          (double)_motionCtrl.rightPps(),
-          (const unsigned short)_mpuError,
-          _motionCtrl.status(),
-          _motionCtrl.direction(),
-          0,
-          _motionCtrl.leftMotor().speed(),
-          _motionCtrl.rightMotor().speed(),
-          _motionCtrl.leftMotor().pwm(),
-          _motionCtrl.rightMotor().pwm(),
-          _motionCtrl.xTarget(),
-          _motionCtrl.yTarget());
-  sendSensorData("mt", bfr);
+  wheelly_protobuf_robot_MotionTelemetry message = {
+    .timestamp = millis(),
+    .x = _motionCtrl.xPulses(),
+    .y = _motionCtrl.yPulses(),
+    .robotDeg = _yaw,
+    .leftPps = _motionCtrl.leftPps(),
+    .rightPps = _motionCtrl.rightPps(),
+    .imuFailure = _mpuError,
+    .statusId = (wheelly_protobuf_robot_MotionStatusId)_motionCtrl.status(),
+    .targetDeg = _motionCtrl.direction(),
+    .xTarget = _motionCtrl.xTarget(),
+    .yTarget = _motionCtrl.yTarget(),
+    .leftTargetPps = _motionCtrl.leftMotor().speed(),
+    .rightTargetPps = _motionCtrl.rightMotor().speed(),
+    .leftPower = _motionCtrl.leftMotor().pwm(),
+    .rightPower = _motionCtrl.rightMotor().pwm()
+  };
+  uint8_t buffer[128];  // Buffer per i byte serializzati
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Encode message
+  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_MotionTelemetry_fields, &message);
+  if (!status) {
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  sendSensorData("mt", buffer, len);
   _lastSend = t0;
 }
 
@@ -619,7 +659,6 @@ void Wheelly::sendMotion(const unsigned long t0) {
    Sends the status of contacts
 */
 void Wheelly::sendContacts(void) {
-
   wheelly_protobuf_robot_ContactsTelemetry message = {
     .timestamp = millis(),
     .frontSensor = _contactSensors.frontClear(),
@@ -631,47 +670,47 @@ void Wheelly::sendContacts(void) {
   uint8_t buffer[32];  // Buffer per i byte serializzati
   pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-  // Codifica il messaggio
+  // Encode message
   bool status = pb_encode(&streamOut, wheelly_protobuf_robot_ContactsTelemetry_fields, &message);
   if (!status) {
-    ESP_LOGE(TAG, "Errore di codifica: %s", PB_GET_ERROR(&streamOut));
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
     return;
   }
 
   size_t len = streamOut.bytes_written;
   sendSensorData("ct", buffer, len);
-
-  /* ct time frontSig rearSig canF canB */
-  /*
-  char bfr[256];
-  sprintf(bfr, "%ld,%d,%d,%d,%d",
-          millis(),
-          _contactSensors.frontClear(),
-          _contactSensors.rearClear(),
-          canMoveForward(),
-          canMoveBackward());
-  */
 }
 
 /*
    Sends the status of proxy sensor
 */
 void Wheelly::sendLidar(void) {
-  char bfr[256];
-  /* rg time frontDistance rearDistance x y yaw lidarDirection*/
-  sprintf(bfr, "%ld,%u,%u,%.1f,%.1f,%d,%d,%d,%d,%.1f,%.1f",
-          _lidarTime,
-          _frontDistance,
-          _rearDistance,
-          _lidarXPulses,
-          _lidarYPulses,
-          _lidarYaw,
-          _lidarDirection,
-          _lidarTargetDirection,
-          _headStatus,
-          _xHeadTarget,
-          _yHeadTarget);
-  sendSensorData("rg", bfr);
+  wheelly_protobuf_robot_LidarTelemetry message = {
+    .timestamp = _lidarTime,
+    .frontDistance = _frontDistance,
+    .rearDistance = _rearDistance,
+    .x = _lidarXPulses,
+    .y = _lidarYPulses,
+    .robotYaw = _lidarYaw,
+    .headDirection = _lidarDirection,
+    .headStatus = (wheelly_protobuf_robot_HeadStatusId)_headStatus,
+    .headTarget = _lidarTargetDirection,
+    .xTarget = _xHeadTarget,
+    .yTarget = _yHeadTarget
+  };
+
+  uint8_t buffer[64];  // Buffer per i byte serializzati
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Encode message
+  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_LidarTelemetry_fields, &message);
+  if (!status) {
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  sendSensorData("rg", buffer, len);
 }
 
 /*

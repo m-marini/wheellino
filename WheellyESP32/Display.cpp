@@ -130,6 +130,7 @@ static uint8_t activityChar[] = { 0b01110,
                                   0b01010,
                                   0b10001 };
 
+// 6 charge levels
 static uint8_t supplyCharSet[][8] = {
   { // Supply chars
     0b01110,
@@ -325,7 +326,8 @@ void DisplayClass::activity(const unsigned long time) {
 */
 void DisplayClass::supply(const int level) {
   const int old = _supplyLevel;
-  _supplyLevel = min(max(level, 0), (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
+  _supplyLevel = constrain(level, 0, (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
+  //_supplyLevel = min(max(level, 0), (int)(sizeof(supplyCharSet) / sizeof(supplyCharSet[0])));
   if (old != _supplyLevel) {
     ESP_LOGD(TAG, "supplyLevel: %d", _supplyLevel);
     _lcd.createChar(SUPPLY_STRING[0], supplyCharSet[_supplyLevel]);
