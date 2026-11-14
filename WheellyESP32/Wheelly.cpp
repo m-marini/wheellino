@@ -524,12 +524,6 @@ void Wheelly::handleStats(void) {
 
   size_t len = streamOut.bytes_written;
   sendSensorData("cs", buffer, len);
-
-/*
-  char bfr[256];
-  sprintf(bfr, "%ld %ld", t0, tps);
-  sendSensorData("cs", bfr);
-  */
 }
 
 /*
