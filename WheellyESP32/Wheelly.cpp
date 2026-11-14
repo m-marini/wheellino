@@ -26,8 +26,11 @@
  *
  */
 
+#include <pb.h>
+
 #include "Wheelly.h"
 #include "pins.h"
+#include "src/robot.pb.h"
 
 //#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include <esp_log.h>
@@ -517,9 +520,9 @@ void Wheelly::handleLed(const unsigned long n) {
 /*
    Sends reply
 */
-void Wheelly::sendSensorData(const String& topic, const String& data) {
+void Wheelly::sendSensorData(const String& topic, const uint8_t* buffer, const size_t size) {
   if (_onReply) {
-    _onReply(_context, _pubSensorTopicPrefix + "/" + topic, data);
+    _onReply(_context, _pubSensorTopicPrefix + "/" + topic, buffer, size);
   }
 }
 
@@ -528,7 +531,7 @@ void Wheelly::sendSensorData(const String& topic, const String& data) {
 */
 void Wheelly::sendCommandReply(const String& topic, const String& data) {
   if (_onReply) {
-    _onReply(_context, topic, data);
+    _onReply(_context, topic, (uint8_t*)data.c_str(), data.length());
   }
 }
 
@@ -617,15 +620,37 @@ void Wheelly::sendMotion(const unsigned long t0) {
 */
 void Wheelly::sendContacts(void) {
 
-  char bfr[256];
+  wheelly_protobuf_robot_ContactsTelemetry message = {
+    .timestamp = millis(),
+    .frontSensor = _contactSensors.frontClear(),
+    .rearSensor = _contactSensors.rearClear(),
+    .canMoveForward = canMoveForward(),
+    .canMoveBackward = canMoveBackward()
+  };
+
+  uint8_t buffer[32];  // Buffer per i byte serializzati
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Codifica il messaggio
+  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_ContactsTelemetry_fields, &message);
+  if (!status) {
+    ESP_LOGE(TAG, "Errore di codifica: %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  sendSensorData("ct", buffer, len);
+
   /* ct time frontSig rearSig canF canB */
+  /*
+  char bfr[256];
   sprintf(bfr, "%ld,%d,%d,%d,%d",
           millis(),
           _contactSensors.frontClear(),
           _contactSensors.rearClear(),
           canMoveForward(),
           canMoveBackward());
-  sendSensorData("ct", bfr);
+  */
 }
 
 /*

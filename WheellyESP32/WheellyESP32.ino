@@ -96,12 +96,10 @@ void setup() {
 
   ESP_LOGI(TAG, "Initialise whelly");
   wheelly.begin();
-  wheelly.onReply([](void *, const String &topic, const String &data) {
+  wheelly.onReply([](void *, const String &topic, const uint8_t *buffer, const size_t len) {
     // Handles reply to remote controller
-    if (mqttClient.connected()) {
-      mqttClient.send(topic, data);
-      wheelly.activity();
-    }
+    mqttClient.send(topic, buffer, len);
+    wheelly.activity();
   });
   ESP_LOGI(TAG, "WheellyId=", wheelly.id().c_str());
 

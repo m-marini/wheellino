@@ -54,12 +54,10 @@ void MqttClient::connect(void) {
 }
 
 void MqttClient::send(const String& topic, const String& msg) {
-  if (_client.connected()) {
-    _client.publish(topic.c_str(), msg.c_str());
-  }
+  send(topic, (uint8_t*)msg.c_str(), msg.length());
 }
 
-void MqttClient::send(const String& topic, const byte* msg, const size_t len) {
+void MqttClient::send(const String& topic, const uint8_t* msg, const size_t len) {
   if (_client.connected()) {
     _client.publish(topic.c_str(), msg, len);
   }

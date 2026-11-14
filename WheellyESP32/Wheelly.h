@@ -49,6 +49,8 @@ enum HeadStatus {
   REAR_TRACKING = 2,
 };
 
+typedef void (*wheelly_reply_cb_t)(void* context, const String& topic, const uint8_t* data, const size_t len);
+
 /*
    Wheelly controller.
    Handles all the behavior of wheelly robot:
@@ -112,7 +114,8 @@ private:
   int _minHeadDir;
   int _maxHeadDir;
 
-  void (*_onReply)(void* context, const String& topic, const String& data);
+  wheelly_reply_cb_t _onReply;
+
   void* _context;
 
   const bool canMoveForward(void) const;
@@ -166,7 +169,16 @@ private:
     * @param the suffixTopic
     *  @param data the data reply
     */
-  void sendSensorData(const String& topic, const String& data);
+  void sendSensorData(const String& topic, const uint8_t* data, const size_t len);
+
+  /**
+    * Sends the sensor data
+    * @param the suffixTopic
+    *  @param data the data reply
+    */
+  void sendSensorData(const String& topic, const String& data) {
+    sendSensorData(topic, (uint8_t*)data.c_str(), data.length());
+  }
 
   /**
     * Sends the command data reply
@@ -302,7 +314,7 @@ public:
   /**
        Sets on reply call back
     */
-  void onReply(void (*callback)(void* context, const String& topic, const String& data), void* context = NULL) {
+  void onReply(wheelly_reply_cb_t callback, void* context = NULL) {
     _onReply = callback;
     _context = context;
   }

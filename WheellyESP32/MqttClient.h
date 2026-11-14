@@ -86,7 +86,7 @@ public:
   /**
   * Sends a byte array to the outTopic
   */
-  void send(const String& topic, const byte* msg, const size_t len);
+  void send(const String& topic, const uint8_t* msg, const size_t len);
 
   /**
   * Dispatches the message
