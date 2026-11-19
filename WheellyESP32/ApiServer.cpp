@@ -40,26 +40,39 @@ static const char *TAG = "ApiServer";
 #define HTTP_METHOD_GET ((HTTPMethod)1)
 #define HTTP_METHOD_POST ((HTTPMethod)3)
 #define RESTART_DELAY 500
+#define SERVER_PORT 80
 
 static const char *DEFAULT_SERVER_NAME = "wheelly";
 static const unsigned long MAX_SCAN_DURATION = 1000000;
 
 ApiServerClass ApiServer;
 
+static WebServer _server(SERVER_PORT);
+static void *_context;
+static onActivity_cb_t _onActivity;
+static const char *_wheellyId;
+static unsigned long _restartInstant;
+
+static void setActivity(void) {
+  if (_onActivity) {
+    _onActivity(_context, ApiServer);
+  }
+}
+
 /*
   Send error
 */
-void sendError(const int httpCode, const String &msg) {
+static void sendError(const int httpCode, const char *msg) {
   StaticJsonDocument<256> jsonDoc;
-  String response;
   jsonDoc["message"] = msg;
-  serializeJson(jsonDoc, response);
-  ApiServer._server.send(httpCode, "application/json", response);
-  ApiServer.setActivity();
+  char response[256];
+  serializeJson(jsonDoc, response, sizeof(response));
+  _server.send(httpCode, "application/json", response);
+  setActivity();
 }
 
-static const String methodName(const HTTPMethod method) {
-  String result("Unknown");
+static const char *methodName(const HTTPMethod method) {
+  char *result = "Unknown";
   switch (method) {
     case HTTP_METHOD_GET:
       result = "GET";
@@ -71,120 +84,117 @@ static const String methodName(const HTTPMethod method) {
 /*
   Handles not found page
 */
-void handleNotFound(void) {
+static void handleNotFound(void) {
   ESP_LOGD(TAG, "handleNotFound method %d", (int)ApiServer._server.method());
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
   jsonDoc["message"] = "Not Found";
-  jsonDoc["url"] = ApiServer._server.uri();
-  jsonDoc["method"] = methodName(ApiServer._server.method());
-  String response;
-  serializeJson(jsonDoc, response);
-  ESP_LOGE(TAG, "404 - %s", response.c_str());
-  ApiServer._server.send(404, "application/json", response);
-  ApiServer.setActivity();
+  jsonDoc["url"] = _server.uri();
+  jsonDoc["method"] = methodName(_server.method());
+  char response[256];
+  serializeJson(jsonDoc, response, sizeof(response));
+  ESP_LOGE(TAG, "404 - %s", response);
+  _server.send(404, "application/json", response);
+  setActivity();
 }
 
 /*
    Handles netwok list request
 */
-void handleGetNetworkList(void) {
+static void handleGetNetworkList(void) {
   ESP_LOGD(TAG, "Scanning networks...");
-  ApiServer.setActivity();
+  setActivity();
   StaticJsonDocument<256> jsonDoc;
   JsonArray data = jsonDoc.createNestedArray("networks");
   int scanResult = WiFi.scanNetworks(false, true);
   for (int i = 0; i < scanResult; i++) {
     data.add(WiFi.SSID(i));
   }
-  String response;
-  serializeJson(jsonDoc, response);
-  ApiServer._server.send(200, "application/json", response);
+  char response[512];
+  serializeJson(jsonDoc, response, sizeof(response));
+  _server.send(200, "application/json", response);
 }
 
 /*
    Handles the configuration request
 */
-void handleGetConfig(void) {
+static void handleGetConfig(void) {
   ESP_LOGD(TAG, "handleGetWiFiConfig");
   StaticJsonDocument<256> jsonDoc;
-  ConfStore::toJson(jsonDoc, ApiServer._confStore->config());
+  ConfStore::toJson(jsonDoc, confStore.config());
 
-  String response;
-  serializeJson(jsonDoc, response);
-  ApiServer._server.send(200, "application/json", response);
-  ApiServer.setActivity();
+  char response[512];
+  serializeJson(jsonDoc, response, sizeof(response));
+  _server.send(200, "application/json", response);
+  setActivity();
 }
 
 /*
    Handles the configuration request
 */
-void handleGetWheellyId(void) {
+static void handleGetWheellyId(void) {
   ESP_LOGD(TAG, "handleGetWheellyId");
   JsonDocument jsonDoc;
-  jsonDoc["id"] = ApiServer._wheellyId;
+  jsonDoc["id"] = _wheellyId;
 
-  String response;
-  serializeJson(jsonDoc, response);
-  ApiServer._server.send(200, "application/json", response);
-  ApiServer.setActivity();
+  char response[128];
+  serializeJson(jsonDoc, response, sizeof(response));
+  _server.send(200, "application/json", response);
+  setActivity();
 }
 
 /*
    Handles the wifi configuration request
 */
-void handlePostConfig(void) {
+static void handlePostConfig(void) {
   ESP_LOGD(TAG, "handlePostWiFiConfig");
   // Retrive body
-  String body = ApiServer._server.arg("plain");
-  ESP_LOGD(TAG, "Body=%s", body.c_str());
   JsonDocument jsonDoc;
-  if (deserializeJson(jsonDoc, body) != DeserializationError::Ok) {
+  if (deserializeJson(jsonDoc, _server.arg("plain")) != DeserializationError::Ok) {
     sendError(400, "Malformed JSON");
     return;
   }
+
   ConfigRecord config;
   const ConfStoreRetCode rc = ConfStore::fromJson(config, jsonDoc);
+  char response[512];
   if (rc != SUCCESS) {
-    String text = String("Bad configuration RC=") + rc;
-    sendError(400, text);
+    snprintf(response, sizeof(response), "Bad configuration RC=%d", rc);
+    sendError(400, response);
     return;
   }
 
-  String response;
-  serializeJson(jsonDoc, response);
-
-  const ConfStoreRetCode rc1 = ApiServer._confStore->store(config);
+  const ConfStoreRetCode rc1 = confStore.store(config);
   if (rc1 != SUCCESS) {
-    String text = String("Bad configuration RC=") + rc1;
-    sendError(400, text);
+    snprintf(response, sizeof(response), "Bad configuration RC=%d", rc1);
+    sendError(400, response);
     return;
   }
 
-  ESP_LOGI(TAG, "WiFi configuration: %s", response.c_str());
-  ApiServer._server.send(200, "application/json", response);
-  ApiServer.setActivity();
+  serializeJson(jsonDoc, response, sizeof(response));
+  ESP_LOGI(TAG, "WiFi configuration: %s", response);
+  _server.send(200, "application/json", response);
+  setActivity();
 }
 
 /*
    Handles the wifi configuration request
 */
-void handlePostRestart(void) {
+static void handlePostRestart(void) {
   ESP_LOGD(TAG, "handleRestart");
   StaticJsonDocument<256> jsonDoc;
   jsonDoc.clear();
   jsonDoc["restart"] = true;
 
-  String response;
-  serializeJson(jsonDoc, response);
-  ApiServer._server.send(200, "application/json", response);
-  ApiServer.setActivity();
-  ApiServer._restartInstant = millis() + RESTART_DELAY;
+  char response[128];
+  serializeJson(jsonDoc, response, sizeof(response));
+  _server.send(200, "application/json", response);
+  setActivity();
+  _restartInstant = millis() + RESTART_DELAY;
 }
 
-void ApiServerClass::begin(const String &wheellyId, ConfStore &confStore) {
+void ApiServerClass::begin(const char *wheellyId) {
   ESP_LOGI(TAG, "Begin");
-  _confStore = &confStore;
   _wheellyId = wheellyId;
 }
 
@@ -206,6 +216,14 @@ void ApiServerClass::start(void) {
   _server.on("/api/v2/wheelly/id", HTTP_METHOD_GET, handleGetWheellyId);
   _server.onNotFound(handleNotFound);
   ESP_LOGD(TAG, "Started api server.");
+}
+
+/*
+       Sets callback on activity
+    */
+void ApiServerClass::onActivity(onActivity_cb_t callback, void *context) {
+  _onActivity = callback;
+  _context = context;
 }
 
 void ApiServerClass::polling(const unsigned long t0) {

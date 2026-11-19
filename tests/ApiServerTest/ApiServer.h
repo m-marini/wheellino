@@ -31,50 +31,24 @@
 
 #include <WebServer.h>
 
-#include "ConfStore.h"
-
 /*
    Handles the api server used to manage wifi module configuration
 */
+class ApiServerClass;
+
+typedef void (*onActivity_cb_t)(void* context, ApiServerClass& server);
+
 class ApiServerClass {
-private:
-  ConfStore* _confStore;
-  void* _context;
-  WebServer _server;
-  String _wheellyId;
-  void (*_onActivity)(void* context, ApiServerClass& server);
-  unsigned long _restartInstant;
-
-  /*
-  Notify api server activity
-  */
-  void setActivity(void) {
-    if (_onActivity) {
-      _onActivity(_context, *this);
-    }
-  }
-
-  // Friend functions
-  friend void handleNotFound(void);
-  friend void handleGetNetworkList(void);
-  friend void handleGetConfig(void);
-  friend void handleGetWheellyId(void);
-  friend void handlePostConfig(void);
-  friend void handlePostRestart(void);
-  friend void sendError(const int httpCode, const String& msg);
-
 public:
   /*
        Creates api server
     */
-  ApiServerClass(const unsigned port = 80)
-    : _server(port) {
-  }
+  ApiServerClass() {}
 
   /*
        Initializes api server
     */
-  void begin(const String& wheellyId, ConfStore& confStore);
+  void begin(const char* wheellyId);
 
   /**
   * Starts the api server (must be call after the wifi connection)
@@ -84,11 +58,7 @@ public:
   /*
        Sets callback on activity
     */
-  void onActivity(void (*callback)(void* context, ApiServerClass& server), void* context = NULL) {
-    _onActivity = callback;
-    _context = context;
-  }
-
+  void onActivity(onActivity_cb_t callback, void* context = NULL);
   /*
    Reloads the network list if required
   */

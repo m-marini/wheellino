@@ -34,20 +34,18 @@
 #include "Arduino.h"
 #include "ConfStore.h"
 
+class WiFiModuleClass;
+
+typedef void (*onChange_cb_t)(void* context);
+
 /*
   Handles the Wifi module by setting station or acces point module
 */
 class WiFiModuleClass {
 private:
-  wl_status_t _status;
-  unsigned long _connectingTime;
-  ConfigRecord _config;
-
-  void (*_onChange)(void*, WiFiModuleClass&);
-  void* _context;
-
   void startAccessPoint(void);
   void startStation(void);
+
 public:
   WiFiModuleClass(void);
 
@@ -60,10 +58,7 @@ public:
   void start(void);
 
   // Sets the callback
-  void onChange(void (*callback)(void* context, WiFiModuleClass& module), void* context = NULL) {
-    _context = context;
-    _onChange = callback;
-  }
+  void onChange(onChange_cb_t callback, void* context = NULL);
 
   // Polls the serial wifi
   void polling(const unsigned long clockTime = millis());
@@ -75,9 +70,7 @@ public:
   const boolean station(void) const;
 
   // Returns the wifi status
-  const wl_status_t status(void) const {
-    return _status;
-  }
+  const wl_status_t status(void) const;
 
   // Returns true if wifi is connected
   const boolean connected(void) const {
@@ -93,9 +86,9 @@ public:
   const IPAddress ipAddress(void);
 
   // Returns the ssid
-  const String& ssid(void) const;
+  const char* ssid(void) const;
 };
 
-//extern WiFiModuleClass WiFiModule;
+extern WiFiModuleClass wiFiModule;
 
 #endif

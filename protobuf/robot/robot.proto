@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.mmarini.wheelly.protobuf.robot";
+
+package wheelly.protobuf.robot;
+
+message ContactsTelemetry {
+  uint64 timestamp = 1;
+  bool frontSensor = 2;
+  bool rearSensor = 3;
+  bool canMoveForward = 4;
+  bool canMoveBackward = 5;
+}
+
+enum HeadStatusId {
+  FIX_DIRECTION = 0;
+  FRONT_TRACK = 1;
+  REAR_TRACK = 2;
+}
+
+message LidarTelemetry {
+  uint64 timestamp = 1;
+  uint32 frontDistance = 2;
+  uint32 rearDistance = 3;
+  float x = 4;
+  float y = 5;
+  sint32 robotYaw = 6;
+  sint32 headDirection = 7;
+  HeadStatusId headStatus = 8;
+  sint32 headTarget = 9;
+  float xTarget = 10;
+  float yTarget = 11;
+}
+
+enum MotionStatusId {
+  HALT = 0;
+  FORWARD = 1;
+  BACKWARD = 2;
+  ROTATE = 3;
+}
+
+message MotionTelemetry {
+  uint64 timestamp = 1;
+  float x = 2;
+  float y = 3;
+  sint32 robotDeg = 4;
+  float leftPps = 5;
+  float rightPps = 6;
+  sint32 imuFailure = 7;
+  MotionStatusId statusId = 8;
+  sint32 targetDeg = 9;
+  float xTarget = 10;
+  float yTarget = 11;
+  sint32 leftTargetPps = 12;
+  sint32 rightTargetPps = 13;
+  sint32 leftPower = 14;
+  sint32 rightPower = 15;
+}
+
+message SupplyTelemetry {
+  uint64 timestamp = 1;
+  uint32 voltage = 2;
+}
+
+message StatsTelemetry {
+  uint64 timestamp = 1;
+  uint64 stats = 2;
+}
+
+message HiMessage {
+  uint64 timestamp = 1;
+}
+
+message MoveCommand {
+  uint64 id = 1;
+  bool frontMove = 2;
+  float x = 3;
+  float y = 4;
+}
+
+message HaltCommand {
+  uint64 id = 1;
+}
+
+message RotateCommand {
+  uint64 id = 1;
+  sint32 direction = 2;
+}
+
+message ScanCommand {
+  uint64 id = 1;
+  sint32 direction = 2;
+}
+
+message TrackCommand {
+  uint64 id = 1;
+  bool frontTrack = 2;
+  float x = 3;
+  float y = 4;
+}
+
+message CommandAck {
+  uint64 id = 1;
+}
+
+message CommandError {
+  uint64 id = 1;
+  string message = 3;
+}
+
+message Configuration {
+  uint32 asr = 1;
+  uint32 maxPulseInterval = 2;
+  uint32 lambdaFactor = 3;
+  uint32 delayedInterval = 4;
+  uint32 tau = 5;
+  uint32 minRotRange = 6;
+  uint32 maxRotRange = 7;
+  uint32 maxRotPps = 8;
+  uint32 maxSpeed = 9;
+  uint32 haltDistance = 10;
+  uint32 decelerateDistance = 11;
+  sint32 minHeadDir = 12;
+  sint32 maxHeadDir = 13;
+  uint32 sendInterval = 14;
+  uint32 scanInterval = 15;
+  uint32 antiGimbalRadius = 16;
+}
+
+message ConfigurationCommand {
+  uint64 id = 1;
+  Configuration config = 2;
+}
+
+message QueryConfigurationCommand {
+  uint64 id = 1;
+}
+
+message ConfigurationResponse {
+  uint64 id = 1;
+  Configuration config = 2;
+}
+
+message QueryStatusCommand {
+  uint64 id = 1;
+}
+
+message VersionCommand {
+  uint64 id = 1;
+}
+
+message VersionResponse {
+  uint64 id = 1;
+  string version = 2;
+}
+
+message ResetCommand {
+    uint64 id = 1;
+}

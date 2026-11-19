@@ -39,13 +39,36 @@ static const char* TAG = "WiFiModule";
 #include "WiFiModule.h"
 
 static const unsigned long CONNECT_TIMEOUT = 10 * 1000ul;
-static const String DEFAULT_SSID = "Wheelly";
+static const char* DEFAULT_SSID = "Wheelly";
+
+WiFiModuleClass wiFiModule;
+
+static wl_status_t _status;
+static onChange_cb_t _onChange;
+static void* _context;
+static unsigned long _connectingTime;
+static ConfigRecord _config;
+
+/*
+   Starts in access point mode
+*/
+void WiFiModuleClass::startAccessPoint(void) {
+  ESP_LOGD(TAG, "Starting Access point SSID: %d", DEFAULT_SSID);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(DEFAULT_SSID);
+
+  ESP_LOGI(TAG, "WiFi connected %s@%s", ssid(), ipAddress().toString().c_str());
+
+  if (_onChange) {
+    _onChange(_context);
+  }
+}
 
 /*
    Creates the WiFiModuleClass
 */
-WiFiModuleClass::WiFiModuleClass(void)
-  : _status(WL_DISCONNECTED) {
+WiFiModuleClass::WiFiModuleClass(void) {
+  _status = WL_DISCONNECTED;
 }
 
 /*
@@ -57,19 +80,15 @@ void WiFiModuleClass::begin(const ConfigRecord& config) {
   _config = config;
 }
 
-/*
-   Starts in access point mode
-*/
-void WiFiModuleClass::startAccessPoint(void) {
-  ESP_LOGD(TAG, "Starting Access point SSID: %d", DEFAULT_SSID.c_str());
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(DEFAULT_SSID);
+// Returns the wifi status
+const wl_status_t WiFiModuleClass::status(void) const {
+  return _status;
+}
 
-  ESP_LOGI(TAG, "WiFi connected %s@%s", ssid().c_str(), ipAddress().toString().c_str());
-
-  if (_onChange) {
-    _onChange(_context, *this);
-  }
+// Sets the callback
+void WiFiModuleClass::onChange(onChange_cb_t callback, void* context) {
+  _context = context;
+  _onChange = callback;
 }
 
 /**
@@ -84,7 +103,7 @@ const IPAddress WiFiModuleClass::ipAddress(void) {
 /**
    Returns the ip address
 */
-const String& WiFiModuleClass::ssid(void) const {
+const char* WiFiModuleClass::ssid(void) const {
   return accessPoint()
            ? DEFAULT_SSID
            : _config.wifiSsid;
@@ -101,7 +120,7 @@ void WiFiModuleClass::polling(const unsigned long clockTime) {
       _status = status;
       switch (status) {
         case WL_CONNECTED:
-          ESP_LOGI(TAG, "WiFi connected %s@%s", ssid().c_str(), ipAddress().toString().c_str());
+          ESP_LOGI(TAG, "WiFi connected %s@%s", ssid(), ipAddress().toString().c_str());
           break;
         case WL_DISCONNECTED:
         case WL_IDLE_STATUS:
@@ -110,7 +129,7 @@ void WiFiModuleClass::polling(const unsigned long clockTime) {
           ESP_LOGE(TAG, "Failed with status: %d", status);
       }
       if (_onChange) {
-        _onChange(_context, *this);
+        _onChange(_context);
       }
     }
     if (_status != WL_CONNECTED && clockTime >= _connectingTime + CONNECT_TIMEOUT) {
@@ -139,12 +158,12 @@ const boolean WiFiModuleClass::accessPoint(void) const {
 */
 void WiFiModuleClass::start() {
   if (_config.wifiActive) {
-    ESP_LOGD(TAG, "Connecting SSID: %s", _config.wifiSsid.c_str());
+    ESP_LOGD(TAG, "Connecting SSID: %s", _config.wifiSsid());
     _connectingTime = millis();
     WiFi.mode(WIFI_STA);
     WiFi.begin(_config.wifiSsid, _config.wifiPassword);
     if (_onChange) {
-      _onChange(_context, *this);
+      _onChange(_context);
     }
   } else {
     startAccessPoint();
