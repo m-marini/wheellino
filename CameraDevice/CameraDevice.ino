@@ -30,6 +30,8 @@
 static const char* TAG = "CameraWebServer";
 
 #include <WiFi.h>
+#include <pb.h>
+
 #include "SD_MMC.h"
 
 #include "SDConfStore.h"
@@ -37,13 +39,15 @@ static const char* TAG = "CameraWebServer";
 #include "WebServer.h"
 #include "MqttClient.h"
 
+#include "src/camera.pb.h"
+
 #define CONNECTION_TIMEOUT 10000
 #define CONNECTION_INTERVAL 1000
 #define RETRY_INTERVAL 3000
 #define LOOP_INTERVAL 10
 #define HEARTBEAT_INTERVAL 1000
 
-#define WHEELLY_MESSAGES_VERSION "v0"
+#define WHEELLY_MESSAGES_VERSION "v1"
 
 SDConfStore confStore;
 
@@ -52,6 +56,7 @@ static const char* morseStarting = "..";                    // I
 static const char* morseStarted = ".-.-.";                  // <AR>
 static const char* morseError = "... --- .../... --- ...";  // SOS SOS
 
+static char mqttClientId[16];
 static char pubSensorTopic[64];
 static char subCommandTopics[64];
 
@@ -70,6 +75,25 @@ static const uint64_t macId(void) {
   mac1 |= (mac & 0x00000000000000fful) << 40;
 
   return mac1;
+}
+
+static void sendHiMessage() {
+  //mqttClient.send(pubSensorTopic, webUrl());
+  wheelly_protobuf_webcam_CameraHiMessage protoMsg = wheelly_protobuf_webcam_CameraHiMessage_init_default;
+  snprintf(protoMsg.url, sizeof(protoMsg.url), "%s", webUrl());
+
+  uint8_t buffer[128];  // Buffer per i byte serializzati
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+  // Codifica il messaggio
+  bool status = pb_encode(&streamOut, wheelly_protobuf_webcam_CameraHiMessage_fields, &protoMsg);
+  if (!status) {
+    ESP_LOGE(TAG, "Errore di codifica: %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
+
+  size_t len = streamOut.bytes_written;
+  mqttClient.send(pubSensorTopic, buffer, len);
 }
 
 void setup() {
@@ -128,15 +152,16 @@ void setup() {
 
   // Creates topic names
   const uint64_t id = macId();
-  snprintf(pubSensorTopic, sizeof(pubSensorTopic), "sens/wheellycam/%" PRIx64 "/" WHEELLY_MESSAGES_VERSION "/hi", id);
-  snprintf(subCommandTopics, sizeof(subCommandTopics), "cmd/wheellycam/%" PRIx64 "/" WHEELLY_MESSAGES_VERSION "/+", id);
+  snprintf(mqttClientId, sizeof(mqttClientId), "%" PRIx64, id);
+  snprintf(pubSensorTopic, sizeof(pubSensorTopic), "sens/wheellycam/%s/" WHEELLY_MESSAGES_VERSION "/hi", mqttClientId);
+  snprintf(subCommandTopics, sizeof(subCommandTopics), "cmd/wheellycam/%s/" WHEELLY_MESSAGES_VERSION "/+", mqttClientId);
   ESP_LOGI(TAG, "Subtopics = [%s]", subCommandTopics);
 
   // Initialize MQTT
   ESP_LOGI(TAG, "Initialise mqtt client");
   const SDConfigRecord& mqttConfig = confStore.config();
   mqttClient.begin(mqttConfig.mqttBrokerHost, mqttConfig.mqttBrokerPort,
-                   "wheellycam", mqttConfig.mqttUser, mqttConfig.mqttPsw,
+                   mqttClientId, mqttConfig.mqttUser, mqttConfig.mqttPsw,
                    subCommandTopics, 3000);
 
   // Connect MQTT
@@ -161,7 +186,7 @@ void loop() {
     }
   }
   if (conn && t0 >= heartbeatTime) {
-    mqttClient.send(pubSensorTopic, webUrl());
+    sendHiMessage();
     heartbeatTime = t0 + HEARTBEAT_INTERVAL;
   }
   vTaskDelay(LOOP_INTERVAL / portTICK_PERIOD_MS);

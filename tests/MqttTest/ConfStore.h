@@ -38,14 +38,14 @@
    Configuration
 */
 struct ConfigRecord {
-  String version;
-  bool wifiActive;
-  String wifiSsid;
-  String wifiPassword;
-  String mqttBrokerHost;
+  char version[8];
+  char wifiSsid[33];
+  char wifiPassword[65];
+  char mqttBrokerHost[65];
+  char mqttUser[65];
+  char mqttPsw[129];
   int mqttBrokerPort;
-  String mqttUser;
-  String mqttPsw;
+  bool wifiActive;
 };
 
 enum ConfStoreRetCode {
@@ -61,11 +61,6 @@ enum ConfStoreRetCode {
   Stores the configuration
 */
 class ConfStore {
-private:
-  ConfigRecord _config;
-  const ConfStoreRetCode loadConfig(void);
-  const ConfStoreRetCode saveConfig(void);
-
 public:
   /**
   * Creates the configuration store
@@ -86,10 +81,8 @@ public:
   /**
   * Returns the configuration
   */
-  const ConfigRecord& config() const {
-    return _config;
-  }
-
+  const ConfigRecord& config() const;
+  
   /**
   * Converts the configuration record to json doc
   */
@@ -106,5 +99,11 @@ public:
   */
   static ConfigRecord& defaultConfig(ConfigRecord& result);
 };
+
+/**
+* Configuration store
+*/
+extern ConfStore confStore;
+
 
 #endif

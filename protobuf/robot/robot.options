@@ -1,0 +1,2 @@
+wheelly.protobuf.robot.CommandError.message max_size:128
+wheelly.protobuf.robot.VersionResponse.version max_size:16

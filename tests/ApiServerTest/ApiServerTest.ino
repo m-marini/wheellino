@@ -36,9 +36,6 @@ static const char* TAG = "ApiServerTest";
 
 #define SERIAL_BPS 115200
 
-static ConfStore confStore;
-static WiFiModuleClass wiFiModule;
-
 void setup() {
   Serial.begin(SERIAL_BPS);
   while(!Serial) {
@@ -47,7 +44,7 @@ void setup() {
 
   confStore.begin();
 
-  ApiServer.begin("0123456789ab", confStore);
+  ApiServer.begin("0123456789ab");
   ApiServer.onActivity([](void*, ApiServerClass&) {
     Serial.print("ApiServer activity");
     Serial.println();
@@ -64,16 +61,16 @@ void loop() {
   ApiServer.polling(now);
 }
 
-static void handleOnChange(void* context, WiFiModuleClass& module) {
+static void handleOnChange(void* context) {
   char bfr[256];
-  if (module.connected()) {
+  if (wiFiModule.connected()) {
     ESP_LOGI(TAG, "Connected");
     ApiServer.start();
-    strcpy(bfr, module.ssid().c_str());
+    strcpy(bfr, wiFiModule.ssid());
     strcat(bfr, " - IP: ");
-    strcat(bfr, module.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, module.ssid().c_str());
+    strcat(bfr, wiFiModule.ipAddress().toString().c_str());
+  } else if (wiFiModule.connecting()) {
+    strcpy(bfr, wiFiModule.ssid());
     strcat(bfr, " connecting...");
   } else {
     strcpy(bfr, "Disconnected");

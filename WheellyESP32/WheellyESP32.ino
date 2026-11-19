@@ -44,28 +44,13 @@ static const unsigned WIRE_CLOCK = 400000;
    Serial line buffer
 */
 static const unsigned long SERIAL_TIMEOUT = 2000ul;
-static char line[100];
+//static char line[100];
 
 /*
   Mqqt parameters
 */
-static const unsigned long MQTT_RETRY_INTERVAL = 3000ul;
-static boolean mqttConnected;
-
-/*
-   WiFi module
-*/
-static WiFiModuleClass wiFiModule;
-
-/*
-   Wheelly controller
-*/
-static Wheelly wheelly;
-
-/**
-* Configuration store
-*/
-static ConfStore confStore;
+static const unsigned long MQTT_RETRY_INTERVAL = 10000ul;
+static bool mqttConnected;
 
 /*
    Initial setup
@@ -73,6 +58,8 @@ static ConfStore confStore;
 void setup() {
   Serial.begin(115200);
   Serial.setTimeout(SERIAL_TIMEOUT);
+  while (!Serial) {}
+  delay(500);
 
   Wire.begin();
   Wire.setClock(WIRE_CLOCK);  // 400kHz I2C clock. Comment this line if having compilation difficulties
@@ -90,23 +77,16 @@ void setup() {
   wiFiModule.begin(config);
 
   ESP_LOGI(TAG, "Initialise mqtt client");
-  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort, wheelly.id(), config.mqttUser, config.mqttPsw,
-                   wheelly.subCommandTopics(), MQTT_RETRY_INTERVAL);
-  mqttClient.onMessage(handleMqttMessage);
+  mqttClient.begin(config.mqttBrokerHost, config.mqttBrokerPort,
+                    wheelly.id(), config.mqttUser, config.mqttPsw,
+                    wheelly.subCommandTopics(), MQTT_RETRY_INTERVAL);
 
   ESP_LOGI(TAG, "Initialise whelly");
   wheelly.begin();
-  wheelly.onReply([](void *, const String &topic, const String &data) {
-    // Handles reply to remote controller
-    if (mqttClient.connected()) {
-      mqttClient.send(topic, data);
-      wheelly.activity();
-    }
-  });
-  ESP_LOGI(TAG, "WheellyId=", wheelly.id().c_str());
+  ESP_LOGI(TAG, "WheellyId=", wheelly.id());
 
   ESP_LOGI(TAG, "Initialise api server");
-  ApiServer.begin(wheelly.id(), confStore);
+  ApiServer.begin(wheelly.id());
   ApiServer.onActivity([](void *, ApiServerClass &) {
     wheelly.activity();
   });
@@ -136,26 +116,22 @@ void loop() {
 /*
    Handles the wifi module state change
 */
-static void handleOnChange(void *, WiFiModuleClass &module) {
-  char bfr[256];
-  boolean connected = module.connected();
+static void handleOnChange(void *) {
+  char bfr[128];
+  boolean connected = wiFiModule.connected();
   if (connected) {
     ApiServer.start();
     mqttClient.connect();
-    strcpy(bfr, wiFiModule.ssid().c_str());
-    strcat(bfr, " - IP: ");
-    strcat(bfr, wiFiModule.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, wiFiModule.ssid().c_str());
-    strcat(bfr, " connecting...");
+    snprintf(bfr, sizeof(bfr), "%s - IP: %s",
+             wiFiModule.ssid(),
+             wiFiModule.ipAddress().toString().c_str());
+  } else if (wiFiModule.connecting()) {
+    snprintf(bfr, sizeof(bfr), "%s connecting...",
+             wiFiModule.ssid());
   } else {
-    strcpy(bfr, "Disconnected");
+    snprintf(bfr, sizeof(bfr), "Disconnected");
   }
   wheelly.display(bfr);
-}
-
-static void handleMqttMessage(const String &topic, const String &message) {
-  wheelly.execute(millis(), topic, message);
 }
 
 static void handleMqttConnected(void) {

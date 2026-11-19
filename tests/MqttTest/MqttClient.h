@@ -37,6 +37,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
+typedef void (*onMessage_cb_t)(const char* topic, byte* message, unsigned int length);
+
 /**
  * Send and receive text messages from a broker
  */
@@ -44,14 +46,13 @@ class MqttClient {
 private:
   WiFiClient _wiFiClient;
   PubSubClient _client;
-  String _clientId;
-  String _user;
-  String _password;
-  String _subTopics;
+  const char* _clientId;
+  const char* _user;
+  const char* _password;
+  const char* _subTopics;
   unsigned long _retryInterval;
   unsigned long _retryTimeout;
   bool _init;
-  void (*_onMessage)(const String& topic, const String& message);
 
 public:
   MqttClient();
@@ -59,7 +60,7 @@ public:
   /**
   * Initializes client
   */
-  void begin(const String& brokerHost, const int brokerPort, const String& clientId, const String& user, const String& password, const String& supTopics, const unsigned long retryInterval);
+  void begin(const char* brokerHost, const int brokerPort, const char* clientId, const char* user, const char* password, const char* supTopics, const unsigned long retryInterval);
 
   /**
   * Connects the client
@@ -81,28 +82,19 @@ public:
   /**
   * Sends a string to the outTopic
   */
-  void send(const String& topic, const String& data);
+  void send(const char* topic, const char* msg) {
+    send(topic, (uint8_t*)msg, strlen(msg));
+  }
 
   /**
   * Sends a byte array to the outTopic
   */
-  void send(const String& topic, const byte* msg, const size_t len);
-
-  /**
-  * Dispatches the message
-  */
-  void dispatch(const String& topic, const String& message) {
-    if (_onMessage) {
-      _onMessage(topic, message);
-    }
-  }
+  void send(const char* topic, const uint8_t* msg, const size_t len);
 
   /**
   * Sets the message callback
   */
-  void onMessage(void (*callback)(const String& topic, const String& message)) {
-    _onMessage = callback;
-  }
+  void onMessage(onMessage_cb_t callback);
 };
 
 /**

@@ -36,21 +36,20 @@ static char* TAG = "MqttTest";
 
 #define SERIAL_BPS 115200
 
-static const String MQTT_CLIENT_ID("wheelly");
-static const String MQTT_USER("wheelly");
-static const String MQTT_PASSWORD("wheelly");
-static const String MQTT_PUB_TOPIC("sens/test");
-static const String MQTT_SUB_TOPICS("cmd/test/#");
+static const char* MQTT_CLIENT_ID = "0123456789ac";
+static const char* MQTT_USER = "wheelly";
+static const char* MQTT_PASSWORD = "wheelly";
+static const char* MQTT_PUB_TOPIC = "sens/test";
+static const char* MQTT_SUB_TOPICS = "sens/test";
 static const unsigned long RETRY_INTERVAL = 3000;
 static const unsigned long SEND_INTERVAL = 500;
-
-static WiFiModuleClass wiFiModule;
 static unsigned long sendTimeout;
 
-static ConfStore confStore;
-
-static void onMessage(const String& topics, const String& message) {
-  ESP_LOGI(TAG, "%s %s", topics.c_str(), message.c_str());
+static void onMessage(const char* topics, byte* message, unsigned int length) {
+  char text[length + 1];
+  memcpy(text, message, length);
+  text[length] = '\0';
+  ESP_LOGI(TAG, "%s %s", topics, text);
 }
 
 void setup() {
@@ -60,7 +59,7 @@ void setup() {
   }
 
   confStore.begin();
-  const ConfigRecord config = confStore.config();
+  const ConfigRecord& config = confStore.config();
 
   // Initialises wifi
   ESP_LOGI(TAG, "Initializing WiFi.");
@@ -79,21 +78,21 @@ void loop() {
   wiFiModule.polling(now);
   mqttClient.polling(now);
   if (now >= sendTimeout) {
-    mqttClient.send(MQTT_PUB_TOPIC, String(now));
+    char text[80];
+    snprintf(text, sizeof(text), "%ld", now);
+    mqttClient.send(MQTT_PUB_TOPIC, text);
+    ESP_LOGI(TAG, "%s %s", MQTT_PUB_TOPIC, text);
     sendTimeout = now + SEND_INTERVAL;
   }
 }
 
-static void handleOnChange(void* context, WiFiModuleClass& module) {
+static void handleOnChange(void* context) {
   char bfr[256];
-  if (module.connected()) {
+  if (wiFiModule.connected()) {
     mqttClient.connect();
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " - IP: ");
-    strcat(bfr, module.ipAddress().toString().c_str());
-  } else if (module.connecting()) {
-    strcpy(bfr, module.ssid().c_str());
-    strcat(bfr, " connecting...");
+    snprintf(bfr, sizeof(bfr), "%s - IP: %s", wiFiModule.ssid(), wiFiModule.ipAddress().toString().c_str());
+  } else if (wiFiModule.connecting()) {
+    snprintf(bfr, sizeof(bfr), "%s connecting", wiFiModule.ssid());
   } else {
     strcpy(bfr, "Disconnected");
   }
