@@ -7,10 +7,7 @@ package wheelly.protobuf.robot;
 
 message ContactsTelemetry {
   uint64 timestamp = 1;
-  bool frontSensor = 2;
-  bool rearSensor = 3;
-  bool canMoveForward = 4;
-  bool canMoveBackward = 5;
+  uint32 sensors = 2;
 }
 
 enum HeadStatusId {
