@@ -26,10 +26,7 @@ typedef enum _wheelly_protobuf_robot_MotionStatusId {
 /* Struct definitions */
 typedef struct _wheelly_protobuf_robot_ContactsTelemetry {
     uint64_t timestamp;
-    bool frontSensor;
-    bool rearSensor;
-    bool canMoveForward;
-    bool canMoveBackward;
+    uint32_t sensors;
 } wheelly_protobuf_robot_ContactsTelemetry;
 
 typedef struct _wheelly_protobuf_robot_LidarTelemetry {
@@ -206,7 +203,7 @@ extern "C" {
 
 
 /* Initializer values for message structs */
-#define wheelly_protobuf_robot_ContactsTelemetry_init_default {0, 0, 0, 0, 0}
+#define wheelly_protobuf_robot_ContactsTelemetry_init_default {0, 0}
 #define wheelly_protobuf_robot_LidarTelemetry_init_default {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_HeadStatusId_MIN, 0, 0, 0}
 #define wheelly_protobuf_robot_MotionTelemetry_init_default {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_MotionStatusId_MIN, 0, 0, 0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_SupplyTelemetry_init_default {0, 0}
@@ -227,7 +224,7 @@ extern "C" {
 #define wheelly_protobuf_robot_VersionCommand_init_default {0}
 #define wheelly_protobuf_robot_VersionResponse_init_default {0, ""}
 #define wheelly_protobuf_robot_ResetCommand_init_default {0}
-#define wheelly_protobuf_robot_ContactsTelemetry_init_zero {0, 0, 0, 0, 0}
+#define wheelly_protobuf_robot_ContactsTelemetry_init_zero {0, 0}
 #define wheelly_protobuf_robot_LidarTelemetry_init_zero {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_HeadStatusId_MIN, 0, 0, 0}
 #define wheelly_protobuf_robot_MotionTelemetry_init_zero {0, 0, 0, 0, 0, 0, 0, _wheelly_protobuf_robot_MotionStatusId_MIN, 0, 0, 0, 0, 0, 0, 0}
 #define wheelly_protobuf_robot_SupplyTelemetry_init_zero {0, 0}
@@ -251,10 +248,7 @@ extern "C" {
 
 /* Field tags (for use in manual encoding/decoding) */
 #define wheelly_protobuf_robot_ContactsTelemetry_timestamp_tag 1
-#define wheelly_protobuf_robot_ContactsTelemetry_frontSensor_tag 2
-#define wheelly_protobuf_robot_ContactsTelemetry_rearSensor_tag 3
-#define wheelly_protobuf_robot_ContactsTelemetry_canMoveForward_tag 4
-#define wheelly_protobuf_robot_ContactsTelemetry_canMoveBackward_tag 5
+#define wheelly_protobuf_robot_ContactsTelemetry_sensors_tag 2
 #define wheelly_protobuf_robot_LidarTelemetry_timestamp_tag 1
 #define wheelly_protobuf_robot_LidarTelemetry_frontDistance_tag 2
 #define wheelly_protobuf_robot_LidarTelemetry_rearDistance_tag 3
@@ -332,10 +326,7 @@ extern "C" {
 /* Struct field encoding specification for nanopb */
 #define wheelly_protobuf_robot_ContactsTelemetry_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT64,   timestamp,         1) \
-X(a, STATIC,   SINGULAR, BOOL,     frontSensor,       2) \
-X(a, STATIC,   SINGULAR, BOOL,     rearSensor,        3) \
-X(a, STATIC,   SINGULAR, BOOL,     canMoveForward,    4) \
-X(a, STATIC,   SINGULAR, BOOL,     canMoveBackward,   5)
+X(a, STATIC,   SINGULAR, UINT32,   sensors,           2)
 #define wheelly_protobuf_robot_ContactsTelemetry_CALLBACK NULL
 #define wheelly_protobuf_robot_ContactsTelemetry_DEFAULT NULL
 
@@ -546,7 +537,7 @@ extern const pb_msgdesc_t wheelly_protobuf_robot_ResetCommand_msg;
 #define wheelly_protobuf_robot_ConfigurationCommand_size 110
 #define wheelly_protobuf_robot_ConfigurationResponse_size 110
 #define wheelly_protobuf_robot_Configuration_size 97
-#define wheelly_protobuf_robot_ContactsTelemetry_size 19
+#define wheelly_protobuf_robot_ContactsTelemetry_size 17
 #define wheelly_protobuf_robot_HaltCommand_size  11
 #define wheelly_protobuf_robot_HiMessage_size    11
 #define wheelly_protobuf_robot_LidarTelemetry_size 63

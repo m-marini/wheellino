@@ -408,18 +408,6 @@ static void reset(void) {
 }
 
 /***********************
-  Old send message section
-*************************/
-
-/*
-   Sends reply
-*/
-static void sendCommandReply(const String& topic, const String& data) {
-  mqttClient.send(topic.c_str(), (uint8_t*)data.c_str(), data.length());
-  wheelly.activity();
-}
-
-/***********************
   Send message section
 *************************/
 
@@ -438,37 +426,39 @@ static void sendMessage(const char* topic, byte* payload, unsigned int length) {
   mqttClient.send(topic, payload, length);
   wheelly.activity();
 }
-
 /**
- * @brief Appends a suffix to a base MQTT topic, publishes a raw binary message, and activates the display activity icon.
+ * @brief Serialises a Nanopb message and publishes it to a formatted topic.
  *
- * This overloaded helper concatenates @p topic and @p suffix into a fixed-size stack buffer
- * of length @c TOPIC_LEN before forwarding the message to the base @c sendMessage() overload.
- * If the combined topic exceeds @c TOPIC_LEN - 1 characters, it will be safely truncated.
+ * Encodes the provided Protocol Buffers message into a statically allocated
+ * stack buffer using Nanopb, constructs the target topic by concatenating the
+ * base topic and suffix, and dispatches the resulting binary payload via
+ * sendMessage(). If serialisation fails, an error is logged and no message
+ * is sent.
  *
- * @param[in] topic   Null-terminated C-string specifying the base MQTT topic.
- * @param[in] suffix  Null-terminated C-string to append to the base topic (e.g. "/res" or "/err").
- * @param[in] payload Pointer to the raw byte buffer containing the message payload.
- * @param[in] length  Exact size of the payload buffer in bytes.
+ * @tparam M      Nanopb generated message structure type.
+ * @tparam N      Maximum encoded buffer size in bytes (typically `<Message>_size`).
+ *
+ * @param[in] topic   Null-terminated base topic string.
+ * @param[in] suffix  Null-terminated topic suffix appended to @p topic.
+ * @param[in] fields  Pointer to the Nanopb message field descriptor (e.g. `<Message>_fields`).
+ * @param[in] msg     Reference to the populated Nanopb message structure to serialise.
  */
-static void sendMessage(const char* topic, const char* suffix, byte* payload, unsigned int length) {
+template<typename M, size_t N>
+static void sendProtobuf(const char* topic, const char* suffix, const pb_msgdesc_t* fields, M& msg) {
+  uint8_t buffer[N];  // Buffer per i byte serializzati
+  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, N);
+
+  // Encode message
+  bool status = pb_encode(&streamOut, fields, &msg);
+  if (!status) {
+    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
+    return;
+  }
   char fullTopic[TOPIC_LEN];
   snprintf(fullTopic, sizeof(fullTopic), "%s%s", topic, suffix);
-  sendMessage(fullTopic, payload, length);
-}
-
-/**
- * @brief Publishes a binary response message to an MQTT command topic and activates the display activity icon.
- *
- * This convenience wrapper appends the standard @c "/res" suffix to @p topic and delegates
- * transmission to @c sendMessage(), providing visual feedback of outgoing traffic on the display.
- *
- * @param[in] topic   Null-terminated C-string specifying the base command MQTT topic.
- * @param[in] payload Pointer to the raw byte buffer containing the response payload.
- * @param[in] length  Exact size of the payload buffer in bytes.
- */
-static void sendResponse(const char* topic, byte* payload, unsigned int length) {
-  sendMessage(topic, "/res", payload, length);
+  size_t len = streamOut.bytes_written;
+  ESP_LOGD(TAG, "sending to %s %d bytes %d max", fullTopic, len, (int)N);
+  sendMessage(fullTopic, buffer, len);
 }
 
 /**
@@ -490,17 +480,9 @@ static void sendError(const char* topic, uint64_t id, const char* msg) {
     .id = id
   };
   snprintf(protoMsg.message, sizeof(protoMsg.message), "%s", msg);
-  uint8_t buffer[96];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_CommandError_fields, &protoMsg);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-  size_t len = streamOut.bytes_written;
-  sendMessage(topic, "/err", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_CommandError, wheelly_protobuf_robot_CommandError_size>(
+    topic, "/err", wheelly_protobuf_robot_CommandError_fields, protoMsg);
 }
 
 /**
@@ -509,7 +491,7 @@ static void sendError(const char* topic, uint64_t id, const char* msg) {
  *
  * This helper constructs a @c wheelly_protobuf_robot_CommandAck message with the given
  * command @p id, encodes it into a fixed-size 16-byte stack buffer via Nanopb, and
- * transmits the resulting binary payload via @c sendResponse() (appending @c "/res" to
+ * transmits the resulting binary payload via @c sendProtobuf() (appending @c "/res" to
  * @p topic). If encoding fails, an error is logged via @c ESP_LOGE and no message is sent.
  *
  * @param[in] topic Null-terminated C-string specifying the base command MQTT topic.
@@ -519,36 +501,9 @@ static void sendCommandAck(const char* topic, uint64_t id) {
   wheelly_protobuf_robot_CommandAck msg = {
     .id = id
   };
-  uint8_t buffer[16];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_CommandAck_fields, &msg);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-  size_t len = streamOut.bytes_written;
-  sendResponse(topic, buffer, len);
-}
-
-/**
- * @brief Publishes serialised sensor telemetry data to an MQTT topic.
- * 
- * Constructs the full MQTT publication topic by prepending `_pubSensorTopicPrefix` 
- * to the specified sub-topic, transmits the binary payload via the MQTT client, 
- * and records network activity on the `wheelly` controller.
- * 
- * @param topic  Null-terminated sub-topic string identifying the specific sensor channel 
- *               (e.g. `"rg"`).
- * @param buffer Pointer to the byte buffer containing the Protobuf-encoded telemetry payload.
- * @param size   Length of the payload buffer in bytes.
- */
-static void sendSensorData(const char* topic, const uint8_t* buffer, const size_t size) {
-  char top[128];
-  snprintf(top, sizeof(top), "%s/%s", _pubSensorTopicPrefix, topic);
-  mqttClient.send(top, buffer, size);
-  wheelly.activity();
+  sendProtobuf<wheelly_protobuf_robot_CommandAck, wheelly_protobuf_robot_CommandAck_size>(
+    topic, "/res", wheelly_protobuf_robot_CommandAck_fields, msg);
 }
 
 /**
@@ -573,19 +528,8 @@ static void sendLidar(void) {
     .xTarget = _xHeadTarget,
     .yTarget = _yHeadTarget
   };
-
-  uint8_t buffer[64];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_LidarTelemetry_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("rg", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_LidarTelemetry, wheelly_protobuf_robot_LidarTelemetry_size>(
+    _pubSensorTopicPrefix, "/rg", wheelly_protobuf_robot_LidarTelemetry_fields, message);
 }
 
 /**
@@ -618,18 +562,9 @@ static void sendMotion(const unsigned long t0 = millis()) {
     .leftPower = _motionCtrl.leftMotor().pwm(),
     .rightPower = _motionCtrl.rightMotor().pwm()
   };
-  uint8_t buffer[128];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
 
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_MotionTelemetry_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("mt", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_MotionTelemetry, wheelly_protobuf_robot_MotionTelemetry_size>(
+    _pubSensorTopicPrefix, "/mt", wheelly_protobuf_robot_MotionTelemetry_fields, message);
   _lastSend = t0;
 }
 
@@ -644,24 +579,14 @@ static void sendMotion(const unsigned long t0 = millis()) {
 static void sendContacts(void) {
   wheelly_protobuf_robot_ContactsTelemetry message = {
     .timestamp = millis(),
-    .frontSensor = _contactSensors.frontClear(),
-    .rearSensor = _contactSensors.rearClear(),
-    .canMoveForward = canMoveForward(),
-    .canMoveBackward = canMoveBackward()
+    .sensors = _contactSensors.frontClear()
+               | (_contactSensors.rearClear() << 1)
+               | (canMoveForward() << 2)
+               | (canMoveBackward() << 3)
   };
 
-  uint8_t buffer[32];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_ContactsTelemetry_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("ct", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_ContactsTelemetry, wheelly_protobuf_robot_ContactsTelemetry_size>(
+    _pubSensorTopicPrefix, "/ct", wheelly_protobuf_robot_ContactsTelemetry_fields, message);
 }
 
 /**
@@ -677,18 +602,8 @@ static void sendSupply(void) {
     .voltage = _supplyVoltage
   };
 
-  uint8_t buffer[32];
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_SupplyTelemetry_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("sv", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_SupplyTelemetry, wheelly_protobuf_robot_SupplyTelemetry_size>(
+    _pubSensorTopicPrefix, "/sv", wheelly_protobuf_robot_SupplyTelemetry_fields, message);
 }
 
 /**
@@ -703,18 +618,8 @@ static void sendHi(void) {
     .timestamp = millis(),
   };
 
-  uint8_t buffer[32];
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_HiMessage_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("hi", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_HiMessage, wheelly_protobuf_robot_HiMessage_size>(
+    _pubSensorTopicPrefix, "/hi", wheelly_protobuf_robot_HiMessage_fields, message);
 }
 
 /**
@@ -839,18 +744,8 @@ static void handleStats(void* context, const unsigned long n) {
     .stats = tps
   };
 
-  uint8_t buffer[32];
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_StatsTelemetry_fields, &message);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-
-  size_t len = streamOut.bytes_written;
-  sendSensorData("cs", buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_StatsTelemetry, wheelly_protobuf_robot_StatsTelemetry_size>(
+    _pubSensorTopicPrefix, "/cs", wheelly_protobuf_robot_StatsTelemetry_fields, message);
 }
 
 /**
@@ -1318,17 +1213,8 @@ static void handleQcCmd(const char* topic, byte* payload, unsigned int length) {
       .antiGimbalRadius = _antiGimbalRadius }
   };
 
-  uint8_t buffer[128];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_CommandAck_fields, &msg);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-  size_t len = streamOut.bytes_written;
-  sendResponse(topic, buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_ConfigurationResponse, wheelly_protobuf_robot_ConfigurationResponse_size>(
+    topic, "/res", wheelly_protobuf_robot_ConfigurationResponse_fields, response);
 }
 
 /**
@@ -1388,17 +1274,8 @@ static void handleVrCmd(const char* topic, byte* payload, unsigned int length) {
 
   snprintf(response.version, sizeof(response.version), "%s", WHEELLY_VERSION);
 
-  uint8_t buffer[64];  // Buffer per i byte serializzati
-  pb_ostream_t streamOut = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  // Encode message
-  bool status = pb_encode(&streamOut, wheelly_protobuf_robot_VersionResponse_fields, &msg);
-  if (!status) {
-    ESP_LOGE(TAG, "Encode error %s", PB_GET_ERROR(&streamOut));
-    return;
-  }
-  size_t len = streamOut.bytes_written;
-  sendResponse(topic, buffer, len);
+  sendProtobuf<wheelly_protobuf_robot_VersionResponse, wheelly_protobuf_robot_VersionResponse_size>(
+    topic, "/res", wheelly_protobuf_robot_VersionResponse_fields, response);
 }
 
 /**
