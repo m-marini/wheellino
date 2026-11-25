@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [[1.0.0](https://github.com/m-marini/wheellino/releases/tag/v1.0.0)] 2026-11-25
+
 ### Add
 
 - Issue [#153](https://github.com/m-marini/wheellino/issues/153): Refactor protobuf migration
