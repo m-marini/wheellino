@@ -3,3 +3,7 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+ KC/**/*.zip
+ KC/**/*.bak
+ KC/**/fp-info-cache
+Blender/*.blend[0-9]
