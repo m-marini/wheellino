@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+- Issue [#155](https://github.com/m-marini/wheellino/issues/155): PlatformIO and VCode IDE
 - Issue [#157](https://github.com/m-marini/wheellino/issues/157): Wheelly contact bitmask
 
 ## [[0.12.0](https://github.com/m-marini/wheellino/releases/tag/v0.12.0)] 2026-11-05
